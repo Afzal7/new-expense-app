@@ -21,7 +21,7 @@
 "use client";
 
 import { useSession, orgClient } from "@/lib/auth-client";
-import { useEffect, useState, Suspense, useRef } from "react";
+import { useState, Suspense } from "react";
 import {
   Card,
   CardContent,
@@ -47,6 +47,8 @@ import { useRouter } from "next/navigation";
 
 import { useSubscription } from "@/hooks/use-subscription";
 import { useFeatureGate } from "@/hooks/use-feature-gate";
+import { useUpgradeSubscription } from "@/hooks/use-subscription-mutations";
+import { useUserOrganizations } from "@/hooks/use-organization-crud";
 import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { EmptyState } from "@/components/shared/empty-state";
 
@@ -90,59 +92,32 @@ function DashboardContent() {
     triggerUpgrade,
     isPro,
   } = useFeatureGate();
+  const upgradeSubscriptionMutation = useUpgradeSubscription();
+  const { data: organizations, isLoading: orgsLoading } = useUserOrganizations();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
-  const [organizations, setOrganizations] = useState<
-    { id: string; name: string; members?: { id: string; userId: string }[] }[]
-  >([]);
-  const [orgsLoading, setOrgsLoading] = useState(true);
-  const hasFetchedOrgsRef = useRef(false);
   const router = useRouter();
 
   // TODO: Replace with real metrics from your app
   const metrics = getSampleMetrics();
 
-  useEffect(() => {
-    if (!session?.user || hasFetchedOrgsRef.current) return;
-
-    const fetchOrganizations = async () => {
-      if (!session?.user || hasFetchedOrgsRef.current) return;
-
-      try {
-        setOrgsLoading(true);
-        const { data, error } = await orgClient.list({
-          query: { userId: session.user.id },
-        });
-
-        if (error) {
-          // Failed to fetch organizations
-          return;
-        }
-
-        setOrganizations(data || []);
-        hasFetchedOrgsRef.current = true;
-      } catch {
-        // Organization fetch error
-      } finally {
-        setOrgsLoading(false);
-      }
-    };
-
-    fetchOrganizations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]);
-
   const handleUpgrade = () => {
-    // TODO: Implement actual upgrade
-    router.push("/dashboard/upgrade");
+    upgradeSubscriptionMutation.mutate({
+      plan: 'pro',
+      successUrl: `${window.location.origin}/dashboard?upgraded=true`,
+      cancelUrl: window.location.href,
+    });
   };
 
   const handleConfirmUpgrade = () => {
-    // TODO: Implement actual upgrade
-    router.push("/dashboard/upgrade");
+    upgradeSubscriptionMutation.mutate({
+      plan: 'pro',
+      successUrl: `${window.location.origin}/dashboard?upgraded=true`,
+      cancelUrl: window.location.href,
+    });
   };
 
   const handleCreateOrg = async () => {
@@ -250,59 +225,59 @@ function DashboardContent() {
         {/* Organization Management Card - Common for B2B SaaS */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              {organizations.length > 0
-                ? "Your Organizations"
-                : "Organization Workspace"}
-            </CardTitle>
-            <CardDescription>
-              {organizations.length > 0
-                ? "Manage your team workspaces"
-                : "Create a workspace for your team to collaborate"}
+             <CardTitle className="flex items-center gap-2">
+               <Building2 className="h-5 w-5" />
+               {(organizations && organizations.length > 0)
+                 ? "Your Organizations"
+                 : "Organization Workspace"}
+             </CardTitle>
+             <CardDescription>
+               {(organizations && organizations.length > 0)
+                 ? "Manage your team workspaces"
+                 : "Create a workspace for your team to collaborate"}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {orgsLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-              </div>
-            ) : organizations.length > 0 ? (
-              <div className="space-y-3">
-                {organizations.slice(0, 2).map((org) => (
-                  <div
-                    key={org.id}
-                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Building2 className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{org.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {org.members?.length || 0} members
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        router.push(`/dashboard/organizations/${org.id}`)
-                      }
-                    >
-                      Manage
-                    </Button>
-                  </div>
-                ))}
-                {organizations.length > 2 && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    +{organizations.length - 2} more organizations
-                  </p>
-                )}
-              </div>
+               <div className="space-y-2">
+                 <Skeleton className="h-4 w-full" />
+                 <Skeleton className="h-4 w-3/4" />
+               </div>
+             ) : (organizations && organizations.length > 0) ? (
+               <div className="space-y-3">
+                 {organizations.slice(0, 2).map((org) => (
+                   <div
+                     key={org.id}
+                     className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
+                   >
+                     <div className="flex items-center space-x-3">
+                       <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                         <Building2 className="h-4 w-4 text-blue-600" />
+                       </div>
+                       <div>
+                         <p className="font-medium text-sm">{org.name}</p>
+                         <p className="text-xs text-muted-foreground">
+                           Organization workspace
+                         </p>
+                       </div>
+                     </div>
+                     <Button
+                       size="sm"
+                       variant="outline"
+                       onClick={() =>
+                         router.push(`/dashboard/organizations/${org.id}`)
+                       }
+                     >
+                       Manage
+                     </Button>
+                   </div>
+                 ))}
+                 {(organizations && organizations.length > 2) && (
+                   <p className="text-xs text-muted-foreground text-center">
+                     +{organizations.length - 2} more organizations
+                   </p>
+                 )}
+               </div>
             ) : (
               <EmptyState
                 icon={Users}

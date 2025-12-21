@@ -13,6 +13,7 @@ import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
 import { ErrorState } from '@/components/shared/error-state';
 import { toast } from 'sonner';
 import { useOrganizationMembers, useUpdateMemberRole, useRemoveMember } from '@/hooks/use-organization-members';
+import { useSession } from '@/lib/auth-client';
 
 
 export default function OrganizationMembersPage() {
@@ -27,7 +28,9 @@ export default function OrganizationMembersPage() {
   // Extract data from query result
   const organization = orgData || null;
   const members = orgData?.members || [];
-  const currentMember = members.find(m => m.role === 'owner' || m.role === 'admin'); // Simplified - adjust based on actual user
+  // Find current user's membership in this organization
+  const { data: session } = useSession();
+  const currentMember = members.find(m => m.userId === session?.user?.id);
 
   const handleUpdateRole = (memberId: string, newRole: string) => {
     if (!currentMember || (currentMember.role !== 'owner' && currentMember.role !== 'admin')) {

@@ -27,11 +27,11 @@ import {
 
 import ProfileDropdown from "@/components/shadcn-studio/blocks/dropdown-profile";
 import { DashboardBreadcrumb } from "@/components/shared/dashboard-breadcrumb";
+import { SubscriptionStatus } from "@/components/shared/subscription-status";
 import { useOrganizationContext } from "@/hooks/use-organization-context";
+import { useOrganization } from "@/hooks/use-organization";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
 import { useSession } from "@/lib/auth-client";
-import { orgClient } from "@/lib/auth-client";
 import { FadeInRight } from "@/components/animations/fade-in";
 
 export default function DashboardLayout({
@@ -42,30 +42,7 @@ export default function DashboardLayout({
   const orgContext = useOrganizationContext();
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [userOrg, setUserOrg] = useState<{ id: string; name: string } | null>(
-    null
-  );
-
-  // Fetch user's organization (assuming only one)
-  useEffect(() => {
-    const fetchUserOrg = async () => {
-      if (!session?.user) return;
-
-      try {
-        const { data, error } = await orgClient.list({
-          query: { userId: session.user.id },
-        });
-
-        if (!error && data && data.length > 0) {
-          setUserOrg(data[0]); // Take the first (and only) organization
-        }
-      } catch {
-        // Ignore errors
-      }
-    };
-
-    fetchUserOrg();
-  }, [session?.user?.id, session?.user]);
+  const { organization: userOrg } = useOrganization();
 
   return (
     <div className="flex min-h-dvh w-full">
@@ -208,18 +185,22 @@ export default function DashboardLayout({
                   userOrg={userOrg}
                 />
               </div>
-              <div className="flex items-center gap-1.5">
-                <ProfileDropdown
-                  trigger={
-                    <Button variant="ghost" size="icon" className="size-9.5">
-                      <Avatar className="size-9.5 rounded-md">
-                        <AvatarImage src="https://cdn.shadcnstudio.com/ss-assets/avatar/avatar-1.png" />
-                        <AvatarFallback>JD</AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  }
-                />
-              </div>
+               <div className="flex items-center gap-3">
+                 <SubscriptionStatus />
+                 <ProfileDropdown
+                   user={session?.user}
+                   trigger={
+                     <Button variant="ghost" size="icon" className="size-9.5">
+                       <Avatar className="size-9.5 rounded-md">
+                         <AvatarImage src={session?.user?.image || "https://cdn.shadcnstudio.com/ss-assets/avatar/avatar-1.png"} />
+                         <AvatarFallback>
+                           {session?.user?.name ? session.user.name.charAt(0).toUpperCase() : 'U'}
+                         </AvatarFallback>
+                       </Avatar>
+                     </Button>
+                   }
+                 />
+               </div>
             </div>
           </header>
           <main className="mx-auto size-full max-w-7xl flex-1 px-4 py-6 sm:px-6">

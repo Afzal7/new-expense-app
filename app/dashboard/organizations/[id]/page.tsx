@@ -13,12 +13,14 @@ import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
 import { ErrorState } from '@/components/shared/error-state';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { useFeatureGate } from '@/hooks/use-feature-gate';
 import type { Organization, Member } from 'better-auth/plugins/organization';
 
 export default function OrganizationPage() {
   const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
+  const { isPro } = useFeatureGate();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<{ id: string; email: string; role: string; status: string }[]>([]);
@@ -166,12 +168,14 @@ export default function OrganizationPage() {
         </Card>
       </div>
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Your organization is on the Free plan.</strong> Upgrade to Pro plan to unlock unlimited members and advanced features.
-        </AlertDescription>
-      </Alert>
+      {!isPro && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Your organization is on the Free plan.</strong> Upgrade to Pro plan to unlock unlimited members and advanced features.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {currentMember && currentMember.role !== 'owner' && (
         <Card className="border-destructive/50">

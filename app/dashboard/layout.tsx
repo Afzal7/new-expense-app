@@ -14,14 +14,6 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -34,6 +26,7 @@ import {
 } from "@/components/ui/sidebar";
 
 import ProfileDropdown from "@/components/shadcn-studio/blocks/dropdown-profile";
+import { DashboardBreadcrumb } from "@/components/shared/dashboard-breadcrumb";
 import { useOrganizationContext } from "@/hooks/use-organization-context";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -210,39 +203,10 @@ export default function DashboardLayout({
                   orientation="vertical"
                   className="hidden h-4! sm:block"
                 />
-                <Breadcrumb className="hidden sm:block">
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink href="/dashboard">
-                        Dashboard
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    {orgContext ? (
-                      <>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                          <BreadcrumbLink href="/dashboard">
-                            Organizations
-                          </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                          <BreadcrumbPage>
-                            {orgContext.currentSection === "overview"
-                              ? "Overview"
-                              : orgContext.currentSection === "members"
-                              ? "Members"
-                              : orgContext.currentSection === "invitations"
-                              ? "Invitations"
-                              : orgContext.currentSection === "settings"
-                              ? "Settings"
-                              : "Organization"}
-                          </BreadcrumbPage>
-                        </BreadcrumbItem>
-                      </>
-                    ) : null}
-                  </BreadcrumbList>
-                </Breadcrumb>
+                <DashboardBreadcrumb
+                  orgContext={orgContext}
+                  userOrg={userOrg}
+                />
               </div>
               <div className="flex items-center gap-1.5">
                 <ProfileDropdown

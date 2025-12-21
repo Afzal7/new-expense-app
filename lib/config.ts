@@ -25,17 +25,17 @@ export const APP_CONFIG = {
         monthly: 0,
         annual: 0,
       },
-      // features: [
-      //   'Up to 3 projects',
-      //   'Basic analytics',
-      //   'Community support',
-      //   '1 GB storage'
-      // ],
-      // limits: {
-      //   projects: 3,
-      //   storage: 1 * 1024 * 1024 * 1024, // 1GB in bytes
-      //   teamMembers: 1
-      // }
+      features: [
+        "Up to 3 projects",
+        "Basic analytics",
+        "Community support",
+        "1 GB storage",
+      ],
+      limits: {
+        projects: 3,
+        storage: 1 * 1024 * 1024 * 1024, // 1GB in bytes
+        teamMembers: 1,
+      },
     },
     pro: {
       id: "pro",
@@ -45,20 +45,20 @@ export const APP_CONFIG = {
         monthly: 29,
         annual: 290,
       },
-      // features: [
-      //   'Unlimited projects',
-      //   'Advanced analytics',
-      //   'Priority support',
-      //   '100 GB storage',
-      //   'Team collaboration',
-      //   'API access',
-      //   'Custom integrations'
-      // ],
-      // limits: {
-      //   projects: -1, // unlimited
-      //   storage: 100 * 1024 * 1024 * 1024, // 100GB in bytes
-      //   teamMembers: 10
-      // },
+      features: [
+        "Unlimited projects",
+        "Advanced analytics",
+        "Priority support",
+        "100 GB storage",
+        "Team collaboration",
+        "API access",
+        "Custom integrations",
+      ],
+      limits: {
+        projects: -1, // unlimited
+        storage: 100 * 1024 * 1024 * 1024, // 100GB in bytes
+        teamMembers: 10,
+      },
       trial: {
         days: 14,
         enabled: true,

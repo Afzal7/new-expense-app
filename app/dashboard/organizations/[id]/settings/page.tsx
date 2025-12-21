@@ -82,7 +82,9 @@ export default function OrganizationSettingsPage() {
         setError("");
 
         const { data: orgData, error: orgError } =
-          await orgClient.getFullOrganization();
+          await orgClient.getFullOrganization({
+            query: { organizationId: orgId }
+          });
         if (orgError) throw new Error(orgError.message);
 
         const org = orgData;

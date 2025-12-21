@@ -19,19 +19,19 @@ export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
 /**
  * Validates Stripe webhook signature
  */
-export async function validateWebhookSignature(
-  payload: string | Buffer,
-  signature: string
-): Promise<boolean> {
-  try {
-    await stripe.webhooks.constructEventAsync(
-      payload,
-      signature,
-      env.STRIPE_WEBHOOK_SECRET
-    );
-    return true;
-  } catch (error) {
-    console.error("[Stripe] Webhook signature validation failed:", error);
-    return false;
-  }
-}
+// export async function validateWebhookSignature(
+//   payload: string | Buffer,
+//   signature: string
+// ): Promise<boolean> {
+//   try {
+//     await stripe.webhooks.constructEventAsync(
+//       payload,
+//       signature,
+//       env.STRIPE_WEBHOOK_SECRET
+//     );
+//     return true;
+//   } catch (error) {
+//     console.error("[Stripe] Webhook signature validation failed:", error);
+//     return false;
+//   }
+// }

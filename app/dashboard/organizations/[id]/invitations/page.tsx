@@ -41,7 +41,9 @@ export default function OrganizationInvitationsPage() {
 
       try {
         setIsLoading(true);
-        const { data: orgData, error: orgError } = await orgClient.getFullOrganization();
+        const { data: orgData, error: orgError } = await orgClient.getFullOrganization({
+          query: { organizationId: orgId }
+        });
 
         if (orgError) {
           setError('Organization not found or access denied');

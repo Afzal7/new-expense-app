@@ -18,16 +18,14 @@ export function SubscriptionStatus() {
   }
 
   // Check if user has active Pro subscription (active or trialing)
-  const hasActiveProSubscription = subscriptionData?.subscription?.status === 'active' ||
-                                   subscriptionData?.subscription?.status === 'trialing';
+  const hasActiveProSubscription =
+    subscriptionData?.subscription?.status === "active" ||
+    subscriptionData?.subscription?.status === "trialing";
 
   // Pro user - premium badge
   if (hasActiveProSubscription) {
     return (
-      <Badge
-        variant="default"
-        className="text-sm bg-slate-900 text-white border-0 font-medium"
-      >
+      <Badge variant="default" className="rounded-sm">
         Pro
       </Badge>
     );
@@ -36,19 +34,21 @@ export function SubscriptionStatus() {
   // Free user - show badge with upgrade button
   return (
     <div className="flex items-center gap-2">
-      <Badge
+      {/* <Badge
         variant="outline"
         className="text-sm border-slate-200 text-slate-600"
       >
-        Free
-      </Badge>
+        Free Plan
+      </Badge> */}
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
-        className="h-6 px-2 text-sm text-slate-500 hover:text-slate-700"
-        onClick={() => router.push('/dashboard/upgrade')}
+        onClick={() => router.push("/dashboard/upgrade")}
       >
-        Upgrade
+        Upgrade to
+        <Badge variant="default" className="rounded-sm ml-1">
+          Pro
+        </Badge>
       </Button>
     </div>
   );

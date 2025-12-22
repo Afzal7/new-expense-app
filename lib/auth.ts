@@ -90,6 +90,7 @@ export const auth = betterAuth({
       async sendInvitationEmail(data) {
         try {
           const acceptUrl = `${env.NEXT_PUBLIC_APP_URL}/dashboard/invitations/${data.id}`;
+          console.log("Accept URL:", acceptUrl);
           const html = generateEmailHTML.invitation({
             organizationName: data.organization.name,
             inviterName: data.inviter.user.name || data.inviter.user.email,

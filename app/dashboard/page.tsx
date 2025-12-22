@@ -51,6 +51,7 @@ import { useUpgradeSubscription } from "@/hooks/use-subscription-mutations";
 import { useUserOrganizations } from "@/hooks/use-organization-crud";
 import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Badge } from "@/components/ui/badge";
 
 // TODO: Customize these for your SaaS application
 const DASHBOARD_CONFIG = {
@@ -93,7 +94,8 @@ function DashboardContent() {
     isPro,
   } = useFeatureGate();
   const upgradeSubscriptionMutation = useUpgradeSubscription();
-  const { data: organizations, isLoading: orgsLoading } = useUserOrganizations();
+  const { data: organizations, isLoading: orgsLoading } =
+    useUserOrganizations();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showCreateOrgModal, setShowCreateOrgModal] = useState(false);
   const [orgName, setOrgName] = useState("");
@@ -105,16 +107,17 @@ function DashboardContent() {
   const metrics = getSampleMetrics();
 
   const handleUpgrade = () => {
-    upgradeSubscriptionMutation.mutate({
-      plan: 'pro',
-      successUrl: `${window.location.origin}/dashboard?upgraded=true`,
-      cancelUrl: window.location.href,
-    });
+    router.push("/dashboard/upgrade");
+    // upgradeSubscriptionMutation.mutate({
+    //   plan: "pro",
+    //   successUrl: `${window.location.origin}/dashboard?upgraded=true`,
+    //   cancelUrl: window.location.href,
+    // });
   };
 
   const handleConfirmUpgrade = () => {
     upgradeSubscriptionMutation.mutate({
-      plan: 'pro',
+      plan: "pro",
       successUrl: `${window.location.origin}/dashboard?upgraded=true`,
       cancelUrl: window.location.href,
     });
@@ -198,21 +201,21 @@ function DashboardContent() {
 
       {/* Upgrade banner for free users */}
       {!isPro && (
-        <Card className="border-blue-200 bg-blue-50/50">
-          <CardContent className="pt-6">
+        <Card>
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-blue-900">
-                  Upgrade to Pro
+                <h3 className="text-lg font-semibold flex">
+                  <span>Upgrade to</span>
+                  <Badge variant="default" className="rounded-sm ml-2 text-sm">
+                    Pro
+                  </Badge>
                 </h3>
-                <p className="text-sm text-blue-700 mt-1">
+                <p className="text-sm  mt-1">
                   Unlock unlimited features and premium tools
                 </p>
               </div>
-              <Button
-                onClick={handleUpgrade}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
+              <Button variant="default" onClick={handleUpgrade}>
                 Upgrade Now
               </Button>
             </div>
@@ -225,59 +228,59 @@ function DashboardContent() {
         {/* Organization Management Card - Common for B2B SaaS */}
         <Card>
           <CardHeader>
-             <CardTitle className="flex items-center gap-2">
-               <Building2 className="h-5 w-5" />
-               {(organizations && organizations.length > 0)
-                 ? "Your Organizations"
-                 : "Organization Workspace"}
-             </CardTitle>
-             <CardDescription>
-               {(organizations && organizations.length > 0)
-                 ? "Manage your team workspaces"
-                 : "Create a workspace for your team to collaborate"}
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              {organizations && organizations.length > 0
+                ? "Your Organizations"
+                : "Organization Workspace"}
+            </CardTitle>
+            <CardDescription>
+              {organizations && organizations.length > 0
+                ? "Manage your team workspaces"
+                : "Create a workspace for your team to collaborate"}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {orgsLoading ? (
-               <div className="space-y-2">
-                 <Skeleton className="h-4 w-full" />
-                 <Skeleton className="h-4 w-3/4" />
-               </div>
-             ) : (organizations && organizations.length > 0) ? (
-               <div className="space-y-3">
-                 {organizations.slice(0, 2).map((org) => (
-                   <div
-                     key={org.id}
-                     className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
-                   >
-                     <div className="flex items-center space-x-3">
-                       <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                         <Building2 className="h-4 w-4 text-blue-600" />
-                       </div>
-                       <div>
-                         <p className="font-medium text-sm">{org.name}</p>
-                         <p className="text-xs text-muted-foreground">
-                           Organization workspace
-                         </p>
-                       </div>
-                     </div>
-                     <Button
-                       size="sm"
-                       variant="outline"
-                       onClick={() =>
-                         router.push(`/dashboard/organizations/${org.id}`)
-                       }
-                     >
-                       Manage
-                     </Button>
-                   </div>
-                 ))}
-                 {(organizations && organizations.length > 2) && (
-                   <p className="text-xs text-muted-foreground text-center">
-                     +{organizations.length - 2} more organizations
-                   </p>
-                 )}
-               </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ) : organizations && organizations.length > 0 ? (
+              <div className="space-y-3">
+                {organizations.slice(0, 2).map((org) => (
+                  <div
+                    key={org.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="h-8 w-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Building2 className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{org.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Organization workspace
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        router.push(`/dashboard/organizations/${org.id}`)
+                      }
+                    >
+                      Manage
+                    </Button>
+                  </div>
+                ))}
+                {organizations && organizations.length > 2 && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    +{organizations.length - 2} more organizations
+                  </p>
+                )}
+              </div>
             ) : (
               <EmptyState
                 icon={Users}
@@ -365,7 +368,7 @@ function DashboardContent() {
               projects together.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="py-4 space-y-6">
             <div className="space-y-2">
               <Label htmlFor="org-name">Organization Name</Label>
               <Input
@@ -378,12 +381,12 @@ function DashboardContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="org-slug">Organization URL</Label>
+              <Label htmlFor="org-slug">Slug</Label>
               <div className="flex">
-                <span className="inline-flex items-center px-3 text-sm text-foreground bg-muted border border-r-0 rounded-l-md">
+                {/* <span className="inline-flex items-center px-3 text-sm text-foreground bg-muted border border-r-0 rounded-l-md">
                   {process.env.NEXT_PUBLIC_APP_URL?.replace(/https?:\/\//, "")}
                   /org/
-                </span>
+                </span> */}
                 <Input
                   id="org-slug"
                   type="text"
@@ -391,13 +394,13 @@ function DashboardContent() {
                   value={orgSlug}
                   onChange={(e) => setOrgSlug(e.target.value)}
                   className="rounded-l-none"
-                  disabled={isCreatingOrg}
+                  disabled={true}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
+              {/* <p className="text-xs text-muted-foreground">
                 This will be your organization&apos;s URL. Only letters,
                 numbers, and hyphens allowed.
-              </p>
+              </p> */}
             </div>
           </div>
           <DialogFooter>

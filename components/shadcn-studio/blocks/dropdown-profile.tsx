@@ -1,7 +1,6 @@
-'use client';
+"use client";
 
 import type { ReactNode } from "react";
-import { useRouter } from "next/navigation";
 
 import {
   SettingsIcon,
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOut, subscription } from "@/lib/auth-client";
 import { useOrganization } from "@/hooks/use-organization";
+import { useRouter } from "next/navigation";
 
 type Props = {
   trigger: ReactNode;
@@ -94,17 +94,17 @@ const ProfileDropdown = ({
               try {
                 const { data, error } = await subscription.billingPortal({
                   returnUrl: window.location.href,
-                })
+                });
                 if (error) {
-                  console.error('Billing portal error:', error)
+                  console.error("Billing portal error:", error);
                   // Fallback to settings
-                  router.push('/dashboard/settings')
+                  router.push("/dashboard/settings");
                 } else if (data?.url) {
-                  window.location.href = data.url
+                  window.location.href = data.url;
                 }
               } catch (error) {
-                console.error('Failed to open billing portal:', error)
-                router.push('/dashboard/settings')
+                console.error("Failed to open billing portal:", error);
+                router.push("/dashboard/settings");
               }
             }}
           >

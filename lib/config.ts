@@ -34,7 +34,7 @@ export const APP_CONFIG = {
       limits: {
         projects: 3,
         storage: 1 * 1024 * 1024 * 1024, // 1GB in bytes
-        teamMembers: 1,
+        teamMembers: 5,
       },
     },
     pro: {
@@ -57,7 +57,7 @@ export const APP_CONFIG = {
       limits: {
         projects: -1, // unlimited
         storage: 100 * 1024 * 1024 * 1024, // 100GB in bytes
-        teamMembers: 10,
+        teamMembers: Infinity,
       },
       trial: {
         days: 14,

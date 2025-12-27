@@ -25,7 +25,7 @@ import {
 import { SUBSCRIPTION_PRICING } from "@/lib/constants";
 import { deleteUser } from "@/lib/auth-client";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 function SettingsPageContent() {
   const searchParams = useSearchParams();
@@ -57,7 +57,7 @@ function SettingsPageContent() {
         setHasProcessedSuccess(false); // Reset for future uses
       }, 5000);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]); // Only depend on searchParams to avoid cascading renders
 
   const handleCancelClick = () => {

@@ -112,22 +112,26 @@ export const auth = betterAuth({
         },
         // Role update validation
         beforeUpdateMemberRole: async ({ member, newRole, user, organization }) => {
-          if (member.role === 'owner' && newRole !== 'owner') {
-            // Check if this would leave no owners
-            const ownerCount = organization.members?.filter((m: Member) => m.role === 'owner').length || 0;
-            if (ownerCount <= 1) {
-              throw new APIError('BAD_REQUEST', {
-                message: 'Cannot remove the last owner. Please promote another member to owner before removing this owner.'
-              });
-            }
-          }
+          // if (member.role === 'owner' && newRole !== 'owner') {
+          //   // Check if this would leave no owners
+
+          //   const ownerCount = await db.collection("member").countDocuments({
+          //     organizationId: organization.id,
+          //     role: "owner"
+          //   });
+          //   if (ownerCount <= 1) {
+          //     throw new APIError('BAD_REQUEST', {
+          //       message: 'Cannot remove the last owner. Please promote another member to owner before removing this owner.'
+          //     });
+          //   }
+          // }
 
           // Prevent users from modifying their own role (unless they're an owner)
-          if (member.userId === user.id && member.role === 'owner' && newRole !== 'owner') {
-            throw new APIError('BAD_REQUEST', {
-              message: 'As an owner, you cannot demote yourself. Please transfer ownership to another member first.'
-            });
-          }
+          // if (member.userId === user.id && member.role === 'owner' && newRole !== 'owner') {
+          //   throw new APIError('BAD_REQUEST', {
+          //     message: 'As an owner, you cannot demote yourself. Please transfer ownership to another member first.'
+          //   });
+          // }
         },
 
         // Member limits based on plan configuration
@@ -136,10 +140,54 @@ export const auth = betterAuth({
           // TODO: In production, check the org owner's subscription status
           // and use APP_CONFIG.plans.pro.limits.teamMembers for pro users
           const maxMembers = APP_CONFIG.plans.free.limits.teamMembers;
+          // Find the organization owner from the database
+          const ownerMember = await db.collection("member").findOne({
+            organizationId: organization.id,
+            role: "owner"
+          });
 
-          if (organization.members && organization.members.length >= maxMembers) {
+          if (!ownerMember) {
+            // Fallback logic if no owner found (rare edge case)
+            const memberCount = await db.collection("member").countDocuments({
+              organizationId: organization.id
+            });
+            if (memberCount >= maxMembers) {
+              throw new APIError('BAD_REQUEST', {
+                message: `Limit reached. Upgrade to Pro to add more members.`
+              });
+            }
+            return;
+          }
+
+          const owner = ownerMember;
+
+          // Check if owner has an active subscription
+          // We access the database directly to check basic subscription status
+          // The 'subscription' collection is created by Better Auth Stripe plugin
+          let isPro = false;
+          try {
+
+            const sub = await db.collection("subscription").findOne({
+              userId: owner.userId,
+              status: { $in: ['active', 'trialing'] }
+            });
+            if (sub) {
+              isPro = true;
+            }
+          } catch (e) {
+            console.error("Failed to check subscription status:", e);
+            // Fallback to free limit on error for safety
+          }
+
+          const limit = isPro ? APP_CONFIG.plans.pro.limits.teamMembers : APP_CONFIG.plans.free.limits.teamMembers;
+
+          const currentMemberCount = await db.collection("member").countDocuments({
+            organizationId: organization.id
+          });
+
+          if (currentMemberCount >= limit) {
             throw new APIError('BAD_REQUEST', {
-              message: `This organization has reached the maximum of ${maxMembers} member${maxMembers !== 1 ? 's' : ''} on the Free plan. Upgrade to Pro for up to ${APP_CONFIG.plans.pro.limits.teamMembers} members.`
+              message: `This organization has reached the maximum of ${limit} member${limit !== 1 ? 's' : ''} on the ${isPro ? 'Pro' : 'Free'} plan. ${!isPro ? 'Upgrade to Pro to add more members.' : 'Contact support for higher limits.'}`
             });
           }
         },
@@ -172,7 +220,7 @@ export const auth = betterAuth({
       async sendInvitationEmail(data) {
         try {
           const acceptUrl = `${env.NEXT_PUBLIC_APP_URL}/dashboard/invitations/${data.id}`;
-          console.log("Accept URL:", acceptUrl);
+          // console.log("Accept URL:", acceptUrl);
           const html = generateEmailHTML.invitation({
             organizationName: data.organization.name,
             inviterName: data.inviter.user.name || data.inviter.user.email,
@@ -186,9 +234,9 @@ export const auth = betterAuth({
             from: EMAIL_TEMPLATES.invitation.from,
           });
 
-          console.log("Invitation email sent to:", data.email);
+          // console.log("Invitation email sent to:", data.email);
         } catch (error) {
-          console.error("Failed to send invitation email:", error);
+          // console.error("Failed to send invitation email:", error);
           throw error;
         }
       },

@@ -8,13 +8,21 @@ import { MongoClient, Db } from "mongodb";
 import { env } from "./env";
 import { DATABASE_NAME } from "./constants";
 
+import mongoose from "mongoose";
+
 declare global {
   var _mongoClient: MongoClient | null | undefined;
   var _mongoDbInstance: Db | null | undefined;
+  var mongoose: { conn: typeof import("mongoose") | null; promise: Promise<typeof import("mongoose")> | null } | undefined;
 }
 
 let client: MongoClient | null = globalThis._mongoClient ?? null;
 let dbInstance: Db | null = globalThis._mongoDbInstance ?? null;
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
 /**
  * Gets or creates the MongoDB client instance
@@ -68,8 +76,7 @@ export async function getDb(): Promise<Db> {
     } catch (error) {
       console.error("[MongoDB] Failed to connect:", error);
       throw new Error(
-        `Failed to connect to MongoDB: ${
-          error instanceof Error ? error.message : "Unknown error"
+        `Failed to connect to MongoDB: ${error instanceof Error ? error.message : "Unknown error"
         }`
       );
     }
@@ -99,10 +106,40 @@ export async function closeDb(): Promise<void> {
 }
 
 /**
+ * Establishes a Mongoose connection for application data (Models)
+ * Uses the cached promise pattern for Next.js
+ */
+export async function connectMongoose() {
+  if (cached!.conn) {
+    return cached!.conn;
+  }
+
+  if (!cached!.promise) {
+    const opts = {
+      bufferCommands: false,
+    };
+
+    cached!.promise = mongoose.connect(env.MONGODB_URI, opts).then((mongoose) => {
+      return mongoose;
+    });
+  }
+
+  try {
+    cached!.conn = await cached!.promise;
+  } catch (e) {
+    cached!.promise = null;
+    throw e;
+  }
+
+  return cached!.conn;
+}
+
+/**
  * Synchronous database access for Better Auth adapter
- * Note: This assumes the connection is already established
+ * Note: This assumes the connection is already established or buffered
  */
 export const db = (() => {
   const mongoClient = getClient();
   return mongoClient.db(DATABASE_NAME);
 })();
+

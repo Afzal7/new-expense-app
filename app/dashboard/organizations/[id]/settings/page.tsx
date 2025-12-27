@@ -27,7 +27,7 @@ import {
 import { Settings, Trash2 } from "lucide-react";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { useOrganizationMembers } from "@/hooks/use-organization-members";
 import { useUpdateOrganization, useDeleteOrganization, useLeaveOrganization } from "@/hooks/use-organization-crud";
 import { useSession } from "@/lib/auth-client";

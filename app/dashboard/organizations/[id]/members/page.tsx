@@ -33,7 +33,7 @@ import { Label } from "@/components/ui/label";
 import { Users, Crown } from "lucide-react";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import {
   useOrganizationMembers,
   useUpdateMemberRole,
@@ -137,11 +137,11 @@ export default function OrganizationMembersPage() {
       return;
     }
 
-     // Check if current user has permission to remove members
-     if (!canManageMembers) {
-       toast.warning("You do not have permission to remove members.");
-       return;
-     }
+    // Check if current user has permission to remove members
+    if (!canManageMembers) {
+      toast.warning("You do not have permission to remove members.");
+      return;
+    }
 
     removeMemberMutation.mutate(
       {

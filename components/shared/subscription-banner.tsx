@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertTriangleIcon, ClockIcon, CreditCardIcon } from "lucide-react";
+import { AlertTriangleIcon, ClockIcon, CreditCardIcon, SparklesIcon } from "lucide-react";
 import { useSubscription } from "@/hooks/use-subscription";
 
 export function SubscriptionBanner() {
@@ -45,26 +45,19 @@ export function SubscriptionBanner() {
   }
 
   // Trial expiring soon (7 days or less)
-  // if (status === "trialing" && daysLeft <= 7 && daysLeft > 0) {
-  //   const isUrgent = daysLeft <= 3;
-  //   return (
-  //     <Alert className={`mb-6 ${isUrgent ? "border-orange-500 bg-orange-50" : "border-blue-500 bg-blue-50"}`}>
-  //       <ClockIcon className={`h-4 w-4 ${isUrgent ? "text-orange-600" : "text-blue-600"}`} />
-  //       <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
-  //         <span className={isUrgent ? "text-orange-800" : "text-blue-800"}>
-  //           <strong>Your trial ends in {daysLeft} day{daysLeft !== 1 ? "s" : ""}.</strong>
-  //           {" "}Upgrade now to keep your Pro features.
-  //         </span>
-  //         <Button
-  //           size="sm"
-  //           onClick={() => router.push("/dashboard/upgrade")}
-  //         >
-  //           Upgrade to Pro
-  //         </Button>
-  //       </AlertDescription>
-  //     </Alert>
-  //   );
-  // }
+  if (status === "trialing" && daysLeft <= 7) {
+    return (
+      <Alert className="mb-6 border-primary/20 bg-primary/5">
+        <SparklesIcon className="h-4 w-4 text-primary" />
+        <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
+          <span className="text-foreground/80">
+            <strong>Pro Features Active.</strong> You have {daysLeft} days left in your trial. Enjoy the power!
+          </span>
+          {/* Minimalist: No upsell button. Trust the auto-renew. */}
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   // // Trial expired or canceled subscription expired
   // if (status === "canceled" && endDateObj && endDateObj < now) {

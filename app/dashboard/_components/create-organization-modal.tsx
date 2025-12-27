@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/lib/toast";
 
 interface CreateOrganizationModalProps {
   trigger: ReactElement;
@@ -64,17 +65,16 @@ export function CreateOrganizationModal({
       });
 
       if (error) {
-        alert("Failed to create organization. Please try again.");
+        toast.error(error.message || "Failed to create organization");
         return;
       }
 
       // Reset form
-      setOrgName("");
-      setOrgSlug("");
       setOpen(false);
       onOrganizationCreated?.();
+      toast.success("Organization created successfully");
     } catch {
-      alert("An unexpected error occurred. Please try again.");
+      toast.error("An unexpected error occurred");
     } finally {
       setIsCreatingOrg(false);
     }
@@ -127,15 +127,15 @@ export function CreateOrganizationModal({
             >
               Cancel
             </Button>
-          <Button
-            onClick={handleCreateOrg}
-            disabled={isCreatingOrg || !orgName.trim()}
-          >
-            {isCreatingOrg ? "Creating..." : "Create Organization"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <Button
+              onClick={handleCreateOrg}
+              disabled={isCreatingOrg || !orgName.trim()}
+            >
+              {isCreatingOrg ? "Creating..." : "Create Organization"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

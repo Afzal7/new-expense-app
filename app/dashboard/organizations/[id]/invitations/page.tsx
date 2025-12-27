@@ -13,10 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Mail, UserPlus, Clock } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
 import { ErrorState } from '@/components/shared/error-state';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useOrganizationInvitations, useInviteMember, useCancelInvitation, useResendInvitation } from '@/hooks/use-organization-invitations';
 import { useOrganizationMembers } from '@/hooks/use-organization-members';
 import { useSession } from '@/lib/auth-client';
+import { useSubscription } from '@/hooks/use-subscription';
+import { APP_CONFIG } from '@/lib/config';
 import type { Member } from 'better-auth/plugins/organization';
 
 
@@ -26,6 +28,7 @@ export default function OrganizationInvitationsPage() {
 
   // Use new TanStack Query hooks
   const { data: session } = useSession();
+  const { data: subscriptionData } = useSubscription();
   const { data: orgData, isLoading, error } = useOrganizationInvitations(orgId);
   const { data: memberData } = useOrganizationMembers(orgId);
   const inviteMemberMutation = useInviteMember();
@@ -42,6 +45,14 @@ export default function OrganizationInvitationsPage() {
 
   // Check if current user can invite members (owners and admins)
   const canInviteMembers = currentMember?.role === 'owner' || currentMember?.role === 'admin';
+
+  // SCARCITY & LIMITS LOGIC
+  const planId = subscriptionData?.subscription?.status === 'active' || subscriptionData?.subscription?.status === 'trialing' ? 'pro' : 'free';
+  const limits = APP_CONFIG.plans[planId].limits;
+  const maxMembers = limits.teamMembers;
+  const currentCount = members.length;
+  const isLimitReached = currentCount >= maxMembers;
+
 
   // Local state for UI
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -87,12 +98,12 @@ export default function OrganizationInvitationsPage() {
   const handleSendInvitation = () => {
     if (!inviteEmail.trim() || !organization) return;
 
-     // Check if current user has permission to send invitations
-     if (!canInviteMembers) {
-       toast.warning('You do not have permission to send invitations.');
-       setInviteError('Insufficient permissions to send invitations.');
-       return;
-     }
+    // Check if current user has permission to send invitations
+    if (!canInviteMembers) {
+      toast.warning('You do not have permission to send invitations.');
+      setInviteError('Insufficient permissions to send invitations.');
+      return;
+    }
 
     setInviteError(null);
     inviteMemberMutation.mutate(
@@ -147,17 +158,34 @@ export default function OrganizationInvitationsPage() {
         <h1 className="text-2xl font-bold"><span className="capitalize">{organization.name}</span> Invitations</h1>
         <p className="text-muted-foreground">Manage pending invitations</p>
       </div>
-
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline">{pendingInvitations.length} pending</Badge>
+        <div className="flex items-center space-x-4">
+          <div className="flex flex-col items-end">
+            <span className="text-sm font-medium text-muted-foreground mr-2">
+              {currentCount} / {maxMembers} Seats Used
+            </span>
+            {isLimitReached && (
+              <span className="text-xs text-amber-600 font-medium">Limit Reached</span>
+            )}
+          </div>
+
+          {canInviteMembers && (
+            <Button
+              onClick={() => {
+                if (isLimitReached) {
+                  toast.error("You've reached the member limit for the " + planId.toUpperCase() + " plan. Upgrade to add more.");
+                  return;
+                }
+                setShowInviteModal(true);
+              }}
+              variant={isLimitReached ? "outline" : "default"}
+              className={isLimitReached ? "opacity-70" : ""}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              {isLimitReached ? "Upgrade to Add" : "Invite Member"}
+            </Button>
+          )}
         </div>
-        {canInviteMembers && (
-          <Button onClick={() => setShowInviteModal(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Invite Member
-          </Button>
-        )}
       </div>
 
       <Card>
@@ -208,16 +236,16 @@ export default function OrganizationInvitationsPage() {
                       {resendInvitationMutation.isPending ? 'Sending...' : 'Resend'}
                     </Button>
                     <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={cancelInvitationMutation.isPending}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            {cancelInvitationMutation.isPending ? 'Canceling...' : 'Cancel'}
-                          </Button>
-                        </AlertDialogTrigger>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={cancelInvitationMutation.isPending}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          {cancelInvitationMutation.isPending ? 'Canceling...' : 'Cancel'}
+                        </Button>
+                      </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Cancel Invitation</AlertDialogTitle>

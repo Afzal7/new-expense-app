@@ -1,13 +1,30 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { signIn } from "@/lib/auth-client";
+
+const OAUTH_CONFIG = {
+  google: {
+    enabled: !!process.env.NEXT_PUBLIC_GOOGLE_ENABLED,
+  },
+  microsoft: {
+    enabled: !!process.env.NEXT_PUBLIC_MICROSOFT_ENABLED,
+  },
+} as const;
 
 interface OAuthButtonProps {
   provider: "google" | "microsoft";
-  onClick?: () => void;
 }
 
-export function OAuthButton({ provider, onClick }: OAuthButtonProps) {
+export function OAuthButton({ provider }: OAuthButtonProps) {
+  if (!OAUTH_CONFIG[provider].enabled) {
+    return null;
+  }
+
+  const handleClick = () => {
+    signIn.social({ provider, callbackURL: "/dashboard" });
+  };
+
   const config = {
     google: {
       label: "Google",
@@ -70,7 +87,7 @@ export function OAuthButton({ provider, onClick }: OAuthButtonProps) {
   const { label, svg } = config[provider];
 
   return (
-    <Button type="button" variant="outline" onClick={onClick}>
+    <Button type="button" variant="outline" onClick={handleClick}>
       {svg}
       <span>{label}</span>
     </Button>

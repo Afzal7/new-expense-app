@@ -10,10 +10,9 @@ if (!env.STRIPE_SECRET_KEY) {
 }
 
 export const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-12-15.clover",
   typescript: true,
-  maxNetworkRetries: 2, // Retry failed requests twice
-  timeout: 20000, // 20 second timeout
+  maxNetworkRetries: 2,
+  timeout: 20000,
 });
 
 /**

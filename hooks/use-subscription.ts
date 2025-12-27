@@ -18,6 +18,16 @@ export interface SubscriptionData {
   }
 }
 
+function toIsoString(value: unknown): string | undefined {
+  if (!value) return undefined
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === 'string') {
+    const d = new Date(value)
+    return Number.isNaN(d.getTime()) ? undefined : d.toISOString()
+  }
+  return undefined
+}
+
 /**
  * Custom hook for fetching user subscription data with caching
  * Uses TanStack Query for automatic caching, background refetching, and error handling
@@ -74,11 +84,11 @@ export function useSubscription() {
           id: activeSubscription.id,
           status: activeSubscription.status,
           plan: activeSubscription.plan,
-          periodEnd: activeSubscription.periodEnd?.toISOString(),
-          periodStart: activeSubscription.periodStart?.toISOString(),
+          periodEnd: toIsoString(activeSubscription.periodEnd),
+          periodStart: toIsoString(activeSubscription.periodStart),
           cancelAtPeriodEnd: activeSubscription.cancelAtPeriodEnd,
-          trialStart: activeSubscription.trialStart?.toISOString(),
-          trialEnd: activeSubscription.trialEnd?.toISOString(),
+          trialStart: toIsoString(activeSubscription.trialStart),
+          trialEnd: toIsoString(activeSubscription.trialEnd),
           seats: activeSubscription.seats,
         },
       }

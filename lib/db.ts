@@ -1,15 +1,20 @@
 /**
  * MongoDB database client with connection pooling and singleton pattern
  * Ensures a single connection instance across the application
+ * Uses globalThis to prevent connection leaks during Next.js hot reloads
  */
 
 import { MongoClient, Db } from "mongodb";
 import { env } from "./env";
 import { DATABASE_NAME } from "./constants";
 
-// Global connection instance
-let client: MongoClient | null = null;
-let dbInstance: Db | null = null;
+declare global {
+  var _mongoClient: MongoClient | null | undefined;
+  var _mongoDbInstance: Db | null | undefined;
+}
+
+let client: MongoClient | null = globalThis._mongoClient ?? null;
+let dbInstance: Db | null = globalThis._mongoDbInstance ?? null;
 
 /**
  * Gets or creates the MongoDB client instance
@@ -18,22 +23,22 @@ let dbInstance: Db | null = null;
 function getClient(): MongoClient {
   if (!client) {
     client = new MongoClient(env.MONGODB_URI, {
-      maxPoolSize: 10, // Maximum number of connections in the pool
-      minPoolSize: 2, // Minimum number of connections in the pool
-      maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
-      serverSelectionTimeoutMS: 5000, // How long to try selecting a server
-      socketTimeoutMS: 45000, // How long to wait for a socket connection
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      maxIdleTimeMS: 30000,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
 
-    // Handle connection errors
     client.on("error", (error) => {
       console.error("[MongoDB] Connection error:", error);
     });
 
-    // Handle connection close
     client.on("close", () => {
       console.warn("[MongoDB] Connection closed");
     });
+
+    globalThis._mongoClient = client;
   }
 
   return client;
@@ -59,6 +64,7 @@ export async function getDb(): Promise<Db> {
       }
 
       dbInstance = mongoClient.db(DATABASE_NAME);
+      globalThis._mongoDbInstance = dbInstance;
     } catch (error) {
       console.error("[MongoDB] Failed to connect:", error);
       throw new Error(
@@ -83,6 +89,8 @@ export async function closeDb(): Promise<void> {
       console.log("[MongoDB] Connection closed gracefully");
       client = null;
       dbInstance = null;
+      globalThis._mongoClient = null;
+      globalThis._mongoDbInstance = null;
     } catch (error) {
       console.error("[MongoDB] Error closing connection:", error);
       throw error;

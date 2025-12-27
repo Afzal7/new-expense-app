@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   HomeIcon,
   SettingsIcon,
@@ -31,7 +32,7 @@ import { DashboardBreadcrumb } from "@/components/shared/dashboard-breadcrumb";
 import { SubscriptionStatus } from "@/components/shared/subscription-status";
 import { useOrganizationContext } from "@/hooks/use-organization-context";
 import { useOrganization } from "@/hooks/use-organization";
-import { usePathname, redirect } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { DashboardErrorBoundary } from "@/components/error-boundary";
 import { FadeInRight } from "@/components/animations/fade-in";
@@ -41,16 +42,18 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const orgContext = useOrganizationContext();
   const pathname = usePathname();
   const { data: session, isPending } = useSession();
   const { data: userOrg } = useOrganization();
 
-  // Secure authentication check - redirect if not authenticated
-  if (!isPending && !session?.user) {
-    // Use Next.js redirect for server-side redirects
-    redirect("/");
-  }
+  // Move auth check to useEffect to avoid render path side effects
+  useEffect(() => {
+    if (!isPending && !session?.user) {
+      router.replace("/");
+    }
+  }, [session?.user, isPending, router]);
 
   // Show loading state while checking authentication
   if (isPending) {
@@ -62,6 +65,11 @@ export default function DashboardLayout({
         </div>
       </div>
     );
+  }
+
+  // Prevent rendering while redirecting unauthenticated users
+  if (!session?.user) {
+    return null;
   }
 
   return (

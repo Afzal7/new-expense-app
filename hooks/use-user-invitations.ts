@@ -5,6 +5,12 @@ import { useSession } from "@/lib/auth-client";
 import { orgClient } from "@/lib/auth-client";
 import type { Invitation } from "better-auth/plugins/organization";
 
+export interface InvitationWithDetails extends Invitation {
+  organizationName?: string;
+  inviterName?: string;
+  inviterEmail?: string;
+}
+
 /**
  * Custom hook for fetching a specific invitation by ID
  * Used when users visit invitation links
@@ -17,7 +23,7 @@ export function useInvitation(invitationId: string) {
 
   return useQuery({
     queryKey: ["invitation", invitationId],
-    queryFn: async (): Promise<Invitation | null> => {
+    queryFn: async (): Promise<InvitationWithDetails | null> => {
       if (!session?.user) {
         throw new Error("User not authenticated");
       }
@@ -30,11 +36,41 @@ export function useInvitation(invitationId: string) {
         throw new Error(error.message || "Failed to fetch invitation");
       }
 
-      return data || null;
+      if (!data) return null;
+
+      // Fetch organization details if available
+      let organizationName: string | undefined;
+      let inviterName: string | undefined;
+      let inviterEmail: string | undefined;
+
+      if (data.organizationId) {
+        try {
+          const { data: orgData } = await orgClient.getFullOrganization({
+            query: { organizationId: data.organizationId },
+          });
+          organizationName = orgData?.name;
+
+          // Find inviter in members
+          if (orgData?.members && data.inviterId) {
+            const inviter = orgData.members.find(m => m.userId === data.inviterId);
+            inviterName = inviter?.user?.name;
+            inviterEmail = inviter?.user?.email;
+          }
+        } catch {
+          // Organization details not available, continue without them
+        }
+      }
+
+      return {
+        ...data,
+        organizationName,
+        inviterName,
+        inviterEmail,
+      };
     },
     enabled: !!session?.user?.id && !!invitationId,
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 

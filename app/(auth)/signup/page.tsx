@@ -72,6 +72,7 @@ export default function SignupPage() {
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                autoComplete="name"
               />
             </div>
 
@@ -86,6 +87,7 @@ export default function SignupPage() {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
               />
             </div>
 
@@ -100,6 +102,7 @@ export default function SignupPage() {
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
               />
             </div>
 

@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { useSubscription } from "@/hooks/use-subscription";
 import { useUserOrganizations } from "@/hooks/use-organization-crud";
+import { SubscriptionBanner } from "@/components/shared/subscription-banner";
 
 // Import dashboard card components
 import { WelcomeCard } from "./_components/welcome-card";
@@ -48,6 +49,8 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6">
+      <SubscriptionBanner />
+
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">

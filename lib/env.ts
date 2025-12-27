@@ -1,6 +1,8 @@
 /**
  * Environment variable validation and type-safe access
  * Validates required environment variables at startup
+ *
+ * @server-only - This file should only be imported on the server
  */
 
 function getEnvVar(key: string, defaultValue?: string): string {
@@ -30,6 +32,10 @@ export const env = {
   // Google OAuth (optional)
   GOOGLE_CLIENT_ID: getOptionalEnvVar("GOOGLE_CLIENT_ID"),
   GOOGLE_CLIENT_SECRET: getOptionalEnvVar("GOOGLE_CLIENT_SECRET"),
+
+  // Microsoft OAuth (optional)
+  MICROSOFT_CLIENT_ID: getOptionalEnvVar("MICROSOFT_CLIENT_ID"),
+  MICROSOFT_CLIENT_SECRET: getOptionalEnvVar("MICROSOFT_CLIENT_SECRET"),
 
   // Stripe
   STRIPE_SECRET_KEY: getEnvVar("STRIPE_SECRET_KEY"),

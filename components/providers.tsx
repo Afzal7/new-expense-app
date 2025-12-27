@@ -5,34 +5,35 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
+
+const ReactQueryDevtools = lazy(() =>
+  import("@tanstack/react-query-devtools").then((mod) => ({
+    default: mod.ReactQueryDevtools,
+  }))
+);
 
 // Create QueryClient with production-ready defaults
 const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
       queries: {
-        // Data is considered fresh for 5 minutes
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        // Retry failed requests 3 times with exponential backoff
+        staleTime: 5 * 60 * 1000,
         retry: (failureCount, error) => {
-          return false;
-
-          // Don't retry on 4xx errors (client errors)
-          // if (error instanceof Error && 'status' in error && typeof error.status === 'number') {
-          //   if (error.status >= 400 && error.status < 500) {
-          //     return false;
-          //   }
-          // }
-          // // Retry up to 3 times for other errors
-          // return failureCount < 1;
+          if (
+            error instanceof Error &&
+            "status" in error &&
+            typeof (error as { status: unknown }).status === "number"
+          ) {
+            const status = (error as { status: number }).status;
+            if (status >= 400 && status < 500) {
+              return false;
+            }
+          }
+          return failureCount < 3;
         },
-        // Cache data for 10 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-        // Refetch on window focus in development
+        gcTime: 10 * 60 * 1000,
         refetchOnWindowFocus: process.env.NODE_ENV === "development",
-        // Don't refetch on reconnect by default
         refetchOnReconnect: false,
       },
       mutations: {
@@ -54,9 +55,11 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {/* React Query DevTools - only in development */}
+      {/* React Query DevTools - only in development, lazy loaded to reduce bundle size */}
       {process.env.NODE_ENV === "development" && (
-        <ReactQueryDevtools initialIsOpen={false} />
+        <Suspense fallback={null}>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </Suspense>
       )}
     </QueryClientProvider>
   );

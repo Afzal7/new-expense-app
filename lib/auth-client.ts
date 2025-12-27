@@ -33,4 +33,5 @@ export const {
   useSession,
   subscription,
   organization: orgClient,
+  deleteUser,
 } = authClient;

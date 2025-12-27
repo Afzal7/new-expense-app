@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ProOnly } from "@/components/shared/pro-only";
 
 // Sample data for key metrics
 const getKeyMetrics = () => ({
@@ -21,16 +22,17 @@ export function KeyMetricsCard() {
   const keyMetrics = getKeyMetrics();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5" />
-          Key Metrics
-        </CardTitle>
-        <CardDescription>Business performance at a glance</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-4">
+    <ProOnly feature="advanced analytics">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Key Metrics
+          </CardTitle>
+          <CardDescription>Business performance at a glance</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
           <div className="p-3 bg-linear-to-br from-blue-50 to-blue-100 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
@@ -108,5 +110,6 @@ export function KeyMetricsCard() {
         </div>
       </CardContent>
     </Card>
+  </ProOnly>
   );
 }

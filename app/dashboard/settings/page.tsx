@@ -14,16 +14,18 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangleIcon, CheckIcon, TrendingUpIcon } from "lucide-react";
+import { CheckIcon, TrendingUpIcon, Trash2Icon } from "lucide-react";
 import { useSubscription } from "@/hooks/use-subscription";
 import {
   useCancelSubscription,
   useUpgradeSubscription,
 } from "@/hooks/use-subscription-mutations";
 import { SUBSCRIPTION_PRICING } from "@/lib/constants";
+import { deleteUser } from "@/lib/auth-client";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 function SettingsPageContent() {
   const searchParams = useSearchParams();
@@ -33,12 +35,11 @@ function SettingsPageContent() {
   const upgradeSubscriptionMutation = useUpgradeSubscription();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [hasProcessedSuccess, setHasProcessedSuccess] = useState(false);
-  const [showRetentionModal, setShowRetentionModal] = useState(false);
-  const [showSaveOffer, setShowSaveOffer] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const [showAnnualSuccess, setShowAnnualSuccess] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
-  const [offerType, setOfferType] = useState<"discount" | "pause" | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteEmailSent, setDeleteEmailSent] = useState(false);
 
   useEffect(() => {
     // Check for annual upgrade success
@@ -61,29 +62,6 @@ function SettingsPageContent() {
 
   const handleCancelClick = () => {
     setShowCancelDialog(true);
-  };
-
-  const handleRetentionSubmit = () => {
-    // Determine save offer based on reason
-    if (cancelReason === "expensive") {
-      setOfferType("discount");
-      setShowRetentionModal(false);
-      setShowSaveOffer(true);
-    } else if (cancelReason === "not-using") {
-      setOfferType("pause");
-      setShowRetentionModal(false);
-      setShowSaveOffer(true);
-    } else {
-      // For other reasons, proceed to confirmation
-      setShowRetentionModal(false);
-      setShowConfirmation(true);
-    }
-  };
-
-  const handleAcceptOffer = () => {
-    // TODO: Implement offer acceptance
-    alert("Offer accepted! (This would update subscription)");
-    setShowSaveOffer(false);
   };
 
   const handleProceedCancel = async () => {
@@ -110,6 +88,22 @@ function SettingsPageContent() {
     } catch (error) {
       console.error("Annual upgrade failed:", error);
       alert("Failed to upgrade to annual plan. Please try again.");
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return;
+
+    setIsDeleting(true);
+    try {
+      await deleteUser();
+      setDeleteEmailSent(true);
+      toast.success("Verification email sent. Check your inbox to confirm deletion.");
+    } catch (error) {
+      console.error("Delete account failed:", error);
+      toast.error("Failed to initiate account deletion. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -218,6 +212,95 @@ function SettingsPageContent() {
         </CardContent>
       </Card>
 
+      {/* Account Deletion */}
+      <Card className="border-destructive/50">
+        <CardHeader>
+          <CardTitle className="text-destructive flex items-center gap-2">
+            <Trash2Icon className="h-5 w-5" />
+            Delete Account
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Permanently delete your account and all associated data. This action cannot be undone.
+          </p>
+          <Button
+            variant="destructive"
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            Delete Account
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Delete Account Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+        setShowDeleteDialog(open);
+        if (!open) {
+          setDeleteConfirmText("");
+          setDeleteEmailSent(false);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete Account</DialogTitle>
+            <DialogDescription>
+              This will permanently delete your account, including:
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="text-sm text-muted-foreground space-y-1 my-4">
+            <li>• All your personal data</li>
+            <li>• Active subscriptions will be cancelled</li>
+            <li>• Organization memberships will be removed</li>
+            <li>• This action cannot be undone</li>
+          </ul>
+          {deleteEmailSent ? (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CheckIcon className="h-5 w-5 text-green-600" />
+                <div>
+                  <h4 className="font-semibold text-green-900">
+                    Verification email sent
+                  </h4>
+                  <p className="text-green-800 text-sm">
+                    Check your inbox and click the link to confirm account deletion.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="delete-confirm">
+                  Type <span className="font-mono font-bold">DELETE</span> to confirm
+                </Label>
+                <Input
+                  id="delete-confirm"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText !== "DELETE" || isDeleting}
+                >
+                  {isDeleting ? "Processing..." : "Delete My Account"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Cancel Subscription Dialog */}
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent>
@@ -232,136 +315,12 @@ function SettingsPageContent() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowConfirmation(false)}
+              onClick={() => setShowCancelDialog(false)}
             >
               Keep Subscription
             </Button>
             <Button variant="destructive" onClick={handleProceedCancel}>
               Continue to Billing Portal
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Retention Modal */}
-      <Dialog open={showRetentionModal} onOpenChange={setShowRetentionModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>We&apos;re sorry to see you go</DialogTitle>
-            <DialogDescription>
-              Mind sharing why? (optional, but helps us improve)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <RadioGroup value={cancelReason} onValueChange={setCancelReason}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="expensive" id="expensive-retention" />
-                <Label htmlFor="expensive-retention">Too expensive</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="not-using" id="not-using-retention" />
-                <Label htmlFor="not-using-retention">Not using it enough</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem
-                  value="missing-features"
-                  id="missing-features-retention"
-                />
-                <Label htmlFor="missing-features-retention">
-                  Missing features
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="other" id="other-retention" />
-                <Label htmlFor="other-retention">Other</Label>
-              </div>
-            </RadioGroup>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleRetentionSubmit}>Continue</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Save Offer Modal */}
-      <Dialog open={showSaveOffer} onOpenChange={setShowSaveOffer}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Before you go... we can work something out
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {offerType === "discount" && (
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-semibold text-blue-900">
-                  50% off for 3 months
-                </h4>
-                <p className="text-blue-700">
-                  Keep your Pro features at half price for the next 3 billing
-                  cycles.
-                </p>
-              </div>
-            )}
-            {offerType === "pause" && (
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="font-semibold text-green-900">
-                  Pause for 3 months
-                </h4>
-                <p className="text-green-700">
-                  Keep all your data and features, but pause billing for 3
-                  months. Perfect if you&apos;re taking a break.
-                </p>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Button onClick={handleAcceptOffer} className="flex-1">
-                {offerType === "discount"
-                  ? "Accept 50% Off"
-                  : "Accept Pause Offer"}
-              </Button>
-              <Button variant="outline" onClick={handleProceedCancel}>
-                No thanks, cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Cancellation Confirmation */}
-      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckIcon className="h-5 w-5 text-green-600" />
-              Cancellation Confirmed
-            </DialogTitle>
-            <DialogDescription>
-              Your subscription has been canceled. You can continue using Pro
-              features until {trialEnd?.toLocaleDateString()}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-yellow-50 rounded-lg">
-              <div className="flex items-start gap-2">
-                <AlertTriangleIcon className="h-5 w-5 text-yellow-600 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-yellow-900">
-                    What happens next?
-                  </h4>
-                  <ul className="text-yellow-800 text-sm mt-2 space-y-1">
-                    <li>• You won&apos;t be charged</li>
-                    <li>• Access continues until trial end</li>
-                    <li>• Data is preserved for 30 days</li>
-                    <li>• Reactivate anytime before expiration</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setShowConfirmation(false)}>
-              Back to Dashboard
             </Button>
           </DialogFooter>
         </DialogContent>

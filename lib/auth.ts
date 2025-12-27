@@ -14,6 +14,7 @@ import { db } from "./db";
 import { stripe } from "./stripe";
 import { env } from "./env";
 import { sendEmail, generateEmailHTML, EMAIL_TEMPLATES } from "./email";
+import { APP_CONFIG } from "./config";
 
 // Build social providers conditionally
 const socialProviders: Record<
@@ -28,59 +29,68 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
   };
 }
 
+if (env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET) {
+  socialProviders.microsoft = {
+    clientId: env.MICROSOFT_CLIENT_ID,
+    clientSecret: env.MICROSOFT_CLIENT_SECRET,
+  };
+}
+
 export const auth = betterAuth({
   database: mongodbAdapter(db),
 
   emailAndPassword: {
     enabled: true,
     // requireEmailVerification: true,
-    sendResetPassword: async ({ user, url, token }) => {
-      console.log(
-        "sendResetPassword called for user:",
-        user.email,
-        "url:",
-        url,
-        "token:",
-        token
-      );
+    sendResetPassword: async ({ user, token }) => {
+      const encodedToken = encodeURIComponent(token);
+      const resetUrl = `${env.NEXT_PUBLIC_APP_URL}/reset-password?token=${encodedToken}`;
 
-      // Construct the correct reset URL pointing to our frontend page
-      const resetUrl = `${env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`;
-
-      try {
-        const html = generateEmailHTML.passwordReset({
-          resetUrl,
-          userName: user.name,
-        });
-
-        console.log(
-          "Generated HTML for password reset, sending to:",
-          user.email
-        );
-
-        const result = await sendEmail({
-          to: user.email,
-          subject: EMAIL_TEMPLATES.passwordReset.subject,
-          html,
-          from: EMAIL_TEMPLATES.passwordReset.from,
-        });
-
-        console.log(
-          "Password reset email sent successfully to:",
-          user.email,
-          "result:",
-          result
-        );
-      } catch (error) {
-        console.error("Failed to send password reset email:", error);
-        throw error;
+      if (env.isDevelopment) {
+        console.log("[Auth] Sending password reset to:", user.email);
       }
+
+      const html = generateEmailHTML.passwordReset({
+        resetUrl,
+        userName: user.name,
+      });
+
+      await sendEmail({
+        to: user.email,
+        subject: EMAIL_TEMPLATES.passwordReset.subject,
+        html,
+        from: EMAIL_TEMPLATES.passwordReset.from,
+      });
     },
   },
 
   ...(Object.keys(socialProviders).length > 0 && {
     socialProviders,
   }),
+
+  user: {
+    deleteUser: {
+      enabled: true,
+      sendDeleteAccountVerification: async ({ user, url }) => {
+        if (env.isDevelopment) {
+          console.log("[Auth] Sending delete account verification to:", user.email);
+        }
+
+        // URL is already properly formatted by Better Auth
+        const html = generateEmailHTML.accountDeletion({
+          deleteUrl: url,
+          userName: user.name,
+        });
+
+        await sendEmail({
+          to: user.email,
+          subject: EMAIL_TEMPLATES.accountDeletion.subject,
+          html,
+          from: EMAIL_TEMPLATES.accountDeletion.from,
+        });
+      },
+    },
+  },
 
   plugins: [
     // Organization plugin (optional feature)
@@ -120,27 +130,16 @@ export const auth = betterAuth({
           }
         },
 
-        // Member limits - basic implementation
+        // Member limits based on plan configuration
         beforeAddMember: async ({ member: _member, user: _user, organization }) => {
-          // Basic member limit: 3 members maximum per organization
-          // Note: This is a simplified implementation using available data
-          // In a production environment, you'd query the database directly for accurate counts
-          const maxMembers = 3;
+          // Use limits from APP_CONFIG - free plan limit by default
+          // TODO: In production, check the org owner's subscription status
+          // and use APP_CONFIG.plans.pro.limits.teamMembers for pro users
+          const maxMembers = APP_CONFIG.plans.free.limits.teamMembers;
 
-          // Check member count if organization.members is available
-          // This provides basic protection but may not catch all cases
           if (organization.members && organization.members.length >= maxMembers) {
             throw new APIError('BAD_REQUEST', {
-              message: 'This organization has reached the maximum number of 3 members. Please upgrade to add more members.'
-            });
-          }
-
-          // Additional safeguard: prevent adding more than a reasonable number
-          // This helps even if organization.members is not populated
-          const estimatedMemberCount = (organization.members?.length || 0) + 1;
-          if (estimatedMemberCount > maxMembers + 1) { // Allow some buffer
-            throw new APIError('BAD_REQUEST', {
-              message: 'Unable to add member due to organization size limits.'
+              message: `This organization has reached the maximum of ${maxMembers} member${maxMembers !== 1 ? 's' : ''} on the Free plan. Upgrade to Pro for up to ${APP_CONFIG.plans.pro.limits.teamMembers} members.`
             });
           }
         },

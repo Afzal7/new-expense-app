@@ -1,24 +1,23 @@
 "use client";
 
-"use client";
-
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import Link from "next/link";
-import { subscription } from "@/lib/auth-client";
+import { subscription, useSession } from "@/lib/auth-client";
 import { APP_CONFIG, getAllPlans } from "@/lib/config";
 
 export default function Pricing() {
   const plans = getAllPlans();
+  const { data: session } = useSession();
 
   const handleUpgrade = async (planId: string) => {
     try {
       await subscription.upgrade({
         plan: planId,
-        successUrl: `${window.location.origin}/trial-success`,
+        referenceId: session?.user?.id,
+        successUrl: `${window.location.origin}/dashboard?upgrade=success`,
         cancelUrl: window.location.href,
       });
-      // Better Auth handles the redirect to Stripe automatically
     } catch (error) {
       console.error("Upgrade failed:", error);
       alert("Failed to start upgrade process. Please try again.");

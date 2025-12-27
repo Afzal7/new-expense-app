@@ -13,6 +13,18 @@ if (!env.RESEND_API_KEY) {
 const resend = new Resend(env.RESEND_API_KEY);
 
 /**
+ * Escape HTML special characters to prevent XSS in email templates
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
  * Email templates for different auth flows
  * From address configured via RESEND_FROM_EMAIL env var
  */
@@ -33,6 +45,10 @@ export const EMAIL_TEMPLATES = {
     subject: "Your trial is ending soon",
     from: env.RESEND_FROM_EMAIL,
   },
+  accountDeletion: {
+    subject: "Confirm account deletion",
+    from: env.RESEND_FROM_EMAIL,
+  },
 } as const;
 
 /**
@@ -49,7 +65,9 @@ export async function sendEmail({
   html: string;
   from?: string;
 }) {
-  console.log("[Email] Attempting to send to:", to, "subject:", subject);
+  if (env.isDevelopment) {
+    console.log("[Email] Attempting to send to:", to, "subject:", subject);
+  }
 
   try {
     const result = await resend.emails.send({
@@ -65,11 +83,15 @@ export async function sendEmail({
       throw new Error(result.error.message || 'Failed to send email via Resend');
     }
 
-    console.log("[Email] Sent successfully:", result.data?.id);
+    if (env.isDevelopment) {
+      console.log("[Email] Sent successfully:", result.data?.id);
+    }
     return { success: true, id: result.data?.id };
   } catch (error) {
     console.error("[Email] Failed to send:", error);
-    console.error("[Email] Error details:", error);
+    if (env.isDevelopment) {
+      console.error("[Email] Error details:", error);
+    }
     throw error instanceof Error ? error : new Error(`Failed to send email: ${error}`);
   }
 }
@@ -92,11 +114,9 @@ export const generateEmailHTML = {
   verification: (data: { verificationUrl: string; userName?: string }) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1>Verify Your Email</h1>
-      <p>Hello${data.userName ? ` ${data.userName}` : ""},</p>
+      <p>Hello${data.userName ? ` ${escapeHtml(data.userName)}` : ""},</p>
       <p>Please verify your email address by clicking the button below:</p>
-      <a href="${
-        data.verificationUrl
-      }" style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+      <a href="${data.verificationUrl}" style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
         Verify Email
       </a>
       <p>This link will expire in 24 hours.</p>
@@ -112,7 +132,7 @@ export const generateEmailHTML = {
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1>Organization Invitation</h1>
       <p>Hello,</p>
-      <p>${data.inviterName} has invited you to join <strong>${data.organizationName}</strong>.</p>
+      <p>${escapeHtml(data.inviterName)} has invited you to join <strong>${escapeHtml(data.organizationName)}</strong>.</p>
       <a href="${data.acceptUrl}" style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
         Accept Invitation
       </a>
@@ -123,11 +143,9 @@ export const generateEmailHTML = {
   passwordReset: (data: { resetUrl: string; userName?: string }) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1>Reset Your Password</h1>
-      <p>Hello${data.userName ? ` ${data.userName}` : ""},</p>
+      <p>Hello${data.userName ? ` ${escapeHtml(data.userName)}` : ""},</p>
       <p>You requested a password reset. Click the button below to reset your password:</p>
-      <a href="${
-        data.resetUrl
-      }" style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+      <a href="${data.resetUrl}" style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
         Reset Password
       </a>
       <p>This link will expire in 1 hour.</p>
@@ -142,16 +160,26 @@ export const generateEmailHTML = {
   }) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1>Your Trial is Ending Soon</h1>
-      <p>Hello${data.userName ? ` ${data.userName}` : ""},</p>
-      <p>Your Pro trial ends in ${data.daysLeft} day${
-    data.daysLeft !== 1 ? "s" : ""
-  }. Upgrade now to continue using Pro features:</p>
-      <a href="${
-        data.upgradeUrl
-      }" style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+      <p>Hello${data.userName ? ` ${escapeHtml(data.userName)}` : ""},</p>
+      <p>Your Pro trial ends in ${data.daysLeft} day${data.daysLeft !== 1 ? "s" : ""}. Upgrade now to continue using Pro features:</p>
+      <a href="${data.upgradeUrl}" style="background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
         Upgrade to Pro
       </a>
       <p>Don't lose access to your Pro features!</p>
+    </div>
+  `,
+
+  accountDeletion: (data: { deleteUrl: string; userName?: string }) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h1>Confirm Account Deletion</h1>
+      <p>Hello${data.userName ? ` ${escapeHtml(data.userName)}` : ""},</p>
+      <p>You requested to delete your account. This action is <strong>permanent</strong> and cannot be undone.</p>
+      <p>Click the button below to confirm deletion:</p>
+      <a href="${data.deleteUrl}" style="background: #dc2626; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+        Delete My Account
+      </a>
+      <p>This link will expire in 1 hour.</p>
+      <p>If you didn't request this, please ignore this email and your account will remain safe.</p>
     </div>
   `,
 };

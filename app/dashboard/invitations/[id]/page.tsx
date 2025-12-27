@@ -127,8 +127,8 @@ export default function AcceptInvitationPage() {
             <div className="bg-muted p-4 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Organization</span>
-                <span className="text-sm text-muted-foreground">
-                  Organization
+                <span className="text-sm text-muted-foreground capitalize">
+                  {invitation.organizationName || "Organization"}
                 </span>
               </div>
               <div className="flex items-center justify-between mb-2">
@@ -140,7 +140,7 @@ export default function AcceptInvitationPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Invited By</span>
                 <span className="text-sm text-muted-foreground">
-                  Organization Admin
+                  {invitation.inviterName || invitation.inviterEmail || "Team member"}
                 </span>
               </div>
             </div>

@@ -1,0 +1,142 @@
+{
+    "workflow_version": "1.2.0",
+    "timestamps": {
+        "started": "2025-12-26T23:20:56-05:00",
+        "last_updated": "2025-12-26T23:21:00-05:00",
+        "completed": "2025-12-26T23:21:00-05:00"
+    },
+    "mode": "initial_scan",
+    "scan_level": "quick",
+    "project_root": "/Users/afzal/projects/personal/next-starter",
+    "output_folder": "/Users/afzal/projects/personal/next-starter/docs",
+    "completed_steps": [
+        {
+            "step": "step_0.5",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:20:56-05:00",
+            "summary": "Loaded documentation requirements for 12 project types"
+        },
+        {
+            "step": "step_0.6",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:20:56-05:00",
+            "summary": "Set workflow mode to initial_scan, scan_level to quick"
+        },
+        {
+            "step": "step_1",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:20:56-05:00",
+            "summary": "Classified as monolith with 1 part, project_type_id=web"
+        },
+        {
+            "step": "step_2",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:21:00-05:00",
+            "summary": "Found 7 existing docs in docs folder"
+        },
+        {
+            "step": "step_3",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:21:00-05:00",
+            "summary": "Tech stack: Next.js 16 + TypeScript + MongoDB + Stripe"
+        },
+        {
+            "step": "step_4",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:21:00-05:00",
+            "summary": "Quick scan: 27 UI components, 8 shared components, 12 dashboard components, 10 hooks"
+        },
+        {
+            "step": "step_5",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:21:00-05:00",
+            "summary": "Source tree documented with annotations"
+        },
+        {
+            "step": "step_6",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:21:00-05:00",
+            "summary": "Development guide created with setup instructions"
+        },
+        {
+            "step": "step_8",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:21:00-05:00",
+            "summary": "Architecture document written"
+        },
+        {
+            "step": "step_9",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:21:00-05:00",
+            "summary": "Supporting docs written: project-overview, component-inventory, development-guide"
+        },
+        {
+            "step": "step_10",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:21:00-05:00",
+            "summary": "Master index generated"
+        },
+        {
+            "step": "step_12",
+            "status": "completed",
+            "timestamp": "2025-12-26T23:21:00-05:00",
+            "summary": "Workflow complete"
+        }
+    ],
+    "current_step": "completed",
+    "project_types": [
+        {
+            "part_id": "main",
+            "project_type_id": "web",
+            "display_name": "Web Application"
+        }
+    ],
+    "project_classification": {
+        "repository_type": "monolith",
+        "parts_count": 1,
+        "primary_tech": "Next.js 16 + TypeScript"
+    },
+    "findings": {
+        "technology_stack": {
+            "framework": "Next.js 16.1.0",
+            "language": "TypeScript 5.x",
+            "database": "MongoDB + Mongoose",
+            "auth": "Better Auth 1.4.7",
+            "payments": "Stripe 20.x",
+            "ui": "Tailwind CSS v4 + shadcn/ui",
+            "state": "TanStack Query 5.x"
+        },
+        "component_counts": {
+            "ui_components": 27,
+            "shared_components": 8,
+            "dashboard_components": 12,
+            "page_components": 9,
+            "hooks": 10
+        },
+        "existing_docs": 7
+    },
+    "outputs_generated": [
+        "project-scan-report.json",
+        "index.md",
+        "project-overview.md",
+        "architecture.md",
+        "source-tree-analysis.md",
+        "development-guide.md",
+        "component-inventory.md"
+    ],
+    "incomplete_docs": [
+        {
+            "title": "API Contracts",
+            "file_path": "./api-contracts.md",
+            "doc_type": "api-contracts",
+            "reason": "Quick scan - requires deep scan for API extraction"
+        },
+        {
+            "title": "Data Models",
+            "file_path": "./data-models.md",
+            "doc_type": "data-models",
+            "reason": "Quick scan - requires deep scan for schema extraction"
+        }
+    ],
+    "resume_instructions": "Workflow complete. Use deep-dive mode for API or data model documentation."
+}

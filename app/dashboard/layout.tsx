@@ -7,6 +7,9 @@ import {
   Building2Icon,
   Users,
   Mail,
+  Receipt,
+  Lock,
+  CheckCircle,
 } from "lucide-react";
 import { APP_CONFIG } from "@/lib/config";
 
@@ -35,7 +38,7 @@ import { useOrganization } from "@/hooks/use-organization";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { DashboardErrorBoundary } from "@/components/error-boundary";
-import { FadeInRight } from "@/components/animations/fade-in";
+import { PageTransition } from "@/components/layout/page-transitions";
 
 export default function DashboardLayout({
   children,
@@ -100,18 +103,51 @@ export default function DashboardLayout({
                 <SidebarGroupLabel>Personal</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === "/dashboard"}
-                      >
-                        <Link href="/dashboard">
-                          <HomeIcon className="h-4 w-4" />
-                          <span>Dashboard</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
+                     <SidebarMenuItem>
+                       <SidebarMenuButton
+                         asChild
+                         isActive={pathname === "/dashboard"}
+                       >
+                         <Link href="/dashboard">
+                           <HomeIcon className="h-4 w-4" />
+                           <span>Dashboard</span>
+                         </Link>
+                       </SidebarMenuButton>
+                     </SidebarMenuItem>
+                     <SidebarMenuItem>
+                       <SidebarMenuButton
+                         asChild
+                         isActive={pathname === "/dashboard/expenses"}
+                       >
+                         <Link href="/dashboard/expenses">
+                           <Receipt className="h-4 w-4" />
+                           <span>Expenses</span>
+                         </Link>
+                       </SidebarMenuButton>
+                     </SidebarMenuItem>
+                     <SidebarMenuItem>
+                       <SidebarMenuButton
+                         asChild
+                         isActive={pathname === "/dashboard/vault"}
+                       >
+                         <Link href="/dashboard/vault">
+                           <Lock className="h-4 w-4" />
+                           <span>Private Vault</span>
+                         </Link>
+                       </SidebarMenuButton>
+                     </SidebarMenuItem>
+                     <SidebarMenuItem>
+                       <SidebarMenuButton
+                         asChild
+                         isActive={pathname === "/dashboard/review-queue"}
+                       >
+                         <Link href="/dashboard/review-queue">
+                           <CheckCircle className="h-4 w-4" />
+                           <span>Review Queue</span>
+                         </Link>
+                       </SidebarMenuButton>
+                     </SidebarMenuItem>
+                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild
                         isActive={pathname === "/dashboard/settings"}
@@ -246,7 +282,7 @@ export default function DashboardLayout({
               </div>
             </header>
             <main className="mx-auto size-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
-              <FadeInRight key={pathname}>{children}</FadeInRight>
+              <PageTransition>{children}</PageTransition>
             </main>
             <footer>
               <div className="text-muted-foreground mx-auto flex size-full max-w-7xl items-center justify-center px-4 py-3 sm:px-6">

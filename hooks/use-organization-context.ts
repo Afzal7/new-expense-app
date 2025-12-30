@@ -1,27 +1,67 @@
 'use client';
 
-import { usePathname } from 'next/navigation'
+import React, { createContext, useContext, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+
+interface Organization {
+  id: string;
+  name: string;
+  slug?: string;
+  logo?: string;
+  createdAt: Date;
+}
+
+interface Member {
+  role: string;
+  joinedAt: Date;
+}
+
+interface OrganizationContextType {
+  orgId: string;
+  organization: Organization;
+  member: Member;
+  isOrgPage: boolean;
+  currentSection: string;
+}
+
+const OrganizationContext = createContext<OrganizationContextType | null>(null);
+
+interface OrganizationProviderProps {
+  value: OrganizationContextType;
+  children: ReactNode;
+}
+
+export function OrganizationProvider({ value, children }: OrganizationProviderProps) {
+  return React.createElement(OrganizationContext.Provider, { value }, children);
+}
 
 export function useOrganizationContext() {
-  const pathname = usePathname()
-  const orgMatch = pathname.match(/^\/dashboard\/organizations\/([^\/]+)/)
+  const context = useContext(OrganizationContext);
+  const pathname = usePathname();
 
-  if (!orgMatch) return null
+  // Fallback to pathname-based detection if no context provided
+  if (!context) {
+    const orgMatch = pathname.match(/^\/dashboard\/organizations\/([^\/]+)/);
 
-  const orgId = orgMatch[1]
-  const isOrgPage = pathname.startsWith(`/dashboard/organizations/${orgId}`)
+    if (!orgMatch) return null;
 
-  // Better section detection
-  const pathParts = pathname.split('/').filter(Boolean)
-  const lastPart = pathParts[pathParts.length - 1]
+    const orgId = orgMatch[1];
+    const isOrgPage = pathname.startsWith(`/dashboard/organizations/${orgId}`);
 
-  // If we're at /dashboard/organizations/[id], it's overview
-  // If we're deeper, use the last part as section
-  const currentSection = pathParts.length === 3 ? 'overview' : (lastPart || 'overview')
+    // Better section detection
+    const pathParts = pathname.split('/').filter(Boolean);
+    const lastPart = pathParts[pathParts.length - 1];
 
-  return {
-    orgId,
-    isOrgPage,
-    currentSection
+    // If we're at /dashboard/organizations/[id], it's overview
+    // If we're deeper, use the last part as section
+    const currentSection = pathParts.length === 3 ? 'overview' : (lastPart || 'overview');
+
+    return {
+      orgId,
+      isOrgPage,
+      currentSection,
+    } as OrganizationContextType;
   }
+
+  return context;
 }

@@ -80,7 +80,7 @@ export async function updateExpenseAction(expenseId: string, formData: FormData)
                     }
 
                     if (field === 'amount' || field === 'description') {
-                        (lineItemMap[index] as Record<string, string>)[field] = data[key] as string;
+                        (lineItemMap[index] as Record<string, string>)[field] = (data[key] as string) || '';
                     }
                 }
 

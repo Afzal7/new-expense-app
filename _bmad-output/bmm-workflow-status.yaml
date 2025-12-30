@@ -1,0 +1,116 @@
+# BMM Workflow Status - next-starter
+# Generated: 2025-12-27
+
+# This tracks progress through BMM methodology Analysis, Planning, and Solutioning phases.
+# Implementation phase is tracked separately in sprint-status.yaml
+
+# STATUS DEFINITIONS:
+# ==================
+# Initial Status (before completion):
+#   - required: Must be completed to progress
+#   - optional: Can be completed but not required
+#   - recommended: Strongly suggested but not required
+#   - conditional: Required only if certain conditions met (e.g., if_has_ui)
+#
+# Completion Status:
+#   - {file-path}: File created/found (e.g., "docs/product-brief.md")
+#   - skipped: Optional/conditional workflow that was skipped
+
+generated: "2025-12-27"
+project: "next-starter"
+project_type: "web-application"
+selected_track: "bmad-method"
+field_type: "brownfield"
+workflow_path: "method-brownfield.yaml"
+
+workflow_status:
+
+  # PREREQUISITE: Documentation (required for brownfield without docs)
+  prerequisite:
+    - id: "document-project"
+      status: "/Users/afzal/projects/personal/next-starter/docs/index.md"
+      agent: "analyst"
+      command: "document-project"
+      purpose: "Understand existing codebase before planning"
+      completed_at: "2025-12-27T04:25:00Z"
+
+    - id: "product-brief"
+      status: "/Users/afzal/projects/personal/next-starter/_bmad-output/planning-artifacts/product-brief-next-starter-2025-12-26.md"
+      agent: "analyst"
+      command: "product-brief"
+      purpose: "Define product vision and scope"
+      completed_at: "2025-12-26T23:50:00Z"
+
+  # PHASE 0: Discovery (Optional - User Selected)
+  phase_0_discovery:
+    - id: "brainstorm-project"
+      status: "optional"  # User selected: included
+      agent: "analyst"
+      command: "brainstorming"
+      note: "Uses core brainstorming workflow with project context"
+
+    - id: "research"
+      status: "optional"  # User selected: included
+      agent: "analyst"
+      command: "research"
+
+  # PHASE 1: Planning
+  phase_1_planning:
+    - id: "prd"
+      status: "required"
+      agent: "pm"
+      command: "create-prd"
+      output: "PRD focused on new features/changes"
+
+    - id: "create-ux-design"
+      status: "conditional"  # if_has_ui
+      agent: "ux-designer"
+      command: "create-ux-design"
+
+  # PHASE 2: Solutioning
+  phase_2_solutioning:
+    - id: "create-architecture"
+      status: "recommended"
+      agent: "architect"
+      command: "create-architecture"
+      note: "HIGHLY RECOMMENDED: Distills brownfield context into focused solution design"
+
+    - id: "create-epics-and-stories"
+      status: "required"
+      agent: "pm"
+      command: "create-epics-and-stories"
+      note: "Break down PRD into implementable epics and stories"
+
+    - id: "test-design"
+      status: "recommended"
+      agent: "tea"
+      command: "testarch-test-design"
+      note: "System-level testability review"
+
+    - id: "validate-architecture"
+      status: "optional"
+      agent: "architect"
+      command: "validate-architecture"
+
+    - id: "implementation-readiness"
+      status: "_bmad-output/planning-artifacts/implementation-readiness-report-2025-12-28.md"
+      agent: "pm"
+      command: "check-implementation-readiness"
+      purpose: "Validates PRD + Architecture + Epics + UX"
+      completed_at: "2025-12-28T16:35:00Z"
+      note: "READY FOR IMPLEMENTATION - 100% FR coverage and high-quality alignment confirmed."
+
+  # PHASE 3: Implementation
+  phase_3_implementation:
+    - id: "sprint-planning"
+      status: "required"
+      agent: "sm"
+      command: "sprint-planning"
+      note: "Creates sprint plan with stories - tracked in sprint-status.yaml"
+
+# NEXT STEPS:
+# 1. Run document-project workflow with analyst agent
+# 2. Then proceed with optional discovery: brainstorm, research
+# 3. Then Planning phase: PRD, UX Design
+# 4. Then Solutioning: Architecture, Epics, Test Design, Readiness Check
+# 5. Finally Implementation: Sprint Planning

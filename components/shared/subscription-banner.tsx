@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertTriangleIcon, ClockIcon, CreditCardIcon, SparklesIcon } from "lucide-react";
+import { CreditCardIcon, SparklesIcon } from "lucide-react";
 import { useSubscription } from "@/hooks/use-subscription";
 
 export function SubscriptionBanner() {

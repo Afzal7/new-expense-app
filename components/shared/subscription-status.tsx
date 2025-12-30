@@ -53,18 +53,22 @@ export function SubscriptionStatus() {
     </div>
   );
 
-  // TODO: Trial-specific logic for future implementation
-  /*
+  // Trial-specific logic
+  const isPro = hasActiveProSubscription;
   const isTrialing = subscriptionData?.subscription?.status === "trialing";
-  const trialEnd = subscriptionData?.subscription?.periodEnd
-    ? new Date(subscriptionData.subscription.periodEnd)
-    : null;
+
+  let trialEnd: Date | null = null;
+  const periodEnd = subscriptionData?.subscription?.periodEnd;
+  if (periodEnd) {
+    trialEnd = new Date(periodEnd as string);
+  }
+
   const daysLeft = trialEnd
-    ? Math.ceil((trialEnd.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((trialEnd!.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
   const isExpired = subscriptionData?.subscription?.status === "canceled" &&
-    trialEnd && trialEnd < new Date();
+    trialEnd !== null && trialEnd! < new Date();
 
   if (isExpired) {
     return (
@@ -92,7 +96,7 @@ export function SubscriptionStatus() {
     );
   }
 
-  if (isTrialing && trialEnd) {
+  if (isTrialing && trialEnd !== null) {
     const isUrgent = daysLeft <= 3;
     return (
       <div className="flex items-center gap-2">
@@ -115,5 +119,4 @@ export function SubscriptionStatus() {
       </div>
     );
   }
-  */
 }

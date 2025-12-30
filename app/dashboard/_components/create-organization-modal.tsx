@@ -14,10 +14,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/toast";
+import { PulseFeedback } from "@/components/ui/pulse-feedback";
 
 interface CreateOrganizationModalProps {
   trigger: ReactElement;
   onOrganizationCreated?: () => void;
+}
+
+interface TriggerWithPulseProps {
+  children: React.ReactNode;
+  pulseTrigger: boolean;
+  onPulseComplete?: () => void;
+}
+
+function TriggerWithPulse({ children, pulseTrigger, onPulseComplete }: TriggerWithPulseProps) {
+  return (
+    <PulseFeedback
+      trigger={pulseTrigger}
+      onComplete={onPulseComplete}
+    >
+      {children}
+    </PulseFeedback>
+  );
 }
 
 export function CreateOrganizationModal({
@@ -28,6 +46,7 @@ export function CreateOrganizationModal({
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+  const [showPulse, setShowPulse] = useState(false);
 
   const triggerWithHandler = cloneElement(trigger as ReactElement<ComponentProps<typeof Button>>, {
     onClick: () => setOpen(true),
@@ -69,10 +88,15 @@ export function CreateOrganizationModal({
         return;
       }
 
-      // Reset form
+      // Trigger pulse feedback and reset form
+      setShowPulse(true);
       setOpen(false);
       onOrganizationCreated?.();
       toast.success("Organization created successfully");
+
+      // Reset form data
+      setOrgName("");
+      setOrgSlug("");
     } catch {
       toast.error("An unexpected error occurred");
     } finally {
@@ -82,7 +106,12 @@ export function CreateOrganizationModal({
 
   return (
     <>
-      {triggerWithHandler}
+      <TriggerWithPulse
+        pulseTrigger={showPulse}
+        onPulseComplete={() => setShowPulse(false)}
+      >
+        {triggerWithHandler}
+      </TriggerWithPulse>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

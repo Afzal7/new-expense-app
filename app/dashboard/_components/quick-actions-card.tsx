@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Settings, BarChart3 } from "lucide-react";
+import { Plus, Settings, BarChart3, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
@@ -23,18 +23,29 @@ export function QuickActionsCard() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-3">
-          <CreateOrganizationModal
-            trigger={
-              <Button variant="outline" className="justify-start h-auto p-3 w-full">
-                <Plus className="h-4 w-4 mr-3" />
-                <div className="text-left">
-                  <div className="font-medium">Create Organization</div>
-                  <div className="text-xs text-muted-foreground">Set up a team workspace</div>
-                </div>
-              </Button>
-            }
-          />
-          <Button
+           <CreateOrganizationModal
+             trigger={
+               <Button variant="outline" className="justify-start h-auto p-3 w-full">
+                 <Plus className="h-4 w-4 mr-3" />
+                 <div className="text-left">
+                   <div className="font-medium">Create Organization</div>
+                   <div className="text-xs text-muted-foreground">Set up a team workspace</div>
+                 </div>
+               </Button>
+             }
+           />
+           <Button
+             variant="outline"
+             className="justify-start h-auto p-3"
+             onClick={() => router.push('/dashboard/vault')}
+           >
+             <Lock className="h-4 w-4 mr-3" />
+             <div className="text-left">
+               <div className="font-medium">View Private Vault</div>
+               <div className="text-xs text-muted-foreground">Access your personal drafts</div>
+             </div>
+           </Button>
+           <Button
             variant="outline"
             className="justify-start h-auto p-3"
             onClick={() => router.push('/dashboard/settings')}

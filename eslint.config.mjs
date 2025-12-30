@@ -27,7 +27,9 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     // Custom ignores:
-    "components/**",
+    "components/ui/**",
+    "components/shadcn-studio/**",
+    "tests/**",
   ]),
 ]);
 

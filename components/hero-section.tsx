@@ -209,15 +209,15 @@ export default function HeroSection() {
                                 />
                             </div>
 
-                            <div className="flex">
-                                <img
-                                    className="mx-auto h-4 w-fit dark:invert"
-                                    src="https://html.tailus.io/blocks/customers/column.svg"
-                                    alt="Column Logo"
-                                    height="16"
-                                    width="auto"
-                                />
-                            </div>
+                             <div className="flex">
+                                 <Image
+                                     className="mx-auto h-4 w-fit dark:invert"
+                                     src="https://html.tailus.io/blocks/customers/column.svg"
+                                     alt="Column Logo"
+                                     height={16}
+                                     width={64}
+                                 />
+                             </div>
                             <div className="flex">
                                 <Image
                                     className="mx-auto h-5 w-fit dark:invert"

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>expense-app Design Directions</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --slate-50: #f8fafc;
+            --slate-900: #0f172a;
+            --slate-950: #020617;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--slate-50);
+            color: var(--slate-900);
+            margin: 0;
+            padding: 40px;
+        }
+        header {
+            margin-bottom: 60px;
+            text-align: center;
+        }
+        h1 { font-family: 'Outfit', sans-serif; font-size: 3rem; margin-bottom: 10px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 40px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+        }
+        .card:hover { transform: translateY(-5px); }
+        .card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            background: #eee;
+        }
+        .info {
+            padding: 24px;
+        }
+        .info h3 { margin-top: 0; color: var(--primary); }
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 100px;
+            background: #eef2ff;
+            color: var(--primary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .description { font-size: 0.95rem; line-height: 1.6; color: #64748b; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="tag">UX Design Phase</div>
+        <h1>Design Directions</h1>
+        <p>Exploring visual approaches for expense-app</p>
+    </header>
+
+    <div class="grid">
+        <div class="card">
+            <img src="minimalist_vault_mockup.png" alt="Direction 1: The Minimalist Vault">
+            <div class="info">
+                <h3>1. The Minimalist Vault</h3>
+                <p class="description">Focused on radical simplicity and white space. Receipt previews are prioritized, with subtle Indigo accents for status. Ideal for daily capture.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <img src="fintech_dashboard_charts.png" alt="Direction 2: Data Insights Dashboard">
+            <div class="info">
+                <h3>2. Data Insights Dashboard</h3>
+                <p class="description">The "Magical Moment" view. High-fidelity emerald and indigo charts provide instant clarity on spending. Professional and empowering.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <img src="manager_review_split_view.png" alt="Direction 3: Zero-Friction Review">
+            <div class="info">
+                <h3>3. Zero-Friction Review</h3>
+                <p class="description">Side-by-side verification pattern. Minimizes navigational cognitive load for managers. Clear Emerald/Slate actions.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

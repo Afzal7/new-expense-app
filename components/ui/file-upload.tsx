@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UploadDropzone } from '@uploadthing/react';
 import { Button } from '@/components/ui/button';
 import { X, FileImage, FileText, Loader2 } from 'lucide-react';
@@ -22,6 +22,18 @@ export function FileUpload({
   className
 }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      selectedFiles.forEach(file => {
+        if (file.type.startsWith('image/')) {
+          URL.revokeObjectURL(URL.createObjectURL(file));
+        }
+      });
+    };
+  }, []);
 
   const getFileIcon = (type: string) => {
     if (type.startsWith('image/')) return <FileImage className="h-4 w-4" />;
@@ -35,8 +47,13 @@ export function FileUpload({
         <div className="relative">
           <UploadDropzone<OurFileRouter, "expenseReceiptUploader">
             endpoint="expenseReceiptUploader"
+            onBeforeUploadBegin={(files) => {
+              setSelectedFiles(files);
+              return files;
+            }}
             onClientUploadComplete={(res: any[]) => {
               setIsUploading(false);
+              setSelectedFiles([]);
               if (res) {
                 const files = res.map((file: any) => ({
                   url: file.url,
@@ -48,6 +65,7 @@ export function FileUpload({
             }}
             onUploadError={(error: Error) => {
               setIsUploading(false);
+              setSelectedFiles([]);
               onUploadError?.(error.message);
             }}
             onUploadBegin={() => {
@@ -63,6 +81,31 @@ export function FileUpload({
             </div>
           )}
         </div>
+
+        {/* Selected Files Preview */}
+        {selectedFiles.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium">Selected Files ({selectedFiles.length})</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {selectedFiles.map((file, index) => (
+                <div key={index} className="relative">
+                  {file.type.startsWith('image/') ? (
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      className="w-full h-20 object-cover rounded border"
+                    />
+                  ) : (
+                    <div className="w-full h-20 bg-muted rounded border flex items-center justify-center">
+                      {getFileIcon(file.type)}
+                    </div>
+                  )}
+                  <p className="text-xs mt-1 truncate" title={file.name}>{file.name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Uploaded Files */}
         {uploadedFiles.length > 0 && (

@@ -9,8 +9,9 @@ import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { stripe as stripePlugin } from "@better-auth/stripe";
 import { organization } from "better-auth/plugins/organization";
 import { nextCookies } from "better-auth/next-js";
-import type { Member } from "better-auth/plugins/organization";
+// Removed unused Member import
 import { db } from "./db";
+import { organizationService, subscriptionService } from "./services/organizationService";
 import { stripe } from "./stripe";
 import { env } from "./env";
 import { sendEmail, generateEmailHTML, EMAIL_TEMPLATES } from "./email";
@@ -111,7 +112,7 @@ export const auth = betterAuth({
           // Post-creation logic can be added here if needed
         },
         // Role update validation
-        beforeUpdateMemberRole: async ({ member, newRole, user, organization }) => {
+        beforeUpdateMemberRole: async ({ member: _member, newRole: _newRole, user: _user, organization: _organization }) => {
           // if (member.role === 'owner' && newRole !== 'owner') {
           //   // Check if this would leave no owners
 
@@ -136,60 +137,44 @@ export const auth = betterAuth({
 
         // Member limits based on plan configuration
         beforeAddMember: async ({ member: _member, user: _user, organization }) => {
-          // Use limits from APP_CONFIG - free plan limit by default
-          // TODO: In production, check the org owner's subscription status
-          // and use APP_CONFIG.plans.pro.limits.teamMembers for pro users
-          const maxMembers = APP_CONFIG.plans.free.limits.teamMembers;
-          // Find the organization owner from the database
-          const ownerMember = await db.collection("member").findOne({
-            organizationId: organization.id,
-            role: "owner"
-          });
+           // Check org owner's subscription status and set appropriate limits
+           let maxMembers: number = APP_CONFIG.plans.free.limits.teamMembers;
 
-          if (!ownerMember) {
-            // Fallback logic if no owner found (rare edge case)
-            const memberCount = await db.collection("member").countDocuments({
-              organizationId: organization.id
-            });
-            if (memberCount >= maxMembers) {
-              throw new APIError('BAD_REQUEST', {
-                message: `Limit reached. Upgrade to Pro to add more members.`
-              });
-            }
-            return;
-          }
+           // Find the organization owner from the database
+           const ownerMember = await organizationService.findOrganizationOwner(organization.id);
 
-          const owner = ownerMember;
+           if (!ownerMember) {
+             // Fallback logic if no owner found (rare edge case)
+             const memberCount = await organizationService.countMembersInOrganization(organization.id);
+             if (memberCount >= maxMembers) {
+               throw new APIError('BAD_REQUEST', {
+                 message: `Limit reached. Upgrade to Pro to add more members.`
+               });
+             }
+             return;
+           }
 
-          // Check if owner has an active subscription
-          // We access the database directly to check basic subscription status
-          // The 'subscription' collection is created by Better Auth Stripe plugin
-          let isPro = false;
-          try {
+           // Check if owner has an active subscription
+           try {
+             const sub = await subscriptionService.findActiveSubscriptionByUserId(ownerMember.userId.toString());
+             if (sub) {
+               maxMembers = APP_CONFIG.plans.pro.limits.teamMembers;
+             }
+           } catch (e) {
+             console.error("Failed to check subscription status:", e);
+             // Fallback to free limit on error for safety
+           }
 
-            const sub = await db.collection("subscription").findOne({
-              userId: owner.userId,
-              status: { $in: ['active', 'trialing'] }
-            });
-            if (sub) {
-              isPro = true;
-            }
-          } catch (e) {
-            console.error("Failed to check subscription status:", e);
-            // Fallback to free limit on error for safety
-          }
+           const currentMemberCount = await organizationService.countMembersInOrganization(organization.id);
 
-          const limit = isPro ? APP_CONFIG.plans.pro.limits.teamMembers : APP_CONFIG.plans.free.limits.teamMembers;
-
-          const currentMemberCount = await db.collection("member").countDocuments({
-            organizationId: organization.id
-          });
-
-          if (currentMemberCount >= limit) {
-            throw new APIError('BAD_REQUEST', {
-              message: `This organization has reached the maximum of ${limit} member${limit !== 1 ? 's' : ''} on the ${isPro ? 'Pro' : 'Free'} plan. ${!isPro ? 'Upgrade to Pro to add more members.' : 'Contact support for higher limits.'}`
-            });
-          }
+           if (currentMemberCount >= maxMembers) {
+             const isPro = maxMembers > APP_CONFIG.plans.free.limits.teamMembers;
+             const memberText = maxMembers === 1 ? 'member' : 'members';
+             const limitText = maxMembers === Infinity ? 'unlimited' : maxMembers.toString();
+             throw new APIError('BAD_REQUEST', {
+               message: `This organization has reached the maximum of ${limitText} ${memberText} on the ${isPro ? 'Pro' : 'Free'} plan. ${!isPro ? 'Upgrade to Pro to add more members.' : 'Contact support for higher limits.'}`
+             });
+           }
         },
 
         // Prevent self-removal
@@ -214,6 +199,35 @@ export const auth = betterAuth({
           };
         },
 
+        // Reactive linking: Check for personal drafts when user joins organization
+        afterAddMember: async ({ member, user: _user, organization }) => {
+          try {
+            // Import Expense model here to avoid circular dependencies
+            const { Expense } = await import('./models');
+
+            // Check if the user has personal drafts (organizationId: null)
+            const personalDrafts = await Expense.find({
+              userId: member.userId,
+              organizationId: null,
+              status: 'DRAFT'
+            }).lean();
+            const serializedDrafts = JSON.parse(JSON.stringify(personalDrafts));
+
+            if (serializedDrafts.length > 0) {
+              // Create a reactive linking notification in the database
+              await organizationService.createReactiveLinkingNotification({
+                userId: member.userId.toString(),
+                organizationId: organization.id,
+                personalDraftCount: personalDrafts.length,
+              });
+
+              console.log(`Created reactive linking notification for user ${member.userId} joining org ${organization.id} with ${serializedDrafts.length} personal drafts`);
+            }
+          } catch (error) {
+            console.error('Error in afterAddMember reactive linking:', error);
+            // Don't throw - this shouldn't block the member addition
+          }
+        },
 
       },
 

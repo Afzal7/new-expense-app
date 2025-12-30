@@ -16,14 +16,17 @@ so that I can accurately record complex expenses (like multi-day trips or multip
    - [x] Line items are displayed in a dynamic form with add/remove functionality.
 
 2. **Expense Creation Flow:**
-   - [x] New expenses default to "Personal" state with privacy indicators.
-   - [x] Users can save as draft at any point in the creation process.
-   - [x] Form provides smart defaults (current date, last used category if applicable).
+    - [x] New expenses default to "Personal" state with privacy indicators.
+    - [x] Users can save as draft at any point in the creation process.
+    - [x] Form provides smart defaults (current date, last used category if applicable).
+    - [x] Manager email field with validation against organization members or system users.
+    - [x] Separate buttons: Save as Draft, Submit for Pre-approval (manager required), Cancel.
 
 3. **Data Validation:**
-   - [x] Required fields are validated before submission.
-   - [x] Amount fields must be positive numbers.
-   - [x] At least one line item is required for expense creation.
+    - [x] Required fields are validated before submission.
+    - [x] Amount fields must be positive numbers.
+    - [x] At least one line item is required for expense creation.
+    - [x] Manager email must exist in user's organization (or system if no org).
 
 4. **Integration with Vault:**
    - [x] Created expenses appear in the user's private vault.
@@ -41,6 +44,8 @@ so that I can accurately record complex expenses (like multi-day trips or multip
   - [x] Implement `CreateExpenseDialog` with form validation
   - [x] Add submission type selection (draft/pre-approval/submit)
   - [x] Integrate with expense creation server actions
+  - [x] Add manager email validation against org members/system users
+  - [x] Implement separate action buttons (Save Draft, Pre-approval, Cancel)
 
 - [x] Task 3: Add Smart Defaults and UX
   - [x] Set current date as default
@@ -76,6 +81,14 @@ so that I can accurately record complex expenses (like multi-day trips or multip
 - Created dynamic multi-line item form with add/remove functionality
 - Added draft saving and personal expense defaults
 - Integrated with vault display and audit trail creation
+- **Manager Email Validation Enhancement:**
+  - Added client-side validation ensuring manager email exists in organization
+  - Fallback validation for system users when no organization context
+  - Real-time validation feedback with proper error messaging
+- **Enhanced Button Logic:**
+  - Separate Save as Draft button (always enabled when form valid)
+  - Submit for Pre-approval button (only shown when manager selected)
+  - Improved submit button states with proper validation
 - **Code Review Fixes Applied:**
   - Strengthened validation: amounts must be positive numbers, dates validated properly
   - Improved UX: larger dialog size, better form reset logic

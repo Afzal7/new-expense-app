@@ -54,7 +54,7 @@ export async function createExpenseAction(formData: FormData) {
             amount: number;
             description: string;
             date: Date;
-            attachments: Array<{ url: string; name: string; type: string }>;
+            attachments: Array<{ url: string; name: string; type: "image/jpeg" | "image/png" | "application/pdf" }>;
         }> = [];
 
         // Get submission options
@@ -128,12 +128,14 @@ export async function createExpenseAction(formData: FormData) {
                         throw new Error(`Invalid amount: ${item.amount}`);
                     }
 
-                    // Filter out incomplete attachments
+                    // Filter out incomplete attachments and validate types
+                    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'] as const;
                     const validAttachments = (item.attachments || []).filter(att =>
                         att.url && att.url.trim().length > 0 &&
                         att.name && att.name.trim().length > 0 &&
-                        att.type && att.type.trim().length > 0
-                    );
+                        att.type && att.type.trim().length > 0 &&
+                        allowedTypes.includes(att.type as typeof allowedTypes[number])
+                    ) as Array<{ url: string; name: string; type: typeof allowedTypes[number] }>;
 
                     lineItems.push({
                         amount,

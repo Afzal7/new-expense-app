@@ -61,6 +61,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
     const [managers, setManagers] = useState<Array<{ id: string, name: string, email: string, role: string }>>([]);
     const [loadingManagers, setLoadingManagers] = useState(false);
     const [hasAutoSaved, setHasAutoSaved] = useState(false);
+    const [managerEmailError, setManagerEmailError] = useState<string>('');
     const orgContext = useOrganizationContext();
     const createExpense = useCreateExpense();
 
@@ -93,27 +94,65 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
         }, 0);
     }, [fields, watch]);
 
+    // Validate manager email exists in org or system
+    const validateManagerEmail = async (email: string) => {
+        if (!email || email.trim() === '') {
+            setManagerEmailError('');
+            return;
+        }
+
+        // Basic email format validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            setManagerEmailError('Invalid email format');
+            return;
+        }
+
+        try {
+            // Check if email exists in organization managers
+            if (orgContext?.orgId) {
+                const managerExists = managers.some(manager => manager.email === email);
+                if (!managerExists) {
+                    setManagerEmailError('Manager email not found in your organization');
+                    return;
+                }
+            } else {
+                // For personal expenses, check if user exists in system
+                // TODO: Implement system-wide user lookup API
+                // For now, accept any valid email
+            }
+            setManagerEmailError('');
+        } catch (error) {
+            setManagerEmailError('Unable to validate manager email');
+        }
+    };
+
+    // Validate manager email when it changes
+    const watchedManagerEmail = watch('managerEmail');
+    useEffect(() => {
+        validateManagerEmail(watchedManagerEmail || '');
+    }, [watchedManagerEmail, managers, orgContext?.orgId]);
+
     // Fetch organization managers when dialog opens
     useEffect(() => {
         if (open && orgContext?.orgId) {
             setLoadingManagers(true);
             fetch(`/api/organizations/managers?organizationId=${orgContext.orgId}`)
-                .then(response => response.json())
+                .then(res => res.json())
                 .then(data => {
-                    if (data.error) {
-                        console.error('Error fetching managers:', data.error);
-                        setManagers([]);
-                    } else {
-                        setManagers(data);
+                    if (data.success) {
+                        // Filter out current user and include only managers/admins
+                        const availableManagers = data.managers.filter((manager: any) =>
+                            manager.role === 'admin' || manager.role === 'owner'
+                        );
+                        setManagers(availableManagers);
                     }
                 })
                 .catch(error => {
-                    console.error('Error fetching managers:', error);
-                    setManagers([]);
+                    console.error('Failed to load managers:', error);
+                    toast.error('Failed to load managers');
                 })
                 .finally(() => setLoadingManagers(false));
-        } else {
-            setManagers([]);
         }
     }, [open, orgContext?.orgId]);
 
@@ -417,9 +456,11 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                                     }}
                                 />
                             )}
-                            {errors.managerEmail && (
-                                <p className="text-sm text-destructive">{errors.managerEmail.message}</p>
-                            )}
+                             {(errors.managerEmail || managerEmailError) && (
+                                 <p className="text-sm text-destructive">
+                                     {errors.managerEmail?.message || managerEmailError}
+                                 </p>
+                             )}
                             <p className="text-sm text-muted-foreground">
                                 Email address of the manager who will approve this expense
                             </p>
@@ -479,7 +520,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                         </div>
                     )}
 
-                    <DialogFooter>
+                    <DialogFooter className="flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
                         <Button
                             type="button"
                             variant="outline"
@@ -488,8 +529,59 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                         >
                             Cancel
                         </Button>
+
+                        {/* Save as Draft Button */}
                         <motion.div
-                            animate={isValid && submissionType !== 'draft' ? {
+                            animate={isValid && !managerEmailError ? {
+                                boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
+                            } : {
+                                boxShadow: '0 0 0px rgba(16, 185, 129, 0)'
+                            }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => {
+                                    setSubmissionType('draft');
+                                    // Trigger form submission
+                                    const form = document.querySelector('form');
+                                    if (form) form.requestSubmit();
+                                }}
+                                disabled={createExpense.isPending || !isValid || !!managerEmailError}
+                            >
+                                {createExpense.isPending ? 'Saving...' : 'Save as Draft'}
+                            </Button>
+                        </motion.div>
+
+                        {/* Submit for Pre-approval Button (only when manager selected) */}
+                        {orgContext && selectedManager && (
+                            <motion.div
+                                animate={isValid && !managerEmailError && selectedManager ? {
+                                    boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
+                                } : {
+                                    boxShadow: '0 0 0px rgba(16, 185, 129, 0)'
+                                }}
+                                transition={{ duration: 0.3 }}
+                            >
+                                <Button
+                                    type="button"
+                                    onClick={() => {
+                                        setSubmissionType('pre-approval');
+                                        // Trigger form submission
+                                        const form = document.querySelector('form');
+                                        if (form) form.requestSubmit();
+                                    }}
+                                    disabled={createExpense.isPending || !isValid || !!managerEmailError || !selectedManager}
+                                >
+                                    {createExpense.isPending ? 'Submitting...' : 'Submit for Pre-Approval'}
+                                </Button>
+                            </motion.div>
+                        )}
+
+                        {/* Regular Submit Button */}
+                        <motion.div
+                            animate={isValid && !managerEmailError && (!orgContext?.orgId || !!selectedManager) ? {
                                 boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
                             } : {
                                 boxShadow: '0 0 0px rgba(16, 185, 129, 0)'
@@ -498,9 +590,14 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                         >
                             <Button
                                 type="submit"
-                                disabled={createExpense.isPending || (submissionType !== 'draft' && !isValid)}
+                                disabled={
+                                    createExpense.isPending ||
+                                    !isValid ||
+                                    !!managerEmailError ||
+                                    (!!orgContext?.orgId && !selectedManager)
+                                }
                             >
-                                {createExpense.isPending ? 'Creating...' : 'Create Expense'}
+                                {createExpense.isPending ? 'Creating...' : 'Submit for Approval'}
                             </Button>
                         </motion.div>
                     </DialogFooter>

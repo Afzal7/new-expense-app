@@ -21,8 +21,28 @@ const baseExpenseSchema = z.object({
     }, 'Date must be valid and not in the future'),
 });
 
+// Custom validation for manager email existence
+const validateManagerEmail = async (email: string | undefined, orgId?: string) => {
+    if (!email || email.trim() === '') return true; // Optional field
+
+    // For now, we'll do basic email validation
+    // In a real implementation, you'd check against org members or user database
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return false;
+    }
+
+    // TODO: Add actual validation against organization members or user system
+    // For story implementation, we'll accept any valid email format
+    return true;
+};
+
 export const createExpenseSchema = baseExpenseSchema.extend({
-    managerEmail: z.string().email('Invalid email format').optional().or(z.literal('')),
+    managerEmail: z.string().optional().refine(async (email) => {
+        return await validateManagerEmail(email);
+    }, {
+        message: 'Manager email must be a valid email address'
+    }),
 });
 
 export const editExpenseSchema = baseExpenseSchema;

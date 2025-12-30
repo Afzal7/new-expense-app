@@ -1,10 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { UploadDropzone } from '@uploadthing/react';
+import { useState, useEffect, useMemo } from 'react';
+import Dashboard from '@uppy/dashboard';
 import { Button } from '@/components/ui/button';
 import { X, FileImage, FileText, Loader2 } from 'lucide-react';
-import { ourFileRouter, type OurFileRouter } from '@/lib/uploadthing/uploadthing';
+import { createUppy } from '@/lib/uppy/uppy';
+import { useSession } from '@/lib/auth-client';
+
+// Uppy CSS
+import '@uppy/core/css/style.min.css';
+import '@uppy/dashboard/css/style.min.css';
+import '@uppy/webcam/css/style.min.css';
 
 interface FileUploadProps {
   onUploadComplete: (files: { url: string; name: string; type: string }[]) => void;
@@ -21,19 +27,59 @@ export function FileUpload({
   onRemoveFile,
   className
 }: FileUploadProps) {
-  const [isUploading, setIsUploading] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
 
-  // Cleanup object URLs on unmount
-  useEffect(() => {
-    return () => {
-      selectedFiles.forEach(file => {
-        if (file.type.startsWith('image/')) {
-          URL.revokeObjectURL(URL.createObjectURL(file));
+  const dashboardId = useMemo(() => `file-upload-dashboard-${Math.random().toString(36).substr(2, 9)}`, []);
+
+  const [uppy] = useState(() => {
+    if (!userId) return null;
+    return createUppy({
+      userId,
+      onComplete: (result) => {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Transloadit complete result:', result);
         }
+        const transloadit = (result as any).transloadit;
+        if (transloadit && transloadit.length > 0) {
+          const files = transloadit.flatMap((assembly: any) =>
+            Object.values(assembly.results || {}).flatMap((stepResults: any) =>
+              Array.isArray(stepResults) ? stepResults.map((file: any) => ({
+                url: file.ssl_url || file.url,
+                name: file.name,
+                type: file.type || 'application/octet-stream'
+              })) : []
+            )
+          );
+          onUploadComplete(files);
+        }
+      },
+      onError: (error) => {
+        const err = error as any;
+        let errorMessage = 'Upload failed';
+        if (err.assembly) {
+          errorMessage = `Transloadit processing failed: ${err.assembly.assembly_id}`;
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
+        onUploadError?.(errorMessage);
+      }
+    });
+  });
+
+  useEffect(() => {
+    if (uppy && !uppy.getPlugin(dashboardId)) {
+      uppy.use(Dashboard, {
+        id: dashboardId,
+        target: `#${dashboardId}`,
+        inline: true,
+        height: 180,
+        width: '100%',
+        hideProgressDetails: false,
+        plugins: ['Webcam']
       });
-    };
-  }, []);
+    }
+  }, [uppy, dashboardId]);
 
   const getFileIcon = (type: string) => {
     if (type.startsWith('image/')) return <FileImage className="h-4 w-4" />;
@@ -41,71 +87,21 @@ export function FileUpload({
     return <FileText className="h-4 w-4" />;
   };
 
+  if (!uppy || !userId) {
+    return (
+      <div className={className}>
+        <div className="flex items-center justify-center p-8 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={className}>
       <div className="space-y-4">
-        <div className="relative">
-          <UploadDropzone<OurFileRouter, "expenseReceiptUploader">
-            endpoint="expenseReceiptUploader"
-            onBeforeUploadBegin={(files) => {
-              setSelectedFiles(files);
-              return files;
-            }}
-            onClientUploadComplete={(res: any[]) => {
-              setIsUploading(false);
-              setSelectedFiles([]);
-              if (res) {
-                const files = res.map((file: any) => ({
-                  url: file.url,
-                  name: file.name,
-                  type: file.type || 'application/octet-stream'
-                }));
-                onUploadComplete(files);
-              }
-            }}
-            onUploadError={(error: Error) => {
-              setIsUploading(false);
-              setSelectedFiles([]);
-              onUploadError?.(error.message);
-            }}
-            onUploadBegin={() => {
-              setIsUploading(true);
-            }}
-          />
-          {isUploading && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-md">
-              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Uploading...</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Selected Files Preview */}
-        {selectedFiles.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Selected Files ({selectedFiles.length})</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {selectedFiles.map((file, index) => (
-                <div key={index} className="relative">
-                  {file.type.startsWith('image/') ? (
-                    <img
-                      src={URL.createObjectURL(file)}
-                      alt={file.name}
-                      className="w-full h-20 object-cover rounded border"
-                    />
-                  ) : (
-                    <div className="w-full h-20 bg-muted rounded border flex items-center justify-center">
-                      {getFileIcon(file.type)}
-                    </div>
-                  )}
-                  <p className="text-xs mt-1 truncate" title={file.name}>{file.name}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <div id={dashboardId} className="w-full border rounded" />
 
         {/* Uploaded Files */}
         {uploadedFiles.length > 0 && (
@@ -123,7 +119,7 @@ export function FileUpload({
                       <p className="text-sm font-medium truncate">{file.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {file.type.startsWith('image/') ? 'Image' :
-                         file.type === 'application/pdf' ? 'PDF' : 'Document'}
+                          file.type === 'application/pdf' ? 'PDF' : 'Document'}
                       </p>
                     </div>
                   </div>

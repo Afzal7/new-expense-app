@@ -3,7 +3,7 @@ import { ExpenseStatus } from '../types/expense';
 
 const LineItemSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
-  description: { type: String, required: true },
+  description: { type: String, required: false, default: '' },
   date: { type: Date, required: true },
   attachments: [{ type: String }],
 });

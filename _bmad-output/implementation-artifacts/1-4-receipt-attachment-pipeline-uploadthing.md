@@ -1,4 +1,4 @@
-# Story 1.4: Receipt Attachment Pipeline (UploadThing)
+# Story 1.4: Receipt Attachment Pipeline (Uppy + Transloadit)
 
 Status: done
 
@@ -11,9 +11,11 @@ so that I can provide proper receipts and documentation for reimbursement reques
 ## Acceptance Criteria
 
 1. **File Upload Support:**
-   - [x] Users can upload JPG/PNG images and PDF files to expense line items.
-   - [x] File size limit is 4MB per file for both images and PDFs.
-   - [x] Multiple files can be attached to a single line item or expense.
+    - [ ] Users can upload JPG/PNG images and PDF files to expense line items, including direct photo capture on mobile devices.
+    - [ ] File size limit is 10MB per file for both images and PDFs.
+    - [ ] Multiple files can be attached to a single line item or expense.
+    - [ ] Images are automatically resized and optimized for storage and display.
+    - [ ] All files undergo malware scanning and protection.
 
 2. **Secure Upload Pipeline:**
    - [x] Uploads are authenticated using Better Auth sessions.

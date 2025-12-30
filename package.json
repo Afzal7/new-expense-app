@@ -32,7 +32,12 @@
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-query-devtools": "^5.91.1",
     "@types/react-datepicker": "^6.2.0",
-    "@uploadthing/react": "^7.3.3",
+    "@uppy/core": "^5.2.0",
+    "@uppy/dashboard": "^5.1.0",
+    "@uppy/drag-drop": "^5.1.0",
+    "@uppy/react": "^5.1.1",
+    "@uppy/transloadit": "^5.4.0",
+    "@uppy/webcam": "^5.1.0",
     "better-auth": "^1.4.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -53,7 +58,7 @@
     "sonner": "^2.0.7",
     "stripe": "^20.1.0",
     "tailwind-merge": "^3.4.0",
-    "uploadthing": "^7.7.4"
+    "transloadit": "^4.1.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -24,24 +24,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useOrganizationContext } from '@/hooks/use-organization-context';
-import { SuccessGlow, PulseFeedback, MotionPulse } from '@/components/ddd';
+import { MotionPulse } from '@/components/ddd';
 
 const lineItemSchema = z.object({
-     amount: z.string().min(1, 'Amount is required').refine((val) => {
-         const num = parseFloat(val);
-         return !isNaN(num) && num > 0;
-     }, 'Amount must be a positive number'),
-     description: z.string().optional(),
- });
+    amount: z.string().min(1, 'Amount is required').refine((val) => {
+        const num = parseFloat(val);
+        return !isNaN(num) && num >= 0;
+    }, 'Amount must be a positive number'),
+    description: z.string().optional(),
+});
 
 const createExpenseSchema = z.object({
-     lineItems: z.array(lineItemSchema).min(1, 'At least one line item is required'),
-     date: z.string().min(1, 'Date is required').refine((val) => {
-         const date = new Date(val);
-         return !isNaN(date.getTime()) && date <= new Date();
-     }, 'Date must be valid and not in the future'),
-     managerEmail: z.string().email('Invalid email format').optional().or(z.literal('')),
- });
+    lineItems: z.array(lineItemSchema).min(1, 'At least one line item is required'),
+    date: z.string().min(1, 'Date is required').refine((val) => {
+        const date = new Date(val);
+        return !isNaN(date.getTime()) && date <= new Date();
+    }, 'Date must be valid and not in the future'),
+    managerEmail: z.string().email('Invalid email format').optional().or(z.literal('')),
+});
 
 type CreateExpenseForm = z.infer<typeof createExpenseSchema>;
 
@@ -56,26 +56,27 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
     const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; name: string; type: string }[]>>([[]]);
     const [submissionType, setSubmissionType] = useState<'draft' | 'pre-approval' | 'submit'>('draft');
     const [selectedManager, setSelectedManager] = useState<string>('');
-    const [managers, setManagers] = useState<Array<{id: string, name: string, email: string, role: string}>>([]);
+    const [managers, setManagers] = useState<Array<{ id: string, name: string, email: string, role: string }>>([]);
     const [loadingManagers, setLoadingManagers] = useState(false);
+    const [hasAutoSaved, setHasAutoSaved] = useState(false);
     const orgContext = useOrganizationContext();
     const createExpense = useCreateExpense();
 
     const {
-         register,
-         handleSubmit,
-         control,
-         reset,
-         watch,
-         setValue,
-         formState: { errors },
-     } = useForm<CreateExpenseForm>({
+        register,
+        handleSubmit,
+        control,
+        reset,
+        watch,
+        setValue,
+        formState: { errors },
+    } = useForm<CreateExpenseForm>({
         resolver: zodResolver(createExpenseSchema),
-         defaultValues: {
-             lineItems: [{ amount: '', description: '' }],
-             date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
-             managerEmail: '',
-         },
+        defaultValues: {
+            lineItems: [{ amount: '', description: '' }],
+            date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+            managerEmail: '',
+        },
     });
 
     const { fields, append, remove } = useFieldArray({
@@ -124,13 +125,11 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
         const formData = new FormData();
 
         // Add line items to form data
-          data.lineItems.forEach((item, index) => {
-              const amount = parseFloat(item.amount);
-              formData.append(`lineItems[${index}][amount]`, amount.toString());
-              if (item.description) {
-                  formData.append(`lineItems[${index}][description]`, item.description);
-              }
-          });
+        data.lineItems.forEach((item, index) => {
+            const amount = parseFloat(item.amount);
+            formData.append(`lineItems[${index}][amount]`, amount.toString());
+            formData.append(`lineItems[${index}][description]`, item.description || '');
+        });
 
         // Add uploaded files to form data per line item
         uploadedFiles.forEach((lineItemFiles, lineItemIndex) => {
@@ -147,48 +146,53 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
         if (orgContext) {
             formData.append('submissionType', submissionType);
             if (selectedManager) {
-                  formData.append('managerId', selectedManager);
-                  const selectedManagerData = managers.find(m => m.id === selectedManager);
-                  if (selectedManagerData) {
-                      formData.append('managerEmail', selectedManagerData.email);
-                  }
-              }
+                formData.append('managerId', selectedManager);
+                const selectedManagerData = managers.find(m => m.id === selectedManager);
+                if (selectedManagerData) {
+                    formData.append('managerEmail', selectedManagerData.email);
+                }
+            }
             formData.append('organizationId', orgContext.orgId);
         }
 
         createExpense.mutate(formData, {
-            onSuccess: () => {
-                if (submissionType === 'draft') {
-                      setShowSuccessGlow(true);
-                      toast.success('Expense saved as draft!');
-                      reset({
-                          lineItems: [{ amount: '0.00', description: '' }],
-                          date: new Date().toISOString().split('T')[0],
-                          managerEmail: '',
-                      });
-                      setUploadedFiles([[]]);
-                      setSelectedManager('');
-                      setSubmissionType('draft');
-                       // Delay closing to show success animation
-                      setTimeout(() => {
-                          onOpenChange(false);
-                          setShowSuccessGlow(false);
-                      }, 1200);
-                 } else {
-                    setShowPulseFeedback(true);
-                    const message = submissionType === 'pre-approval'
-                        ? 'Pre-approval request submitted!'
-                        : 'Expense submitted for approval!';
-                      toast.success(message);
-                      reset();
-                      setUploadedFiles([[]]);
-                      setSelectedManager('');
-                       // Delay closing to show pulse animation
-                      setTimeout(() => {
-                          onOpenChange(false);
-                          setShowPulseFeedback(false);
-                      }, 800);
-                 }
+            onSuccess: (result) => {
+                if (result.success) {
+                    if (submissionType === 'draft') {
+                        setShowSuccessGlow(true);
+                        toast.success('Expense saved as draft!');
+                        reset({
+                            lineItems: [{ amount: '0.00', description: '' }],
+                            date: new Date().toISOString().split('T')[0],
+                            managerEmail: '',
+                        });
+                        setUploadedFiles([[]]);
+                        setSelectedManager('');
+                        setSubmissionType('draft');
+                        setHasAutoSaved(false);
+                        // Delay closing to show success animation
+                        setTimeout(() => {
+                            onOpenChange(false);
+                            setShowSuccessGlow(false);
+                        }, 1200);
+                    } else {
+                        setShowPulseFeedback(true);
+                        const message = submissionType === 'pre-approval'
+                            ? 'Pre-approval request submitted!'
+                            : 'Expense submitted for approval!';
+                        toast.success(message);
+                        reset();
+                        setUploadedFiles([[]]);
+                        setSelectedManager('');
+                        // Delay closing to show pulse animation
+                        setTimeout(() => {
+                            onOpenChange(false);
+                            setShowPulseFeedback(false);
+                        }, 800);
+                    }
+                } else {
+                    toast.error(result.error);
+                }
             },
             onError: (error: Error) => {
                 toast.error(error.message);
@@ -196,14 +200,17 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
         });
     };
 
+
+
     const handleOpenChange = (newOpen: boolean) => {
         if (!newOpen) {
-             reset();
-             setUploadedFiles([[]]);
-             setSelectedManager('');
-             setShowSuccessGlow(false);
-             setShowPulseFeedback(false);
-         }
+            reset();
+            setUploadedFiles([[]]);
+            setSelectedManager('');
+            setShowSuccessGlow(false);
+            setShowPulseFeedback(false);
+            setHasAutoSaved(false);
+        }
         onOpenChange(newOpen);
     };
 
@@ -221,12 +228,12 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <Label className="text-base font-medium">Line Items</Label>
-                             <Button
-                                 type="button"
-                                 variant="outline"
-                                 size="sm"
-                                 onClick={() => append({ amount: '0.00', description: '' })}
-                             >
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => append({ amount: '0.00', description: '' })}
+                            >
                                 Add Item
                             </Button>
                         </div>
@@ -236,16 +243,16 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                                 <div className="flex items-center justify-between">
                                     <h4 className="text-sm font-medium">Item {index + 1}</h4>
                                     {fields.length > 1 && (
-                                         <Button
-                                             type="button"
-                                             variant="outline"
-                                             size="sm"
-                                              onClick={() => {
-                                                  remove(index);
-                                                  // Properly synchronize uploadedFiles array
-                                                  setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-                                              }}
-                                         >
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                remove(index);
+                                                // Properly synchronize uploadedFiles array
+                                                setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+                                            }}
+                                        >
                                             <X className="h-4 w-4" />
                                         </Button>
                                     )}
@@ -297,32 +304,32 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                                                 {...register(`lineItems.${index}.description`)}
                                             />
                                         )}
-                                         {errors.lineItems?.[index]?.description && (
-                                             <p className="text-sm text-destructive">
-                                                 {errors.lineItems[index].description.message}
-                                             </p>
-                                         )}
-                                     </div>
-                                 </div>
+                                        {errors.lineItems?.[index]?.description && (
+                                            <p className="text-sm text-destructive">
+                                                {errors.lineItems[index].description.message}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
 
-                                 <div className="space-y-2">
-                                     <Label>Receipts & Attachments</Label>
-                                     <FileUpload
-                                         uploadedFiles={uploadedFiles[index] || []}
-                                         onUploadComplete={(files) => {
-                                             const newUploadedFiles = [...uploadedFiles];
-                                             newUploadedFiles[index] = files;
-                                             setUploadedFiles(newUploadedFiles);
-                                         }}
-                                         onUploadError={(error) => toast.error(error)}
-                                         onRemoveFile={(fileIndex) => {
-                                             const newUploadedFiles = [...uploadedFiles];
-                                             newUploadedFiles[index] = (newUploadedFiles[index] || []).filter((_, i) => i !== fileIndex);
-                                             setUploadedFiles(newUploadedFiles);
-                                         }}
-                                     />
-                                 </div>
-                             </div>
+                                <div className="space-y-2">
+                                    <Label>Receipts & Attachments</Label>
+                                    <FileUpload
+                                        uploadedFiles={uploadedFiles[index] || []}
+                                        onUploadComplete={(files) => {
+                                            const newUploadedFiles = [...uploadedFiles];
+                                            newUploadedFiles[index] = files;
+                                            setUploadedFiles(newUploadedFiles);
+                                        }}
+                                        onUploadError={(error) => toast.error(error)}
+                                        onRemoveFile={(fileIndex) => {
+                                            const newUploadedFiles = [...uploadedFiles];
+                                            newUploadedFiles[index] = (newUploadedFiles[index] || []).filter((_, i) => i !== fileIndex);
+                                            setUploadedFiles(newUploadedFiles);
+                                        }}
+                                    />
+                                </div>
+                            </div>
                         ))}
 
                         {errors.lineItems && typeof errors.lineItems.message === 'string' && (
@@ -330,134 +337,134 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                         )}
                     </div>
 
-                     <div className="space-y-2">
-                         <Label>Date</Label>
-                          {errors.date ? (
-                              <MotionPulse intensity="subtle">
-                                  <DatePicker
-                                      date={watch('date') ? new Date(watch('date')) : undefined}
-                                      onSelect={(date) => {
-                                          if (date) {
-                                              setValue('date', date.toISOString().split('T')[0]);
-                                          }
-                                      }}
-                                      placeholder="Select expense date"
-                                  />
-                              </MotionPulse>
-                          ) : (
-                              <DatePicker
-                                  date={watch('date') ? new Date(watch('date')) : undefined}
-                                  onSelect={(date) => {
-                                          if (date) {
-                                              setValue('date', date.toISOString().split('T')[0]);
-                                          }
-                                      }}
-                                  placeholder="Select expense date"
-                              />
-                          )}
-                         {errors.date && (
-                             <p className="text-sm text-destructive">{errors.date.message}</p>
-                         )}
-                     </div>
+                    <div className="space-y-2">
+                        <Label>Date</Label>
+                        {errors.date ? (
+                            <MotionPulse intensity="subtle">
+                                <DatePicker
+                                    date={watch('date') ? new Date(watch('date')) : undefined}
+                                    onSelect={(date) => {
+                                        if (date) {
+                                            setValue('date', date.toISOString().split('T')[0]);
+                                        }
+                                    }}
+                                    placeholder="Select expense date"
+                                />
+                            </MotionPulse>
+                        ) : (
+                            <DatePicker
+                                date={watch('date') ? new Date(watch('date')) : undefined}
+                                onSelect={(date) => {
+                                    if (date) {
+                                        setValue('date', date.toISOString().split('T')[0]);
+                                    }
+                                }}
+                                placeholder="Select expense date"
+                            />
+                        )}
+                        {errors.date && (
+                            <p className="text-sm text-destructive">{errors.date.message}</p>
+                        )}
+                    </div>
 
 
 
-                     {/* Manager Email Field - Always visible */}
-                     <div className="space-y-2">
-                         <Label htmlFor="managerEmail">Manager Email</Label>
-                          {errors.managerEmail ? (
-                              <MotionPulse intensity="subtle">
-                                  <Input
-                                      id="managerEmail"
-                                      type="email"
-                                      placeholder="manager@company.com"
-                                      {...register('managerEmail')}
-                                      value={selectedManager ? managers.find(m => m.id === selectedManager)?.email || '' : watch('managerEmail') || ''}
-                                      onChange={(e) => {
-                                          setValue('managerEmail', e.target.value);
-                                          // Clear selected manager if email is manually changed
-                                          if (selectedManager && managers.find(m => m.id === selectedManager)?.email !== e.target.value) {
-                                              setSelectedManager('');
-                                          }
-                                      }}
-                                  />
-                              </MotionPulse>
-                          ) : (
-                              <Input
-                                  id="managerEmail"
-                                  type="email"
-                                  placeholder="manager@company.com"
-                                  {...register('managerEmail')}
-                                  value={selectedManager ? managers.find(m => m.id === selectedManager)?.email || '' : watch('managerEmail') || ''}
-                                  onChange={(e) => {
-                                      setValue('managerEmail', e.target.value);
-                                      // Clear selected manager if email is manually changed
-                                      if (selectedManager && managers.find(m => m.id === selectedManager)?.email !== e.target.value) {
-                                          setSelectedManager('');
-                                      }
-                                  }}
-                              />
-                          )}
-                         {errors.managerEmail && (
-                             <p className="text-sm text-destructive">{errors.managerEmail.message}</p>
-                         )}
-                         <p className="text-sm text-muted-foreground">
-                             Email address of the manager who will approve this expense (optional)
-                         </p>
-                     </div>
+                    {/* Manager Email Field - Always visible */}
+                    <div className="space-y-2">
+                        <Label htmlFor="managerEmail">Manager Email</Label>
+                        {errors.managerEmail ? (
+                            <MotionPulse intensity="subtle">
+                                <Input
+                                    id="managerEmail"
+                                    type="email"
+                                    placeholder="manager@company.com"
+                                    {...register('managerEmail')}
+                                    value={selectedManager ? managers.find(m => m.id === selectedManager)?.email || '' : watch('managerEmail') || ''}
+                                    onChange={(e) => {
+                                        setValue('managerEmail', e.target.value);
+                                        // Clear selected manager if email is manually changed
+                                        if (selectedManager && managers.find(m => m.id === selectedManager)?.email !== e.target.value) {
+                                            setSelectedManager('');
+                                        }
+                                    }}
+                                />
+                            </MotionPulse>
+                        ) : (
+                            <Input
+                                id="managerEmail"
+                                type="email"
+                                placeholder="manager@company.com"
+                                {...register('managerEmail')}
+                                value={selectedManager ? managers.find(m => m.id === selectedManager)?.email || '' : watch('managerEmail') || ''}
+                                onChange={(e) => {
+                                    setValue('managerEmail', e.target.value);
+                                    // Clear selected manager if email is manually changed
+                                    if (selectedManager && managers.find(m => m.id === selectedManager)?.email !== e.target.value) {
+                                        setSelectedManager('');
+                                    }
+                                }}
+                            />
+                        )}
+                        {errors.managerEmail && (
+                            <p className="text-sm text-destructive">{errors.managerEmail.message}</p>
+                        )}
+                        <p className="text-sm text-muted-foreground">
+                            Email address of the manager who will approve this expense (optional)
+                        </p>
+                    </div>
 
-                     {/* Submission Options */}
-                     {orgContext && (
-                         <div className="space-y-4 border-t pt-4">
-                             <div className="space-y-2">
-                                 <Label>Submission Type</Label>
-                                  <Select value={submissionType} onValueChange={(value: string) => setSubmissionType(value as typeof submissionType)}>
-                                     <SelectTrigger>
-                                         <SelectValue />
-                                     </SelectTrigger>
-                                     <SelectContent>
-                                         <SelectItem value="draft">Save as Draft</SelectItem>
-                                         <SelectItem value="pre-approval">Request Pre-Approval</SelectItem>
-                                         <SelectItem value="submit">Submit for Approval</SelectItem>
-                                     </SelectContent>
-                                 </Select>
-                                 <p className="text-sm text-muted-foreground">
-                                     {submissionType === 'draft' && 'Save privately without submitting for approval'}
-                                     {submissionType === 'pre-approval' && 'Request approval before making the purchase'}
-                                     {submissionType === 'submit' && 'Submit for final approval and reimbursement'}
-                                 </p>
-                             </div>
+                    {/* Submission Options */}
+                    {orgContext && (
+                        <div className="space-y-4 border-t pt-4">
+                            <div className="space-y-2">
+                                <Label>Submission Type</Label>
+                                <Select value={submissionType} onValueChange={(value: string) => setSubmissionType(value as typeof submissionType)}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="draft">Save as Draft</SelectItem>
+                                        <SelectItem value="pre-approval">Request Pre-Approval</SelectItem>
+                                        <SelectItem value="submit">Submit for Approval</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-sm text-muted-foreground">
+                                    {submissionType === 'draft' && 'Save privately without submitting for approval'}
+                                    {submissionType === 'pre-approval' && 'Request approval before making the purchase'}
+                                    {submissionType === 'submit' && 'Submit for final approval and reimbursement'}
+                                </p>
+                            </div>
 
-                              {(submissionType === 'pre-approval' || submissionType === 'submit') && (
-                                  <>
-                                      <div className="space-y-2">
-                                          <Label htmlFor="manager">Select Manager</Label>
-                                          <Select value={selectedManager} onValueChange={setSelectedManager}>
-                                              <SelectTrigger>
-                                                  <SelectValue placeholder="Choose a manager" />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                  {loadingManagers ? (
-                                                      <SelectItem value="" disabled>Loading managers...</SelectItem>
-                                                  ) : managers.length === 0 ? (
-                                                      <SelectItem value="" disabled>No managers available</SelectItem>
-                                                  ) : (
-                                                      managers.map(manager => (
-                                                          <SelectItem key={manager.id} value={manager.id}>
-                                                              {manager.name} ({manager.role})
-                                                          </SelectItem>
-                                                      ))
-                                                  )}
-                                              </SelectContent>
-                                          </Select>
-                                          <p className="text-sm text-muted-foreground">
-                                              You cannot select yourself as a manager
-                                          </p>
-                                      </div>
-                                  </>
-                              )}
-                         </div>
-                     )}
+                            {(submissionType === 'pre-approval' || submissionType === 'submit') && (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="manager">Select Manager</Label>
+                                        <Select value={selectedManager} onValueChange={setSelectedManager}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Choose a manager" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {loadingManagers ? (
+                                                    <SelectItem value="" disabled>Loading managers...</SelectItem>
+                                                ) : managers.length === 0 ? (
+                                                    <SelectItem value="" disabled>No managers available</SelectItem>
+                                                ) : (
+                                                    managers.map(manager => (
+                                                        <SelectItem key={manager.id} value={manager.id}>
+                                                            {manager.name} ({manager.role})
+                                                        </SelectItem>
+                                                    ))
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-sm text-muted-foreground">
+                                            You cannot select yourself as a manager
+                                        </p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
 
                     <DialogFooter>
                         <Button
@@ -476,14 +483,6 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
             </DialogContent>
         </Dialog>
     );
-
-    if (showSuccessGlow) {
-        return <SuccessGlow>{dialogContent}</SuccessGlow>;
-    }
-
-    if (showPulseFeedback) {
-        return <PulseFeedback>{dialogContent}</PulseFeedback>;
-    }
 
     return dialogContent;
 }

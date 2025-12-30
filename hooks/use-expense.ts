@@ -76,17 +76,23 @@ export function useUpdateExpense() {
 
   return useMutation({
     mutationFn: async ({ expenseId, formData }: { expenseId: string; formData: FormData }) => {
+      console.log('🔄 [useUpdateExpense] Starting mutation for expense:', expenseId);
       const result = await updateExpenseAction(expenseId, formData);
+      console.log('✅ [useUpdateExpense] Server action result:', result);
       if (!result.success) {
+        console.error('❌ [useUpdateExpense] Server action failed:', result.error);
         throw new Error(result.error);
       }
+      console.log('🎉 [useUpdateExpense] Mutation completed successfully');
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log('🔄 [useUpdateExpense] Invalidating queries after successful update');
       queryClient.invalidateQueries({ queryKey: expenseKeys.all });
+      console.log('✅ [useUpdateExpense] Queries invalidated');
     },
     onError: (error) => {
-      console.error('Error updating expense:', error);
+      console.error('❌ [useUpdateExpense] Error updating expense:', error);
     },
   });
 }

@@ -21,6 +21,7 @@ export async function createExpenseAction(formData: FormData) {
         }
 
         const data = Object.fromEntries(formData);
+        console.log('FormData data:', data);
         const lineItems: Array<{
             amount: number;
             description: string;
@@ -93,7 +94,7 @@ export async function createExpenseAction(formData: FormData) {
 
             // Convert to line items array
             Object.values(lineItemMap).forEach((item) => {
-                if (item.amount && item.description) {
+                if (item.amount) {
                     const amount = parseFloat(item.amount);
                     if (isNaN(amount) || amount <= 0) {
                         throw new Error(`Invalid amount: ${item.amount}`);
@@ -106,8 +107,8 @@ export async function createExpenseAction(formData: FormData) {
 
                     lineItems.push({
                         amount,
-                        description: item.description.trim(),
-                        date: new Date(data.date as string), // Use date as-is, let validation handle it
+                        description: (item.description || '').trim(),
+                        date: new Date(data.date as string + 'T00:00:00'), // Ensure proper date parsing
                         attachments: validAttachments,
                     });
                 }
@@ -167,6 +168,7 @@ export async function createExpenseAction(formData: FormData) {
             lineItems,
         };
 
+        console.log('Parsed lineItems:', lineItems);
         console.log('Creating expense with input:', {
             userId: expenseInput.userId,
             organizationId: expenseInput.organizationId,
@@ -184,7 +186,11 @@ export async function createExpenseAction(formData: FormData) {
 
         console.log('Expense created successfully:', result?._id);
 
-        revalidatePath('/dashboard/expenses');
+        if (expenseInput.isPersonal) {
+            revalidatePath('/dashboard/vault');
+        } else {
+            revalidatePath('/dashboard/expenses');
+        }
         return { success: true, data: result };
     } catch (error) {
         console.error('Error creating expense:', error);

@@ -20,9 +20,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { useOrganizationContext } from '@/hooks/use-organization-context';
 import { SuccessGlow, PulseFeedback, MotionPulse } from '@/components/ddd';
 import { useExpenseForm, CreateExpenseFormData } from '@/hooks/use-expense-form';
-import { createExpenseAction } from '../../app/dashboard/expenses/_actions/expense-actions';
-import { updateExpenseAction, deleteExpenseAction } from '../../app/dashboard/expenses/_actions/edit-actions';
-import { useExpense } from '@/hooks/use-expense';
+import { useExpense, useCreateExpense, useUpdateExpense, useDeleteExpense } from '@/hooks/use-expense';
 import { ExpenseStatus } from '@/types/expense';
 
 type CreateExpenseErrors = FieldErrors<CreateExpenseFormData>;
@@ -69,6 +67,14 @@ export function ExpenseFormDialog({ mode, expenseId, open, onOpenChange }: Expen
     // Load expense data for edit mode
     const { data: expense } = useExpense(expenseId || '', orgContext?.orgId);
 
+    // Mutation hooks
+    const createExpenseMutation = useCreateExpense();
+    const updateExpenseMutation = useUpdateExpense();
+    const deleteExpenseMutation = useDeleteExpense();
+
+    // Combined loading state for all mutations
+    const isSubmitting = createExpenseMutation.isPending || updateExpenseMutation.isPending || deleteExpenseMutation.isPending;
+
     const {
         form,
         fields,
@@ -76,8 +82,6 @@ export function ExpenseFormDialog({ mode, expenseId, open, onOpenChange }: Expen
         remove,
         uploadedFiles,
         setUploadedFiles,
-        isSubmitting,
-        setIsSubmitting,
     } = useExpenseForm({
         mode,
         initialData: mode === 'edit' && expense ? {
@@ -116,107 +120,105 @@ export function ExpenseFormDialog({ mode, expenseId, open, onOpenChange }: Expen
     }, [open, mode, orgContext?.orgId]);
 
     const onSubmit = async (data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        setIsSubmitting(true);
-        try {
-            const formData = new FormData();
+        const formData = new FormData();
 
-            // Add line items to form data
-            data.lineItems.forEach((item: any, index: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-                const amount = parseFloat(item.amount);
-                formData.append(`lineItems[${index}][amount]`, amount.toString());
-                if (item.description) {
-                    formData.append(`lineItems[${index}][description]`, item.description);
-                }
+        // Add line items to form data
+        data.lineItems.forEach((item: any, index: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+            const amount = parseFloat(item.amount);
+            formData.append(`lineItems[${index}][amount]`, amount.toString());
+            if (item.description) {
+                formData.append(`lineItems[${index}][description]`, item.description);
+            }
+        });
+
+        // Add uploaded files to form data per line item
+        uploadedFiles.forEach((lineItemFiles, lineItemIndex) => {
+            lineItemFiles.forEach((file, fileIndex) => {
+                formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][url]`, file.url);
+                formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][name]`, file.name);
+                formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][type]`, file.type);
             });
+        });
 
-            // Add uploaded files to form data per line item
-            uploadedFiles.forEach((lineItemFiles, lineItemIndex) => {
-                lineItemFiles.forEach((file, fileIndex) => {
-                    formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][url]`, file.url);
-                    formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][name]`, file.name);
-                    formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][type]`, file.type);
+        formData.append('date', data.date);
+
+        const handleSuccess = () => {
+            if (mode === 'create' && submissionType === 'draft') {
+                setShowSuccessGlow(true);
+                toast.success('Expense saved as draft!');
+                // Reset form
+                form.reset({
+                    lineItems: [{ amount: '0.00', description: '' }],
+                    date: new Date().toISOString().split('T')[0],
+                    managerEmail: '',
                 });
-            });
+                setUploadedFiles([[]]);
+                setSelectedManager('');
+                setTimeout(() => {
+                    onOpenChange(false);
+                    setShowSuccessGlow(false);
+                }, 1200);
+            } else {
+                setShowPulseFeedback(true);
+                const message = mode === 'create'
+                    ? (submissionType === 'pre-approval' ? 'Pre-approval request submitted!' : 'Expense submitted for approval!')
+                    : 'Expense updated successfully!';
+                toast.success(message);
+                setTimeout(() => {
+                    onOpenChange(false);
+                    setShowPulseFeedback(false);
+                }, 1200);
+            }
+        };
 
-            formData.append('date', data.date);
+        const handleError = (error: Error) => {
+            toast.error(error.message || 'Failed to save expense');
+        };
 
-            let result;
-            if (mode === 'create') {
-                // Add submission options for create
-                if (orgContext) {
-                    formData.append('submissionType', submissionType);
-                    if (selectedManager) {
-                        formData.append('managerId', selectedManager);
-                        const selectedManagerData = managers.find(m => m.id === selectedManager);
-                        if (selectedManagerData) {
-                            formData.append('managerEmail', selectedManagerData.email);
-                        }
+        if (mode === 'create') {
+            // Add submission options for create
+            if (orgContext) {
+                formData.append('submissionType', submissionType);
+                if (selectedManager) {
+                    formData.append('managerId', selectedManager);
+                    const selectedManagerData = managers.find(m => m.id === selectedManager);
+                    if (selectedManagerData) {
+                        formData.append('managerEmail', selectedManagerData.email);
                     }
-                    formData.append('organizationId', orgContext.orgId);
                 }
-                result = await createExpenseAction(formData);
-            } else {
-                // Edit mode
-                result = await updateExpenseAction(expenseId!, formData);
+                formData.append('organizationId', orgContext.orgId);
             }
-
-            if (result.success) {
-                if (mode === 'create' && submissionType === 'draft') {
-                    setShowSuccessGlow(true);
-                    toast.success('Expense saved as draft!');
-                    // Reset form
-                    form.reset({
-                        lineItems: [{ amount: '0.00', description: '' }],
-                        date: new Date().toISOString().split('T')[0],
-                        managerEmail: '',
-                    });
-                    setUploadedFiles([[]]);
-                    setSelectedManager('');
-                    setTimeout(() => {
-                        onOpenChange(false);
-                        setShowSuccessGlow(false);
-                    }, 1200);
-                } else {
-                    setShowPulseFeedback(true);
-                    const message = mode === 'create'
-                        ? (submissionType === 'pre-approval' ? 'Pre-approval request submitted!' : 'Expense submitted for approval!')
-                        : 'Expense updated successfully!';
-                    toast.success(message);
-                    setTimeout(() => {
-                        onOpenChange(false);
-                        setShowPulseFeedback(false);
-                    }, 1200);
+            createExpenseMutation.mutate(formData, {
+                onSuccess: handleSuccess,
+                onError: handleError,
+            });
+        } else {
+            // Edit mode
+            updateExpenseMutation.mutate(
+                { expenseId: expenseId!, formData },
+                {
+                    onSuccess: handleSuccess,
+                    onError: handleError,
                 }
-            } else {
-                toast.error(result.error || 'Failed to save expense');
-            }
-        } catch (error) {
-            console.error('Error saving expense:', error);
-            toast.error('An unexpected error occurred');
-        } finally {
-            setIsSubmitting(false);
+            );
         }
     };
 
-    const handleDelete = async () => {
+    const handleDelete = () => {
         if (!expenseId) return;
 
-        setIsSubmitting(true);
-        try {
-            const result = await deleteExpenseAction(expenseId);
-            if (result.success) {
+        deleteExpenseMutation.mutate(expenseId, {
+            onSuccess: () => {
                 toast.success('Expense deleted successfully');
                 onOpenChange(false);
-            } else {
-                toast.error(result.error || 'Failed to delete expense');
-            }
-        } catch (error) {
-            console.error('Error deleting expense:', error);
-            toast.error('An unexpected error occurred');
-        } finally {
-            setIsSubmitting(false);
-            setShowDeleteConfirm(false);
-        }
+            },
+            onError: (error) => {
+                toast.error(error.message || 'Failed to delete expense');
+            },
+            onSettled: () => {
+                setShowDeleteConfirm(false);
+            },
+        });
     };
 
     const handleOpenChange = (newOpen: boolean) => {
@@ -462,9 +464,17 @@ export function ExpenseFormDialog({ mode, expenseId, open, onOpenChange }: Expen
 
     return (
         <>
-            {dialogContent}
-            {showSuccessGlow && <SuccessGlow><div /></SuccessGlow>}
-            {showPulseFeedback && <PulseFeedback><div /></PulseFeedback>}
+            {showSuccessGlow ? (
+                <SuccessGlow>
+                    {dialogContent}
+                </SuccessGlow>
+            ) : showPulseFeedback ? (
+                <PulseFeedback>
+                    {dialogContent}
+                </PulseFeedback>
+            ) : (
+                dialogContent
+            )}
         </>
     );
 }

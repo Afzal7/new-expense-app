@@ -47,6 +47,11 @@ export const env = {
   RESEND_API_KEY: getEnvVar("RESEND_API_KEY"),
   RESEND_FROM_EMAIL: getOptionalEnvVar("RESEND_FROM_EMAIL") || "onboarding@resend.dev",
 
+  // Transloadit (File Processing)
+  TRANSLOADIT_KEY: getEnvVar("TRANSLOADIT_KEY"),
+  TRANSLOADIT_SECRET: getEnvVar("TRANSLOADIT_SECRET"),
+  TRANSLOADIT_TEMPLATE_ID: getEnvVar("TRANSLOADIT_TEMPLATE_ID"),
+
   // Node environment
   NODE_ENV: process.env.NODE_ENV || "development",
   isDevelopment: process.env.NODE_ENV === "development",

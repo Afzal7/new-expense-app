@@ -112,17 +112,65 @@ export const expenseService = {
             managerId?: string;
         }>
     ) {
-        await connectMongoose();
+        console.log('💾 [expenseService.updateExpense] Starting database update for expense:', expenseId);
+        console.log('📊 [expenseService.updateExpense] Update data:', JSON.stringify(updateData, null, 2));
 
-        const updatedExpense = await Expense.findByIdAndUpdate(
+        await connectMongoose();
+        console.log('🔗 [expenseService.updateExpense] Database connection established');
+
+        console.log('🔍 [expenseService.updateExpense] Executing findByIdAndUpdate query');
+
+        // First, let's check if the document exists
+        const existingDoc = await Expense.findById(expenseId);
+        console.log('📋 [expenseService.updateExpense] Existing document before update:', {
+            found: !!existingDoc,
+            id: existingDoc?._id?.toString(),
+            lineItemsCount: existingDoc?.lineItems?.length,
+            totalAmount: existingDoc?.totalAmount,
+            status: existingDoc?.status
+        });
+
+        console.log('💾 [expenseService.updateExpense] Update operation details:', {
+            expenseId,
+            updateDataKeys: Object.keys(updateData),
+            lineItemsToUpdate: updateData.lineItems?.length,
+            newTotalAmount: updateData.totalAmount
+        });
+
+        const updateResult = await Expense.findByIdAndUpdate(
             expenseId,
             {
                 ...updateData,
                 updatedAt: new Date(),
             },
             { new: true }
-        ).lean();
-        return JSON.parse(JSON.stringify(updatedExpense));
+        );
+
+        console.log('✅ [expenseService.updateExpense] findByIdAndUpdate result:', {
+            found: !!updateResult,
+            id: updateResult?._id?.toString(),
+            lineItemsCount: updateResult?.lineItems?.length,
+            totalAmount: updateResult?.totalAmount,
+            updatedAt: updateResult?.updatedAt
+        });
+
+        // Convert to plain object for return
+        const updatedExpense = updateResult ? JSON.parse(JSON.stringify(updateResult.toObject())) : null;
+
+        // Double-check by fetching again to make sure the update persisted
+        const doubleCheck = await Expense.findById(expenseId);
+        console.log('🔍 [expenseService.updateExpense] Double-check fetch after update:', {
+            found: !!doubleCheck,
+            lineItemsCount: doubleCheck?.lineItems?.length,
+            totalAmount: doubleCheck?.totalAmount,
+            updatedAt: doubleCheck?.updatedAt,
+            matchesUpdate: doubleCheck?.lineItems?.length === updateData.lineItems?.length &&
+                          doubleCheck?.totalAmount === updateData.totalAmount
+        });
+
+        const result = JSON.parse(JSON.stringify(updatedExpense));
+        console.log('📤 [expenseService.updateExpense] Returning parsed result');
+        return result;
     },
 
     /**

@@ -20,8 +20,13 @@ type Expense = {
     createdAt: Date;
 };
 
-export function ExpenseList() {
-    const { data, isLoading, error } = useExpenses();
+interface ExpenseListProps {
+    onExpenseUpdate?: () => void;
+    onExpenseDelete?: () => void;
+}
+
+export function ExpenseList({ onExpenseUpdate, onExpenseDelete }: ExpenseListProps = {}) {
+    const { data, isLoading, error, refetch } = useExpenses();
 
     if (isLoading) {
         return (
@@ -54,11 +59,25 @@ export function ExpenseList() {
         );
     }
 
+    const handleExpenseUpdate = () => {
+        // Cache invalidation is handled automatically by the mutation hooks
+        onExpenseUpdate?.();
+    };
+
+    const handleExpenseDelete = () => {
+        // Cache invalidation is handled automatically by the mutation hooks
+        onExpenseDelete?.();
+    };
+
     return (
         <StaggeredList className="space-y-4">
             {data.map((expense: Expense) => (
                 <StaggeredItem key={expense._id}>
-                    <ExpenseCard expense={expense} />
+                    <ExpenseCard
+                        expense={expense}
+                        onEditSuccess={handleExpenseUpdate}
+                        onActionSuccess={handleExpenseDelete}
+                    />
                 </StaggeredItem>
             ))}
         </StaggeredList>

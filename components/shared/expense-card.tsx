@@ -82,12 +82,13 @@ export function ExpenseCard({
                         View
                     </Link>
                 </Button>
-                {showEdit && (
-                    <EditExpense
-                        expenseId={expense._id}
-                        variant="icon"
-                    />
-                )}
+                 {showEdit && (
+                     <EditExpense
+                         expenseId={expense._id}
+                         variant="icon"
+                         onSuccess={onEditSuccess}
+                     />
+                 )}
                 {showDelete && (
                     <DeleteExpense
                         expenseId={expense._id}

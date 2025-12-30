@@ -25,7 +25,7 @@ interface Expense {
 }
 
 export function VaultContent() {
-    const { data: drafts, isLoading, error } = usePersonalDrafts();
+    const { data: drafts, isLoading, error, refetch } = usePersonalDrafts();
 
     if (isLoading) {
         return (
@@ -93,7 +93,7 @@ export function VaultContent() {
                         }}
                         showDelete={false} // Vault doesn't show delete
                         onEditSuccess={() => {
-                            // Optionally refresh vault data
+                            // Cache invalidation is handled automatically by the mutation hooks
                         }}
                     />
                 ))}

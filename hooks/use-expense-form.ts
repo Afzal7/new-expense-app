@@ -51,10 +51,16 @@ export interface UseExpenseFormReturn {
 }
 
 export function useExpenseForm({ mode, initialData }: UseExpenseFormOptions): UseExpenseFormReturn {
-    const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; name: string; type: string }[]>>([[]]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const schema = mode === 'create' ? createExpenseSchema : editExpenseSchema;
+
+    // Initialize uploadedFiles based on initialData
+    const initialUploadedFiles = initialData?.lineItems
+        ? new Array(initialData.lineItems.length).fill([])
+        : [[]];
+
+    const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; name: string; type: string }[]>>(initialUploadedFiles);
 
     const form = useForm<CreateExpenseFormData | EditExpenseFormData>({
         resolver: zodResolver(schema),
@@ -70,6 +76,13 @@ export function useExpenseForm({ mode, initialData }: UseExpenseFormOptions): Us
         control: form.control,
         name: 'lineItems',
     });
+
+    // Update uploadedFiles when initialData changes (for edit mode)
+    useEffect(() => {
+        if (initialData?.lineItems) {
+            setUploadedFiles(new Array(initialData.lineItems.length).fill([]));
+        }
+    }, [initialData]);
 
     // Synchronize uploadedFiles with form fields
     const uploadedFilesRef = useRef(uploadedFiles);

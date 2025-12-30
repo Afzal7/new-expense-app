@@ -117,6 +117,7 @@ export async function connectMongoose() {
   if (!cached!.promise) {
     const opts = {
       bufferCommands: false,
+      dbName: DATABASE_NAME,
     };
 
     cached!.promise = mongoose.connect(env.MONGODB_URI, opts).then((mongoose) => {

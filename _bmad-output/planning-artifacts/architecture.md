@@ -145,8 +145,8 @@ Permissions are enforced through the Better Auth Organization plugin:
 *   **Decision**: **MongoDB Atlas** (Dedicated or Serverless).
 *   **Connectivity**: Use standardized connection pooling in `lib/db.ts` to ensure compatibility across different serverless/containerized providers.
 
-#### 5.3 Storage: UploadThing (S3-Based)
-*   **Decision**: Maintain **UploadThing** for file management. It handles its own infrastructure (S3-compatible) and works seamlessly across Netlify/Cloudflare via standard Webhook callbacks.
+#### 5.3 Storage: Uppy + Transloadit
+*   **Decision**: Use **Uppy** for file upload UI (drag-drop, mobile photo capture) and **Transloadit** for backend processing (resizing, optimization, malware protection). Ensures fail-safe file handling and aligns with performance/security goals.
 
 #### 5.4 CI/CD: Provider-Native or GitHub Actions
 *   **Strategy**: Standard GitHub-integrated deployment. Every merge to `main` triggers a production build.

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Trash2, AlertTriangle } from 'lucide-react';
-import { deleteExpenseAction } from '../../app/dashboard/expenses/_actions/edit-actions';
+import { useDeleteExpense } from '@/hooks/use-expense';
 import { toast } from 'sonner';
 import {
     AlertDialog,
@@ -32,25 +32,22 @@ export function DeleteExpense({
     onSuccess
 }: DeleteExpenseProps) {
     const [showConfirm, setShowConfirm] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
 
-    const handleDelete = async () => {
-        setIsDeleting(true);
-        try {
-            const result = await deleteExpenseAction(expenseId);
-            if (result.success) {
+    const deleteExpenseMutation = useDeleteExpense();
+
+    const handleDelete = () => {
+        deleteExpenseMutation.mutate(expenseId, {
+            onSuccess: () => {
                 toast.success('Expense deleted successfully');
                 onSuccess?.();
-            } else {
-                toast.error(result.error || 'Failed to delete expense');
-            }
-        } catch (error) {
-            console.error('Error deleting expense:', error);
-            toast.error('An unexpected error occurred');
-        } finally {
-            setIsDeleting(false);
-            setShowConfirm(false);
-        }
+            },
+            onError: (error) => {
+                toast.error(error.message || 'Failed to delete expense');
+            },
+            onSettled: () => {
+                setShowConfirm(false);
+            },
+        });
     };
 
     const triggerButton = variant === 'destructive' ? (
@@ -58,7 +55,7 @@ export function DeleteExpense({
             variant="destructive"
             size="sm"
             onClick={() => setShowConfirm(true)}
-            disabled={isDeleting}
+            disabled={deleteExpenseMutation.isPending}
             className={className}
         >
             <Trash2 className="h-4 w-4 mr-2" />
@@ -69,7 +66,7 @@ export function DeleteExpense({
             variant="outline"
             size="sm"
             onClick={() => setShowConfirm(true)}
-            disabled={isDeleting}
+            disabled={deleteExpenseMutation.isPending}
             className={className}
         >
             <Trash2 className="h-4 w-4" />
@@ -79,7 +76,7 @@ export function DeleteExpense({
             variant="outline"
             size="sm"
             onClick={() => setShowConfirm(true)}
-            disabled={isDeleting}
+            disabled={deleteExpenseMutation.isPending}
             className={className}
         >
             <Trash2 className="h-4 w-4 mr-2" />
@@ -104,15 +101,15 @@ export function DeleteExpense({
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>
+                        <AlertDialogCancel disabled={deleteExpenseMutation.isPending}>
                             Cancel
                         </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
-                            disabled={isDeleting}
+                            disabled={deleteExpenseMutation.isPending}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            {isDeleting ? 'Deleting...' : 'Delete Expense'}
+                            {deleteExpenseMutation.isPending ? 'Deleting...' : 'Delete Expense'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

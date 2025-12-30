@@ -92,18 +92,21 @@ export function EditExpenseDialog({ expenseId, open, onOpenChange }: EditExpense
     }, [expense, open, reset]);
 
     const onSubmit = async (data: EditExpenseForm) => {
+        console.log('📝 [EditExpenseDialog.onSubmit] Starting form submission');
+        console.log('📊 [EditExpenseDialog.onSubmit] Form data:', data);
+        console.log('📎 [EditExpenseDialog.onSubmit] Uploaded files:', uploadedFiles);
+
         const formData = new FormData();
 
             data.lineItems.forEach((item, index) => {
                 formData.append(`lineItems[${index}][amount]`, item.amount);
-                if (item.description) {
-                    formData.append(`lineItems[${index}][description]`, item.description);
-                }
+                formData.append(`lineItems[${index}][description]`, item.description || '');
             });
 
         // Add new uploaded files for each line item
         uploadedFiles.forEach((lineItemFiles, lineItemIndex) => {
             lineItemFiles.forEach((file, fileIndex) => {
+                console.log(`📎 [EditExpenseDialog.onSubmit] Adding attachment for line item ${lineItemIndex}, file ${fileIndex}:`, file);
                 formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][url]`, file.url);
                 formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][name]`, file.name);
                 formData.append(`lineItems[${lineItemIndex}][attachments][${fileIndex}][type]`, file.type);
@@ -112,14 +115,24 @@ export function EditExpenseDialog({ expenseId, open, onOpenChange }: EditExpense
 
         formData.append('date', data.date);
 
+        // Log the FormData contents for debugging
+        const formDataEntries = Array.from(formData.entries());
+        console.log('📦 [EditExpenseDialog.onSubmit] FormData contents:', formDataEntries.map(([key, value]) => ({
+            key,
+            value: value instanceof File ? `[File: ${value.name}]` : value
+        })));
+
+        console.log('🚀 [EditExpenseDialog.onSubmit] Calling updateExpense.mutate');
         updateExpense.mutate({ expenseId, formData }, {
-            onSuccess: () => {
+            onSuccess: (result) => {
+                console.log('🎉 [EditExpenseDialog.onSubmit] Mutation succeeded:', result);
                 toast.success('Expense updated successfully!');
                 reset();
                 setUploadedFiles([[]]);
                 onOpenChange(false);
             },
             onError: (error: Error) => {
+                console.error('❌ [EditExpenseDialog.onSubmit] Mutation failed:', error);
                 toast.error(error.message);
             }
         });

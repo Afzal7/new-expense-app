@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 // Removed unused Textarea import
 
 import { useCreateExpense } from '@/hooks/use-expense';
+import { useOrganizationManagers } from '@/hooks/use-organization-managers';
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
 import { FileUpload } from '@/components/ui/file-upload';
@@ -59,7 +60,6 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
     const [submissionType, setSubmissionType] = useState<'draft' | 'pre-approval' | 'submit'>('draft');
     const [selectedManager, setSelectedManager] = useState<string>('');
     const [managers, setManagers] = useState<Array<{ id: string, name: string, email: string, role: string }>>([]);
-    const [loadingManagers, setLoadingManagers] = useState(false);
     const [hasAutoSaved, setHasAutoSaved] = useState(false);
     const [managerEmailError, setManagerEmailError] = useState<string>('');
     const orgContext = useOrganizationContext();
@@ -133,28 +133,23 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
         validateManagerEmail(watchedManagerEmail || '');
     }, [watchedManagerEmail, managers, orgContext?.orgId]);
 
-    // Fetch organization managers when dialog opens
+    // Fetch organization managers using TanStack Query hook
+    const managersQuery = useOrganizationManagers(orgContext?.orgId, open && !!orgContext?.orgId);
+
+    // Update managers state when query succeeds
     useEffect(() => {
-        if (open && orgContext?.orgId) {
-            setLoadingManagers(true);
-            fetch(`/api/organizations/managers?organizationId=${orgContext.orgId}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        // Filter out current user and include only managers/admins
-                        const availableManagers = data.managers.filter((manager: any) =>
-                            manager.role === 'admin' || manager.role === 'owner'
-                        );
-                        setManagers(availableManagers);
-                    }
-                })
-                .catch(error => {
-                    console.error('Failed to load managers:', error);
-                    toast.error('Failed to load managers');
-                })
-                .finally(() => setLoadingManagers(false));
+        if (managersQuery.data) {
+            setManagers(managersQuery.data);
         }
-    }, [open, orgContext?.orgId]);
+    }, [managersQuery.data]);
+
+    // Handle error states
+    useEffect(() => {
+        if (managersQuery.error) {
+            console.error('Failed to load managers:', managersQuery.error);
+            toast.error('Failed to load managers');
+        }
+    }, [managersQuery.error]);
 
     // Ensure uploadedFiles array matches the number of line items
     useEffect(() => {
@@ -498,11 +493,11 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                                                 <SelectValue placeholder="Choose a manager" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {loadingManagers ? (
-                                                    <SelectItem value="" disabled>Loading managers...</SelectItem>
-                                                ) : managers.length === 0 ? (
-                                                    <SelectItem value="" disabled>No managers available</SelectItem>
-                                                ) : (
+                                                 {managersQuery.isLoading ? (
+                                                     <SelectItem value="" disabled>Loading managers...</SelectItem>
+                                                 ) : managers.length === 0 ? (
+                                                     <SelectItem value="" disabled>No managers available</SelectItem>
+                                                 ) : (
                                                     managers.map(manager => (
                                                         <SelectItem key={manager.id} value={manager.id}>
                                                             {manager.name} ({manager.role})

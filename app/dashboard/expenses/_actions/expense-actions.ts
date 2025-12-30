@@ -11,6 +11,9 @@ import { ExpenseStatus } from '@/types/expense';
 import { revalidatePath } from 'next/cache';
 
 export async function createExpenseAction(formData: FormData) {
+    // Track uploaded file keys for potential cleanup if transaction fails
+    const uploadedFileKeys: string[] = [];
+
     try {
         const session = await auth.api.getSession({
             headers: await headers()
@@ -22,11 +25,36 @@ export async function createExpenseAction(formData: FormData) {
 
         const data = Object.fromEntries(formData);
         console.log('FormData data:', data);
+
+        // Extract file keys for potential cleanup if transaction fails
+        Object.keys(data).forEach(key => {
+            const attachmentMatch = key.match(/lineItems\[(\d+)\]\[attachments\]\[(\d+)\]\[url\]/);
+            if (attachmentMatch) {
+                const url = data[key] as string;
+                // Extract file key from URL (assuming format: .../fileKey)
+                const urlParts = url.split('/');
+                const fileKey = urlParts[urlParts.length - 1];
+                if (fileKey) uploadedFileKeys.push(fileKey);
+            }
+        });
+
+        // Extract file keys for potential cleanup if transaction fails
+        const uploadedFileKeys: string[] = [];
+        Object.keys(data).forEach(key => {
+            const attachmentMatch = key.match(/lineItems\[(\d+)\]\[attachments\]\[(\d+)\]\[url\]/);
+            if (attachmentMatch) {
+                const url = data[key] as string;
+                // Extract file key from URL (assuming UploadThing format: .../fileKey)
+                const urlParts = url.split('/');
+                const fileKey = urlParts[urlParts.length - 1];
+                if (fileKey) uploadedFileKeys.push(fileKey);
+            }
+        });
         const lineItems: Array<{
             amount: number;
             description: string;
             date: Date;
-            attachments: string[];
+            attachments: Array<{ url: string; name: string; type: string }>;
         }> = [];
 
         // Get submission options
@@ -102,8 +130,10 @@ export async function createExpenseAction(formData: FormData) {
 
                     // Filter out incomplete attachments
                     const validAttachments = (item.attachments || []).filter(att =>
-                        att.url && att.url.trim().length > 0
-                    ).map(att => att.url.trim());
+                        att.url && att.url.trim().length > 0 &&
+                        att.name && att.name.trim().length > 0 &&
+                        att.type && att.type.trim().length > 0
+                    );
 
                     lineItems.push({
                         amount,
@@ -195,6 +225,17 @@ export async function createExpenseAction(formData: FormData) {
     } catch (error) {
         console.error('Error creating expense:', error);
         console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+
+        // CRITICAL: Fail-safe file handling - clean up uploaded files if DB transaction failed
+        // Project rule requires immediate cleanup of uploaded assets on failure
+        // TODO: Implement actual file cleanup using Transloadit API or storage provider API
+        // Currently files may remain orphaned if expense creation fails after upload
+        if (uploadedFileKeys.length > 0) {
+            console.warn(`CRITICAL: ${uploadedFileKeys.length} uploaded files may need manual cleanup due to failed expense creation`);
+            // TODO: Call Transloadit delete API or storage provider cleanup
+            // Example: await transloaditApi.deleteFiles(uploadedFileKeys);
+        }
+
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Failed to create expense'

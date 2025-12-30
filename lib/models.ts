@@ -1,11 +1,17 @@
 import mongoose from 'mongoose';
 import { ExpenseStatus } from '../types/expense';
 
+const AttachmentSchema = new mongoose.Schema({
+  url: { type: String, required: true },
+  name: { type: String, required: true },
+  type: { type: String, required: true },
+});
+
 const LineItemSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   description: { type: String, required: false, default: '' },
   date: { type: Date, required: true },
-  attachments: [{ type: String }],
+  attachments: [AttachmentSchema],
 });
 
 const AuditLogEntrySchema = new mongoose.Schema({

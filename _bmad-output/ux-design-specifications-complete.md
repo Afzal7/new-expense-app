@@ -533,6 +533,788 @@ export function LineItemWithUpload({ item, index, onChange }: LineItemWithUpload
 
 ---
 
+## Story 2.1: The "Org Guard" Middleware & Layout
+
+### User Journey Flow
+```mermaid
+journey
+  title Organization Access Journey
+  section Navigation
+    User attempts org route: 5: User, Navigation
+    System checks membership: 5: System, Validation
+    Access granted instantly: 5: System, Success
+  section Boundary Crossing
+    User switches org context: 4: User, Action
+    Layout updates seamlessly: 5: System, Smooth
+    Context preserved: 5: System, Continuity
+  section Security Events
+    Unauthorized access attempt: 2: User, Error
+    Redirect to access page: 3: System, Protection
+    Clear error messaging: 4: System, Guidance
+```
+
+### Wireframe Concepts
+- **Access Denied Page:** Clean error state with join/redirect options
+- **Org Context Indicator:** Subtle header showing current organization
+- **Role-Based UI:** Dynamic navigation based on user permissions
+- **Seamless Switching:** Instant context changes without full page reload
+
+### Component Requirements (Feature Component Pattern)
+```typescript
+// app/dashboard/[orgId]/layout.tsx
+interface OrgLayoutProps {
+  children: React.ReactNode;
+  params: { orgId: string };
+}
+
+export function OrgLayout({ children, params }: OrgLayoutProps) {
+  const { org, userRole } = useOrgContext(params.orgId);
+
+  return (
+    <div className="min-h-screen">
+      <OrgHeader org={org} userRole={userRole} />
+      <OrgNavigation role={userRole} />
+      {children}
+    </div>
+  );
+}
+
+// lib/middleware/org-guard.ts
+export async function orgGuard(request: NextRequest, orgId: string) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return redirect('/login');
+
+  const membership = await db.organizationMembers.findOne({
+    organizationId: orgId,
+    userId: session.user.id
+  });
+
+  if (!membership) return redirect('/access-denied');
+  return { membership };
+}
+```
+
+### Interaction Patterns (DDD Principles)
+- **Instant Validation:** Sub-200ms access checks with optimistic loading
+- **Context Preservation:** Smooth org switching with layout transitions
+- **Clear Boundaries:** Visual indicators for org vs personal spaces
+- **Error Recovery:** Helpful redirection with join options
+
+### Responsive Design Considerations
+- **Mobile:** Collapsible org selector in header
+- **Desktop:** Sidebar org switcher with quick access
+- **Tablet:** Adaptive navigation preserving context
+
+### Accessibility Requirements
+- **Screen Reader:** Announces org context changes
+- **Keyboard Navigation:** Org switcher accessible via keyboard
+- **Error Announcements:** Access denied states clearly communicated
+
+---
+
+## Story 2.2: Create and Manage Organizations
+
+### User Journey Flow
+```mermaid
+journey
+  title Organization Creation Journey
+  section Initiation
+    User clicks "Create Org": 5: User, Action
+    Modal opens instantly: 5: System, Response
+    Form pre-populated smartly: 4: System, Guidance
+  section Creation
+    User enters org details: 4: User, Form
+    Real-time validation: 5: System, Feedback
+    Submits creation: 4: User, Action
+    Success animation: 5: System, Celebration
+  section Setup
+    User becomes owner: 5: System, Elevation
+    Invite prompt appears: 4: System, Next Steps
+    Org dashboard loads: 5: System, Transition
+```
+
+### Wireframe Concepts
+- **Creation Modal:** Clean form with org name and optional description
+- **Success Celebration:** Emerald glow with confetti animation
+- **Owner Dashboard:** Immediate access to management features
+- **Smart Defaults:** Pre-filled based on user context
+
+### Component Requirements (Feature Component Pattern)
+```typescript
+// components/features/CreateOrganization.tsx
+interface CreateOrganizationProps {
+  onSuccess?: (org: Organization) => void;
+}
+
+export function CreateOrganization({ onSuccess }: CreateOrganizationProps) {
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleSubmit = async (data: CreateOrgForm) => {
+    setIsCreating(true);
+    try {
+      const org = await createOrganizationAction(data);
+      // Success animation with confetti
+      await animateSuccess();
+      onSuccess?.(org);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button className="gap-2">
+          <Plus className="h-4 w-4" />
+          Create Organization
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <CreateOrgForm onSubmit={handleSubmit} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+### Interaction Patterns (DDD Principles)
+- **Instant Feedback:** Form validation with SuccessGlow on valid fields
+- **Celebration Moment:** Confetti animation on successful creation
+- **Seamless Transition:** Direct navigation to org dashboard
+- **Progressive Enhancement:** Form works without JavaScript
+
+### Responsive Design Considerations
+- **Mobile:** Full-screen modal optimized for touch
+- **Desktop:** Inline creation with quick access
+- **Tablet:** Balanced modal sizing
+
+### Accessibility Requirements
+- **Form Labels:** Explicit labels with aria-describedby
+- **Success Announcements:** Screen reader celebrates creation
+- **Keyboard Support:** Full keyboard navigation
+
+---
+
+## Story 2.3: Invite Members & Role Management
+
+### User Journey Flow
+```mermaid
+journey
+  title Member Invitation Journey
+  section Setup
+    Owner opens member management: 5: User, Navigation
+    Current members load: 5: System, Data
+    Empty state guidance: 4: System, Help
+  section Invitation
+    Owner enters email: 4: User, Input
+    Selects appropriate role: 4: User, Selection
+    Sends invitation: 4: User, Action
+    Success confirmation: 5: System, Feedback
+  section Management
+    Pending invites shown: 4: System, Status
+    Role changes possible: 3: User, Management
+    Member removal: 2: User, Action
+```
+
+### Wireframe Concepts
+- **Member Table:** Clear list with status indicators
+- **Role Selector:** Dropdown with permission explanations
+- **Invitation Form:** Email input with role selection
+- **Status Badges:** Pending/Active/Admin/Employee indicators
+
+### Component Requirements (Feature Component Pattern)
+```typescript
+// components/features/InviteMember.tsx
+interface InviteMemberProps {
+  orgId: string;
+  onMemberAdded?: () => void;
+}
+
+export function InviteMember({ orgId, onMemberAdded }: InviteMemberProps) {
+  const handleInvite = async (email: string, role: MemberRole) => {
+    await inviteMemberAction({ orgId, email, role });
+    // Success animation
+    toast.success('Invitation sent!');
+    onMemberAdded?.();
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Invite Team Member</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <InviteForm onSubmit={handleInvite} />
+      </CardContent>
+    </Card>
+  );
+}
+
+// components/features/ManageMembers.tsx
+interface ManageMembersProps {
+  orgId: string;
+}
+
+export function ManageMembers({ orgId }: ManageMembersProps) {
+  const { members, isLoading } = useOrgMembers(orgId);
+
+  if (isLoading) return <MemberSkeleton />;
+
+  return (
+    <div className="space-y-4">
+      {members.map(member => (
+        <MemberRow key={member.id} member={member} />
+      ))}
+      <InviteMember orgId={orgId} />
+    </div>
+  );
+}
+```
+
+### Interaction Patterns (DDD Principles)
+- **Optimistic Updates:** Invitation appears instantly in pending list
+- **Role Clarity:** Tooltips explain permissions for each role
+- **Status Transitions:** Smooth animations for invite acceptance
+- **Batch Operations:** Select multiple for role changes
+
+### Responsive Design Considerations
+- **Mobile:** Card-based member list
+- **Desktop:** Table with bulk actions
+- **Tablet:** Hybrid layout
+
+### Accessibility Requirements
+- **Table Navigation:** Proper table semantics
+- **Role Descriptions:** Screen reader friendly role explanations
+- **Status Updates:** Announced changes to member status
+
+---
+
+## Story 2.4: Reactive Linking Flow (Guest to Member)
+
+### User Journey Flow
+```mermaid
+journey
+  title Reactive Linking Journey
+  section Discovery
+    User joins organization: 5: User, Action
+    System detects personal drafts: 5: System, Analysis
+    Linking prompt appears: 4: System, Opportunity
+  section Review
+    User sees draft summary: 4: User, Review
+    Previews linking impact: 4: System, Preview
+    Makes linking decision: 3: User, Choice
+  section Transition
+    User confirms linking: 4: User, Action
+    Drafts move to org: 5: System, Migration
+    Audit trail updated: 5: System, Recording
+```
+
+### Wireframe Concepts
+- **Linking Modal:** Clear before/after preview
+- **Draft Summary:** Visual cards of personal expenses
+- **Impact Preview:** Shows how linking affects visibility
+- **One-Click Action:** Simple "Link All" button
+
+### Component Requirements (Feature Component Pattern)
+```typescript
+// components/features/ReactiveLinking.tsx
+interface ReactiveLinkingProps {
+  personalDrafts: Expense[];
+  orgId: string;
+  onComplete?: () => void;
+}
+
+export function ReactiveLinking({ personalDrafts, orgId, onComplete }: ReactiveLinkingProps) {
+  const [linking, setLinking] = useState(false);
+
+  const handleLinkAll = async () => {
+    setLinking(true);
+    try {
+      await linkDraftsToOrgAction({ draftIds: personalDrafts.map(d => d.id), orgId });
+      // Success celebration
+      await animateLinkingSuccess();
+      onComplete?.();
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={() => {}}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Welcome to {org.name}!</DialogTitle>
+          <DialogDescription>
+            We found {personalDrafts.length} personal expense drafts. 
+            Would you like to link them to your organization?
+          </DialogDescription>
+        </DialogHeader>
+
+        <DraftPreview drafts={personalDrafts} />
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onComplete}>
+            Skip for Now
+          </Button>
+          <Button onClick={handleLinkAll} disabled={linking}>
+            {linking ? 'Linking...' : 'Link All Drafts'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+### Interaction Patterns (DDD Principles)
+- **Discovery Delight:** Pleasant surprise at finding existing work
+- **Clear Preview:** Before/after visualization of the change
+- **One-Click Magic:** Simple action with comprehensive backend work
+- **Audit Transparency:** Clear recording of the transition
+
+### Responsive Design Considerations
+- **Mobile:** Scrollable draft preview
+- **Desktop:** Side-by-side before/after
+- **Tablet:** Optimized modal sizing
+
+### Accessibility Requirements
+- **Preview Clarity:** Screen reader describes linking impact
+- **Skip Option:** Easy dismissal without guilt
+- **Progress Feedback:** Loading states during linking
+
+---
+
+## Story 3.1: Manager's Review Queue
+
+### User Journey Flow
+```mermaid
+journey
+  title Manager Review Journey
+  section Access
+    Manager opens review queue: 5: User, Navigation
+    Expenses load instantly: 5: System, Speed
+    Filtered to pending reviews: 5: System, Relevance
+  section Review
+    Manager scans expense list: 4: User, Review
+    Clicks to expand details: 4: User, Action
+    Side-by-side view loads: 5: System, Clarity
+  section Decision
+    Manager reviews evidence: 4: User, Analysis
+    Makes approve/reject choice: 3: User, Decision
+    Action completes instantly: 5: System, Satisfaction
+```
+
+### Wireframe Concepts
+- **Queue List:** High-density cards with key info
+- **Expandable Details:** Side panel with full expense view
+- **Evidence Gallery:** Receipt images in organized layout
+- **Bulk Actions:** Select multiple for batch decisions
+
+### Component Requirements (Feature Component Pattern)
+```typescript
+// components/features/ManagerReviewQueue.tsx
+interface ManagerReviewQueueProps {
+  managerId: string;
+}
+
+export function ManagerReviewQueue({ managerId }: ManagerReviewQueueProps) {
+  const { expenses, isLoading } = useReviewQueue(managerId);
+
+  if (isLoading) return <ReviewSkeleton />;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2">
+        <ExpenseList
+          expenses={expenses}
+          onSelect={(expense) => setSelectedExpense(expense)}
+        />
+      </div>
+      <div className="lg:col-span-1">
+        {selectedExpense && (
+          <ExpenseDetailPanel
+            expense={selectedExpense}
+            onApprove={() => handleApprove(selectedExpense.id)}
+            onReject={(reason) => handleReject(selectedExpense.id, reason)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// components/features/ExpenseDetailPanel.tsx
+interface ExpenseDetailPanelProps {
+  expense: Expense;
+  onApprove: () => void;
+  onReject: (reason: string) => void;
+}
+
+export function ExpenseDetailPanel({ expense, onApprove, onReject }: ExpenseDetailPanelProps) {
+  return (
+    <Card className="sticky top-6">
+      <CardHeader>
+        <CardTitle>Review Expense</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <ExpenseSummary expense={expense} />
+        <ReceiptGallery attachments={expense.attachments} />
+        <AuditTrailPreview trail={expense.auditLog} />
+        <ReviewActions onApprove={onApprove} onReject={onReject} />
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### Interaction Patterns (DDD Principles)
+- **Instant Loading:** Sub-200ms queue population
+- **Progressive Disclosure:** Details load on demand
+- **Evidence First:** Receipts and audit trail prominently displayed
+- **Decision Flow:** Clear approve/reject with optional comments
+
+### Responsive Design Considerations
+- **Mobile:** Single column with expandable cards
+- **Desktop:** Three-column layout with persistent detail panel
+- **Tablet:** Two-column adaptive layout
+
+### Accessibility Requirements
+- **Keyboard Navigation:** Arrow keys navigate queue
+- **Screen Reader:** Announces expense details and evidence
+- **High Contrast:** Clear approve/reject button distinction
+
+---
+
+## Story 3.2: Submission Workflow (Flow A/B)
+
+### User Journey Flow
+```mermaid
+journey
+  title Submission Workflow Journey
+  section Preparation
+    Employee reviews draft: 4: User, Review
+    Selects submission type: 3: User, Decision
+    Flow A or B chosen: 4: System, Guidance
+  section Pre-Approval Flow
+    Selects manager reviewer: 4: User, Selection
+    Adds optional context: 3: User, Input
+    Submits for pre-approval: 4: User, Action
+  section Final Submission
+    Attaches final receipts: 4: User, Upload
+    Selects category: 4: User, Selection
+    Submits for reimbursement: 4: User, Action
+```
+
+### Wireframe Concepts
+- **Flow Selector:** Clear A/B choice with explanations
+- **Progressive Forms:** Fields appear based on selected flow
+- **Manager Picker:** Verified list with availability indicators
+- **Submission Summary:** Clear preview before final action
+
+### Component Requirements (Feature Component Pattern)
+```typescript
+// components/features/SubmitExpense.tsx
+interface SubmitExpenseProps {
+  expenseId: string;
+  onSuccess?: () => void;
+}
+
+export function SubmitExpense({ expenseId, onSuccess }: SubmitExpenseProps) {
+  const [flow, setFlow] = useState<'A' | 'B'>('B');
+
+  const handleSubmit = async (data: SubmissionData) => {
+    if (flow === 'A') {
+      await submitForFinalApprovalAction({ expenseId, ...data });
+    } else {
+      await submitForPreApprovalAction({ expenseId, ...data });
+    }
+    // Success animation
+    await animateSubmissionSuccess();
+    onSuccess?.();
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button>Submit for Approval</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <FlowSelector value={flow} onChange={setFlow} />
+        <SubmissionForm flow={flow} onSubmit={handleSubmit} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// components/features/FlowSelector.tsx
+interface FlowSelectorProps {
+  value: 'A' | 'B';
+  onChange: (flow: 'A' | 'B') => void;
+}
+
+export function FlowSelector({ value, onChange }: FlowSelectorProps) {
+  return (
+    <Tabs value={value} onValueChange={onChange}>
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="B">Pre-Approval (Recommended)</TabsTrigger>
+        <TabsTrigger value="A">Final Submission</TabsTrigger>
+      </TabsList>
+      <TabsContent value="B" className="mt-4">
+        <p className="text-sm text-muted-foreground">
+          Submit for manager review first, then add final receipts later.
+        </p>
+      </TabsContent>
+      <TabsContent value="A" className="mt-4">
+        <p className="text-sm text-muted-foreground">
+          Submit complete expense with all receipts and details.
+        </p>
+      </TabsContent>
+    </Tabs>
+  );
+}
+```
+
+### Interaction Patterns (DDD Principles)
+- **Flow Guidance:** Clear explanations help users choose correctly
+- **Progressive Forms:** Fields appear contextually to reduce overwhelm
+- **Optimistic Submission:** Immediate UI feedback before backend processing
+- **State Clarity:** Clear indication of current approval stage
+
+### Responsive Design Considerations
+- **Mobile:** Step-by-step wizard flow
+- **Desktop:** Tabbed interface with all options visible
+- **Tablet:** Compact tab layout
+
+### Accessibility Requirements
+- **Flow Descriptions:** Screen reader explains A/B differences
+- **Progressive Disclosure:** Fields announced as they appear
+- **Submission Confirmation:** Clear success/error feedback
+
+---
+
+## Story 3.3: Manager Approval/Rejection State Machine
+
+### User Journey Flow
+```mermaid
+journey
+  title Approval State Machine Journey
+  section Review
+    Manager receives notification: 5: User, Alert
+    Opens expense for review: 4: User, Action
+    Examines evidence thoroughly: 4: User, Analysis
+  section Decision
+    Manager selects action: 3: User, Choice
+    Adds optional comment: 3: User, Input
+    Confirms decision: 3: User, Action
+  section Transition
+    State changes instantly: 5: System, Update
+    Employee notified: 5: System, Communication
+    Audit logged: 5: System, Recording
+```
+
+### Wireframe Concepts
+- **State Indicators:** Clear visual status badges
+- **Action Buttons:** Prominent approve/reject with glow states
+- **Comment Field:** Optional feedback input
+- **Transition Animation:** Smooth state changes with micro-feedback
+
+### Component Requirements (Feature Component Pattern)
+```typescript
+// components/features/ApprovalActions.tsx
+interface ApprovalActionsProps {
+  expenseId: string;
+  currentState: ExpenseState;
+  onStateChange?: (newState: ExpenseState) => void;
+}
+
+export function ApprovalActions({ expenseId, currentState, onStateChange }: ApprovalActionsProps) {
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+
+  const handleApprove = async () => {
+    setApproving(true);
+    try {
+      const newState = await approveExpenseAction(expenseId);
+      // Success glow animation
+      await animateApprovalSuccess();
+      onStateChange?.(newState);
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleReject = async (reason: string) => {
+    setRejecting(true);
+    try {
+      const newState = await rejectExpenseAction(expenseId, reason);
+      // Soft amber feedback
+      await animateRejectionFeedback();
+      onStateChange?.(newState);
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Button
+        onClick={handleApprove}
+        disabled={approving}
+        className="bg-emerald-600 hover:bg-emerald-700"
+      >
+        {approving ? 'Approving...' : 'Approve'}
+      </Button>
+      <RejectDialog onConfirm={handleReject} disabled={rejecting} />
+    </div>
+  );
+}
+
+// components/features/StateTransitionIndicator.tsx
+interface StateTransitionIndicatorProps {
+  fromState: ExpenseState;
+  toState: ExpenseState;
+  animated?: boolean;
+}
+
+export function StateTransitionIndicator({ fromState, toState, animated = true }: StateTransitionIndicatorProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+    >
+      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+        {fromState} → {toState}
+      </Badge>
+    </motion.div>
+  );
+}
+```
+
+### Interaction Patterns (DDD Principles)
+- **Instant Feedback:** One-click approval with immediate UI updates
+- **State Clarity:** Clear visual transitions between states
+- **Rejection Sensitivity:** Optional comments with empathetic tone
+- **Audit Transparency:** All actions logged and visible
+
+### Responsive Design Considerations
+- **Mobile:** Stacked action buttons with full-width touch targets
+- **Desktop:** Inline buttons with hover states
+- **Tablet:** Balanced button sizing
+
+### Accessibility Requirements
+- **Button States:** Clear loading and disabled states
+- **State Announcements:** Screen reader announces state changes
+- **Optional Comments:** Rejection reason clearly associated
+
+---
+
+## Story 3.4: Self-Approval Prevention Guard
+
+### User Journey Flow
+```mermaid
+journey
+  title Self-Approval Prevention Journey
+  section Attempt
+    User tries self-selection: 2: User, Action
+    System prevents selection: 5: System, Protection
+    Clear error message: 4: System, Guidance
+  section Alternative
+    User selects valid manager: 4: User, Correction
+    Form validation passes: 5: System, Success
+    Submission proceeds: 4: User, Action
+  section Prevention
+    System blocks at submission: 5: System, Security
+    User notified of policy: 4: System, Education
+    Alternative path suggested: 4: System, Help
+```
+
+### Wireframe Concepts
+- **Manager Picker:** Filtered dropdown excluding self
+- **Error States:** Clear prevention messaging
+- **Policy Explanation:** Tooltip explaining the business rule
+- **Alternative Guidance:** Suggestions for valid reviewers
+
+### Component Requirements (Feature Component Pattern)
+```typescript
+// components/features/ManagerSelector.tsx
+interface ManagerSelectorProps {
+  orgId: string;
+  excludeUserId?: string;
+  value?: string;
+  onChange: (managerId: string) => void;
+}
+
+export function ManagerSelector({ orgId, excludeUserId, value, onChange }: ManagerSelectorProps) {
+  const { managers, isLoading } = useOrgManagers(orgId, { excludeUserId });
+
+  if (isLoading) return <ManagerSkeleton />;
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="manager-select">
+        Select Manager Reviewer
+        <Tooltip>
+          <TooltipTrigger>
+            <Info className="h-4 w-4 ml-1" />
+          </TooltipTrigger>
+          <TooltipContent>
+            Choose a manager to review your expense. 
+            Self-approval is not permitted for compliance reasons.
+          </TooltipContent>
+        </Tooltip>
+      </Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id="manager-select">
+          <SelectValue placeholder="Choose a manager..." />
+        </SelectTrigger>
+        <SelectContent>
+          {managers.map(manager => (
+            <SelectItem key={manager.id} value={manager.id}>
+              {manager.name} - {manager.role}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+// lib/validations/expense.ts - Enhanced validation
+export const submissionSchema = z.object({
+  managerId: z.string().min(1, 'Manager selection required'),
+  expenseId: z.string()
+}).refine(async (data) => {
+  // Server-side validation prevents self-approval
+  const expense = await db.expenses.findById(data.expenseId);
+  if (expense.submitterId === data.managerId) {
+    throw new Error('Self-approval is not permitted');
+  }
+  return true;
+}, {
+  message: 'Cannot select yourself as the reviewer',
+  path: ['managerId']
+});
+```
+
+### Interaction Patterns (DDD Principles)
+- **Prevention First:** UI prevents invalid selections proactively
+- **Clear Messaging:** Explains why self-approval is blocked
+- **Guidance Focus:** Suggests valid alternatives immediately
+- **Policy Education:** Helps users understand the business rule
+
+### Responsive Design Considerations
+- **Mobile:** Full-width selector with clear touch targets
+- **Desktop:** Compact dropdown with tooltip guidance
+- **Tablet:** Balanced sizing with accessible tooltips
+
+### Accessibility Requirements
+- **Error Association:** Validation errors linked to selector
+- **Screen Reader:** Announces prevention and alternatives
+- **Keyboard Support:** Full navigation through manager options
+
+---
+
 ## Story 4.1: Finance Global Audit Dashboard
 
 ### User Journey Flow

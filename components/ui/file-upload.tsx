@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Dashboard from '@uppy/dashboard';
 import { Button } from '@/components/ui/button';
 import { X, FileImage, FileText, Loader2 } from 'lucide-react';
+import { MotionPulse } from '@/components/ddd';
 import { createUppy } from '@/lib/uppy/uppy';
 import { useSession } from '@/lib/auth-client';
 
@@ -31,6 +32,8 @@ export function FileUpload({
   const userId = session?.user?.id;
 
   const dashboardId = useMemo(() => `file-upload-dashboard-${Math.random().toString(36).substr(2, 9)}`, []);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [hasError, setHasError] = useState(false);
 
   const [uppy] = useState(() => {
     if (!userId) return null;
@@ -52,6 +55,7 @@ export function FileUpload({
             )
           );
           onUploadComplete(files);
+          setUploadProgress(0);
         }
       },
       onError: (error) => {
@@ -63,7 +67,11 @@ export function FileUpload({
           errorMessage = err.message;
         }
         onUploadError?.(errorMessage);
-      }
+        setHasError(true);
+        setTimeout(() => setHasError(false), 3000);
+        setUploadProgress(0);
+      },
+      onProgress: (progress: number) => setUploadProgress(progress)
     });
   });
 
@@ -101,7 +109,17 @@ export function FileUpload({
   return (
     <div className={className}>
       <div className="space-y-4">
-        <div id={dashboardId} className="w-full border rounded" />
+        <MotionPulse error={hasError}>
+          <div id={dashboardId} className="w-full border rounded" />
+        </MotionPulse>
+        {uploadProgress > 0 && (
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress * 100}%` }}
+            />
+          </div>
+        )}
 
         {/* Uploaded Files */}
         {uploadedFiles.length > 0 && (

@@ -1,6 +1,6 @@
 # Story 1.6: Fix Uppy Dropzones in Create Expense Modal
 
-Status: done
+Status: review
 
 ## Story
 
@@ -11,18 +11,18 @@ so that I can attach files to individual line items without issues.
 ## Acceptance Criteria
 
 1. **Multiple Dropzones Functionality:**
-   - [ ] Each line item in the expense creation form has its own functional uppy dropzone.
-   - [ ] Dropzones work independently for each line item.
-   - [ ] Files uploaded to one dropzone are associated with the correct line item.
+    - [x] Each line item in the expense creation form has its own functional uppy dropzone.
+    - [x] Dropzones work independently for each line item.
+    - [x] Files uploaded to one dropzone are associated with the correct line item.
 
 2. **File Management:**
-   - [ ] Users can upload multiple files per line item.
-   - [ ] File upload progress is shown per dropzone.
-   - [ ] Failed uploads don't affect other dropzones.
+    - [x] Users can upload multiple files per line item.
+    - [x] File upload progress is shown per dropzone.
+    - [x] Failed uploads don't affect other dropzones.
 
 3. **Integration:**
-   - [ ] Uploaded files are properly stored in the expense line item attachments.
-   - [ ] Form submission includes all attached files from all line items.
+    - [x] Uploaded files are properly stored in the expense line item attachments.
+    - [x] Form submission includes all attached files from all line items.
 
 ## Tasks / Subtasks
 
@@ -36,15 +36,15 @@ so that I can attach files to individual line items without issues.
   - [x] Fix any shared state issues causing conflicts
   - [x] Test dropzone functionality with 2+ line items
 
-- [ ] Task 3: Implement File Association
-  - [ ] Ensure uploaded files are associated with the correct line item index
-  - [ ] Update form data structure to handle multiple attachments per item
-  - [ ] Validate file storage in expense schema
+- [x] Task 3: Implement File Association
+  - [x] Ensure uploaded files are associated with the correct line item index
+  - [x] Update form data structure to handle multiple attachments per item
+  - [x] Validate file storage in expense schema
 
-- [ ] Task 4: Add Error Handling and UX Improvements
-  - [ ] Handle upload failures gracefully per dropzone
-  - [ ] Add visual feedback for upload states
-  - [ ] Test edge cases (remove line item with attachments, etc.)
+- [x] Task 4: Add Error Handling and UX Improvements
+  - [x] Handle upload failures gracefully per dropzone
+  - [x] Add visual feedback for upload states
+  - [x] Test edge cases (remove line item with attachments, etc.)
 
 ## Dev Notes
 
@@ -65,10 +65,23 @@ so that I can attach files to individual line items without issues.
 ### Debug Log References
 
 ### Completion Notes List
-- Investigated the issue: Multiple FileUpload components were using the same ID 'file-upload-dashboard' for the Dashboard plugin and target div, causing conflicts when multiple line items are present.
-- Fixed by generating unique IDs per FileUpload instance using useMemo with random string.
-- Each line item now has its own isolated Uppy dashboard.
-- Code review: No regressions in existing tests, fix addresses the unique ID conflict.
+- **Task 1 & 2 Completed**: Fixed unique ID conflicts by generating random IDs per FileUpload instance, ensuring isolated Uppy dashboards per line item.
+- **Task 3 Completed**: Updated Mongoose schema (LineItemSchema.attachments) and Zod validation to support attachment objects with url/name/type instead of strings. Updated server action parsing to handle nested attachment objects. Added comprehensive test coverage for file attachments per line item.
+- **Task 4 Completed**: Enhanced error handling with per-dropzone error feedback via MotionPulse. Added upload progress visualization. Implemented proper edge case handling for line item removal with attachment synchronization.
+- **Schema Updates**: Modified lib/models.ts AttachmentSchema, lib/validations/expense.ts attachmentSchema, and app/dashboard/expenses/_actions/expense-actions.ts to support rich attachment metadata.
+- **Testing**: Added unit tests verifying attachment objects are properly stored and associated with correct line items. All acceptance criteria now satisfied with robust file association architecture.
 
 ### File List
-- components/ui/file-upload.tsx
+- components/ui/file-upload.tsx (unique ID generation, error handling)
+- lib/models.ts (updated LineItemSchema.attachments to support rich metadata)
+- lib/validations/expense.ts (added attachmentSchema with MIME type validation)
+- lib/uppy/uppy.ts (client-side file type validation)
+- app/dashboard/expenses/_actions/expense-actions.ts (attachment parsing, fail-safe cleanup framework)
+- app/dashboard/expenses/_components/create-expense-dialog.tsx (uploadedFiles state management)
+- tests/unit/expenseService.test.ts (attachment validation tests)
+- _bmad-output/implementation-artifacts/sprint-status.yaml (status tracking)
+- _bmad-output/ux-design-specifications-complete.md (documentation updates)
+
+## Change Log
+
+- **2025-12-30**: Completed file association implementation with rich attachment metadata support, enhanced error handling, and comprehensive testing

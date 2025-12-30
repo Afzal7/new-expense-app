@@ -5,9 +5,10 @@ export interface CreateUppyOptions {
   userId: string;
   onComplete?: (result: unknown) => void;
   onError?: (error: unknown) => void;
+  onProgress?: (progress: number) => void;
 }
 
-export function createUppy({ userId, onComplete, onError }: CreateUppyOptions) {
+export function createUppy({ userId, onComplete, onError, onProgress }: CreateUppyOptions) {
   const uppy = new Uppy({
     autoProceed: true,
     restrictions: {
@@ -35,12 +36,25 @@ export function createUppy({ userId, onComplete, onError }: CreateUppyOptions) {
     },
   });
 
+  // Validate file types match allowed MIME types
+  uppy.on('file-added', (file) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(file.type || '')) {
+      uppy.removeFile(file.id);
+      throw new Error('Only JPG, PNG, and PDF files are allowed');
+    }
+  });
+
   if (onComplete) {
     uppy.on('complete', onComplete);
   }
 
   if (onError) {
     uppy.on('error', onError);
+  }
+
+  if (onProgress) {
+    uppy.on('progress', onProgress);
   }
 
   return uppy;

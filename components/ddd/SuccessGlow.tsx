@@ -6,6 +6,8 @@ import { ReactNode } from 'react'
 interface SuccessGlowProps {
   children: ReactNode
   className?: string
+  trigger?: boolean
+  intensity?: 'subtle' | 'medium' | 'strong'
 }
 
 /**
@@ -14,8 +16,14 @@ interface SuccessGlowProps {
  * Provides a subtle emerald glow effect using box-shadow animation
  * Respects prefers-reduced-motion accessibility setting
  */
-export function SuccessGlow({ children, className }: SuccessGlowProps) {
+export function SuccessGlow({ children, className, trigger = false, intensity = 'medium' }: SuccessGlowProps) {
   const shouldReduceMotion = useReducedMotion()
+
+  const glowIntensity = {
+    subtle: '0 0 10px rgba(16, 185, 129, 0.3)',
+    medium: '0 0 15px rgba(16, 185, 129, 0.5)',
+    strong: '0 0 20px rgba(16, 185, 129, 0.7)'
+  };
 
   if (shouldReduceMotion) {
     return (
@@ -28,24 +36,18 @@ export function SuccessGlow({ children, className }: SuccessGlowProps) {
   return (
     <motion.div
       className={className}
-      initial={{ scale: 1, filter: 'brightness(1)' }}
-      animate={{
-        scale: [1, 1.02, 1.01, 1],
-        filter: [
-          'brightness(1)',
-          'brightness(1.1)',
-          'brightness(1.05)',
-          'brightness(1)'
-        ]
+      animate={trigger ? {
+        boxShadow: glowIntensity[intensity]
+      } : {
+        boxShadow: '0 0 0px rgba(16, 185, 129, 0)'
       }}
       transition={{
-        duration: 1.2,
-        ease: 'easeInOut',
-        times: [0, 0.3, 0.7, 1]
+        duration: 0.5,
+        ease: 'easeOut'
       }}
       style={{
         borderRadius: 'inherit',
-        willChange: 'transform, filter' // GPU acceleration hint
+        willChange: 'box-shadow' // GPU acceleration hint
       }}
     >
       {children}

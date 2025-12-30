@@ -156,5 +156,105 @@ describe('expenseService', () => {
             expect(mockSession.abortTransaction).toHaveBeenCalled();
             expect(mockSession.endSession).toHaveBeenCalled();
         });
+
+        it('should create expense with file attachments per line item', async () => {
+            const validId = '507f1f77bcf86cd799439011';
+            const attachment1 = { url: 'https://example.com/file1.jpg', name: 'receipt1.jpg', type: 'image/jpeg' };
+            const attachment2 = { url: 'https://example.com/file2.pdf', name: 'invoice.pdf', type: 'application/pdf' };
+            const input = {
+                userId: validId,
+                lineItems: [
+                    {
+                        amount: 50,
+                        description: 'Coffee',
+                        date: new Date(),
+                        attachments: [attachment1]
+                    },
+                    {
+                        amount: 25,
+                        description: 'Lunch',
+                        date: new Date(),
+                        attachments: [attachment2]
+                    }
+                ],
+                isPersonal: true,
+                status: ExpenseStatus.DRAFT
+            };
+
+            // Mock session
+            const mockSession = {
+                startTransaction: vi.fn(),
+                commitTransaction: vi.fn(),
+                abortTransaction: vi.fn(),
+                endSession: vi.fn(),
+            };
+            (mongoose.startSession as any).mockResolvedValue(mockSession);
+
+            // Mock expense creation
+            const mockExpense = {
+                ...input,
+                _id: validId,
+                auditTrail: [{
+                    timestamp: new Date(),
+                    action: 'CREATE',
+                    actorId: validId,
+                    role: 'Employee',
+                    changes: [{ field: 'all', oldValue: null, newValue: input }],
+                }],
+                toObject: vi.fn().mockReturnValue({
+                    ...input,
+                    _id: validId,
+                    auditTrail: [{
+                        timestamp: new Date(),
+                        action: 'CREATE',
+                        actorId: validId,
+                        role: 'Employee',
+                        changes: [{ field: 'all', oldValue: null, newValue: input }],
+                    }]
+                })
+            };
+            (Expense.create as any).mockResolvedValue([mockExpense]);
+
+            const result = await expenseService.createExpense(input, validId, 'Employee');
+
+            expect(result).toBeDefined();
+            expect(result.lineItems[0].attachments).toEqual([attachment1]);
+            expect(result.lineItems[1].attachments).toEqual([attachment2]);
+            expect(Expense.create).toHaveBeenCalledWith(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        lineItems: expect.arrayContaining([
+                            expect.objectContaining({
+                                attachments: [attachment1]
+                            }),
+                            expect.objectContaining({
+                                attachments: [attachment2]
+                            })
+                        ])
+                    })
+                ]),
+                { session: mockSession }
+            );
+        });
+
+        it('should reject attachments with invalid MIME types', async () => {
+            const validId = '507f1f77bcf86cd799439011';
+            const input = {
+                userId: validId,
+                lineItems: [
+                    {
+                        amount: 50,
+                        description: 'Coffee',
+                        date: new Date(),
+                        attachments: [{ url: 'https://example.com/file.exe', name: 'malware.exe', type: 'application/x-msdownload' as any }]
+                    }
+                ],
+                isPersonal: true,
+                status: ExpenseStatus.DRAFT
+            };
+
+            await expect(expenseService.createExpense(input as any, validId, 'Employee'))
+                .rejects.toThrow();
+        });
     });
 });

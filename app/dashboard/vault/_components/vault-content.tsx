@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { usePersonalDrafts } from '@/hooks/use-expense';
 import { ExpenseStatus } from '@/types/expense';
 import { ExpenseCard } from '@/components/shared/expense-card';
@@ -7,7 +8,8 @@ import { SkeletonExpenseCard } from '@/components/ui/skeleton-components';
 // Removed unused EditExpense import
 import { CreateExpense } from '@/components/features/CreateExpense';
 import { Button } from '@/components/ui/button';
-// Removed unused useState import
+import { SuccessGlow } from '@/components/ddd';
+import { StaggeredList, StaggeredItem } from '@/components/layout/page-transitions';
 import { Lock, Plus } from 'lucide-react';
 import Link from 'next/link';
 
@@ -26,6 +28,7 @@ interface Expense {
 
 export function VaultContent() {
     const { data: drafts, isLoading, error, refetch } = usePersonalDrafts();
+    const [glowingItems, setGlowingItems] = useState<Set<string>>(new Set());
 
     if (isLoading) {
         return (
@@ -60,9 +63,17 @@ export function VaultContent() {
                 <div className="text-center py-12">
                     <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4" aria-label="Secure vault lock icon" />
                     <h3 className="text-lg font-semibold mb-2">Your vault is empty</h3>
-                    <p className="text-muted-foreground mb-6">
+                    <p className="text-muted-foreground mb-4">
                         Start capturing your receipts and expenses privately in your vault.
                     </p>
+
+                    {/* Skeleton invitations showing what vault will look like */}
+                    <div className="space-y-4 mb-6 max-w-md mx-auto">
+                        <p className="text-sm text-muted-foreground">Here's what your vault will look like:</p>
+                        <SkeletonExpenseCard />
+                        <SkeletonExpenseCard />
+                    </div>
+
                     <div className="flex gap-2">
                         <CreateExpense>
                             <Button>
@@ -83,21 +94,31 @@ export function VaultContent() {
 
     return (
         <>
-            <div className="space-y-4">
+            <StaggeredList>
                 {drafts.map((expense: Expense) => (
-                    <ExpenseCard
-                        key={expense._id}
-                        expense={{
-                            ...expense,
-                            status: ExpenseStatus.DRAFT // Vault always shows drafts
-                        }}
-                        showDelete={false} // Vault doesn't show delete
-                        onEditSuccess={() => {
-                            // Cache invalidation is handled automatically by the mutation hooks
-                        }}
-                    />
+                    <StaggeredItem key={expense._id}>
+                        <SuccessGlow trigger={glowingItems.has(expense._id)}>
+                            <ExpenseCard
+                                expense={{
+                                    ...expense,
+                                    status: ExpenseStatus.DRAFT // Vault always shows drafts
+                                }}
+                                showDelete={false} // Vault doesn't show delete
+                                onEditSuccess={() => {
+                                    setGlowingItems(prev => new Set([...prev, expense._id]));
+                                    setTimeout(() => {
+                                        setGlowingItems(prev => {
+                                            const newSet = new Set(prev);
+                                            newSet.delete(expense._id);
+                                            return newSet;
+                                        });
+                                    }, 1000);
+                                }}
+                            />
+                        </SuccessGlow>
+                    </StaggeredItem>
                 ))}
-            </div>
+            </StaggeredList>
         </>
     );
 }

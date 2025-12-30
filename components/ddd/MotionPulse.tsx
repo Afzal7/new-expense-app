@@ -9,6 +9,7 @@ interface MotionPulseProps {
   intensity?: 'subtle' | 'medium' | 'strong'
   duration?: number
   repeat?: boolean
+  error?: boolean
 }
 
 /**
@@ -22,7 +23,8 @@ export function MotionPulse({
   className,
   intensity = 'subtle',
   duration = 2,
-  repeat = true
+  repeat = true,
+  error = false
 }: MotionPulseProps) {
   const shouldReduceMotion = useReducedMotion()
 
@@ -32,7 +34,7 @@ export function MotionPulse({
     strong: { scale: [1, 1.08, 1] }
   }
 
-  if (shouldReduceMotion) {
+  if (shouldReduceMotion || !error) {
     return (
       <div className={className}>
         {children}

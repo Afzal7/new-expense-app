@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { motion } from 'framer-motion';
 import {
     Dialog,
     DialogContent,
@@ -25,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useOrganizationContext } from '@/hooks/use-organization-context';
 import { MotionPulse } from '@/components/ddd';
+import { TotalDisplay } from '@/components/features/TotalDisplay';
 
 const lineItemSchema = z.object({
     amount: z.string().min(1, 'Amount is required').refine((val) => {
@@ -69,7 +71,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
         reset,
         watch,
         setValue,
-        formState: { errors },
+        formState: { errors, isValid },
     } = useForm<CreateExpenseForm>({
         resolver: zodResolver(createExpenseSchema),
         defaultValues: {
@@ -83,6 +85,13 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
         control,
         name: 'lineItems',
     });
+
+    const totalAmount = useMemo(() => {
+        return fields.reduce((sum, field, index) => {
+            const amount = parseFloat(watch(`lineItems.${index}.amount`) || '0');
+            return sum + (isNaN(amount) ? 0 : amount);
+        }, 0);
+    }, [fields, watch]);
 
     // Fetch organization managers when dialog opens
     useEffect(() => {
@@ -337,6 +346,8 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                         )}
                     </div>
 
+                    <TotalDisplay total={totalAmount} />
+
                     <div className="space-y-2">
                         <Label>Date</Label>
                         {errors.date ? (
@@ -369,11 +380,28 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
 
 
 
-                    {/* Manager Email Field - Always visible */}
-                    <div className="space-y-2">
-                        <Label htmlFor="managerEmail">Manager Email</Label>
-                        {errors.managerEmail ? (
-                            <MotionPulse intensity="subtle">
+                    {/* Manager Email Field - Progressive disclosure */}
+                    {submissionType !== 'draft' && (
+                        <div className="space-y-2">
+                            <Label htmlFor="managerEmail">Manager Email</Label>
+                            {errors.managerEmail ? (
+                                <MotionPulse intensity="subtle">
+                                    <Input
+                                        id="managerEmail"
+                                        type="email"
+                                        placeholder="manager@company.com"
+                                        {...register('managerEmail')}
+                                        value={selectedManager ? managers.find(m => m.id === selectedManager)?.email || '' : watch('managerEmail') || ''}
+                                        onChange={(e) => {
+                                            setValue('managerEmail', e.target.value);
+                                            // Clear selected manager if email is manually changed
+                                            if (selectedManager && managers.find(m => m.id === selectedManager)?.email !== e.target.value) {
+                                                setSelectedManager('');
+                                            }
+                                        }}
+                                    />
+                                </MotionPulse>
+                            ) : (
                                 <Input
                                     id="managerEmail"
                                     type="email"
@@ -388,30 +416,15 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                                         }
                                     }}
                                 />
-                            </MotionPulse>
-                        ) : (
-                            <Input
-                                id="managerEmail"
-                                type="email"
-                                placeholder="manager@company.com"
-                                {...register('managerEmail')}
-                                value={selectedManager ? managers.find(m => m.id === selectedManager)?.email || '' : watch('managerEmail') || ''}
-                                onChange={(e) => {
-                                    setValue('managerEmail', e.target.value);
-                                    // Clear selected manager if email is manually changed
-                                    if (selectedManager && managers.find(m => m.id === selectedManager)?.email !== e.target.value) {
-                                        setSelectedManager('');
-                                    }
-                                }}
-                            />
-                        )}
-                        {errors.managerEmail && (
-                            <p className="text-sm text-destructive">{errors.managerEmail.message}</p>
-                        )}
-                        <p className="text-sm text-muted-foreground">
-                            Email address of the manager who will approve this expense (optional)
-                        </p>
-                    </div>
+                            )}
+                            {errors.managerEmail && (
+                                <p className="text-sm text-destructive">{errors.managerEmail.message}</p>
+                            )}
+                            <p className="text-sm text-muted-foreground">
+                                Email address of the manager who will approve this expense
+                            </p>
+                        </div>
+                    )}
 
                     {/* Submission Options */}
                     {orgContext && (
@@ -475,9 +488,21 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={createExpense.isPending}>
-                            {createExpense.isPending ? 'Creating...' : 'Create Expense'}
-                        </Button>
+                        <motion.div
+                            animate={isValid && submissionType !== 'draft' ? {
+                                boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
+                            } : {
+                                boxShadow: '0 0 0px rgba(16, 185, 129, 0)'
+                            }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <Button
+                                type="submit"
+                                disabled={createExpense.isPending || (submissionType !== 'draft' && !isValid)}
+                            >
+                                {createExpense.isPending ? 'Creating...' : 'Create Expense'}
+                            </Button>
+                        </motion.div>
                     </DialogFooter>
                 </form>
             </DialogContent>

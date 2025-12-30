@@ -3,11 +3,17 @@ import { ExpenseStatus } from '../../types/expense';
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
+export const attachmentSchema = z.object({
+    url: z.string().url('Invalid URL'),
+    name: z.string().min(1, 'File name is required'),
+    type: z.enum(['image/jpeg', 'image/png', 'application/pdf']),
+});
+
 export const lineItemSchema = z.object({
     amount: z.number().positive('Amount must be positive'),
     description: z.string().optional(),
     date: z.date().or(z.string().pipe(z.coerce.date())),
-    attachments: z.array(z.string()).default([]),
+    attachments: z.array(attachmentSchema).default([]),
 });
 
 export const createExpenseSchema = z.object({
@@ -26,3 +32,4 @@ export const updateExpenseStatusSchema = z.object({
 
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type LineItemInput = z.infer<typeof lineItemSchema>;
+export type AttachmentInput = z.infer<typeof attachmentSchema>;

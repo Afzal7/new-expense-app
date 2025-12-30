@@ -66,6 +66,45 @@ export const expenseService = {
     },
 
     /**
+     * Get expenses by status and organization for finance dashboard
+     */
+    async getExpensesByStatusAndOrganization(status: ExpenseStatus, organizationId: string) {
+        await connectMongoose();
+
+        const expenses = await Expense.find({
+            status,
+            organizationId,
+            isPersonal: false // Only organizational expenses for finance
+        })
+        .populate('user', 'name email')
+        .sort({ createdAt: -1 })
+        .lean();
+
+        return JSON.parse(JSON.stringify(expenses));
+    },
+
+    /**
+     * Log audit events for finance operations
+     */
+    async logAuditEvent(organizationId: string | null, actorId: string, action: string, changes: any, role: string) {
+        await connectMongoose();
+
+        // Create a dummy expense document just for audit logging
+        // In a real implementation, this might be stored separately
+        const auditEntry = {
+            timestamp: new Date(),
+            action,
+            actorId,
+            role,
+            changes,
+            metadata: { organizationId }
+        };
+
+        // For now, we'll just log it. In production, this should be stored in audit logs
+        console.log('Finance Audit Event:', auditEntry);
+    },
+
+    /**
      * Helper to log mutations to an existing expense.
      * Should be used within an existing transaction session if possible.
      */

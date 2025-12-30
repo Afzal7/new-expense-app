@@ -64,6 +64,7 @@ export function FinanceDashboard() {
             if (!orgContext?.orgId) return [];
 
             const params = new URLSearchParams();
+            params.set('organizationId', orgContext.orgId);
             if (filters.status) params.set('status', filters.status);
             if (filters.dateRange) params.set('dateRange', filters.dateRange);
             if (filters.employee) params.set('employee', filters.employee);

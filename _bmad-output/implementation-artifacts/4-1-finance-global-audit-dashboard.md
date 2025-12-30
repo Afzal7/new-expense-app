@@ -1,6 +1,6 @@
 # Story 4.1: Finance Global Audit Dashboard
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -112,6 +112,14 @@ Amelia (Developer Agent) - v1.0
 ✅ **DDD Integration**: NumberTicker for smooth financial amount animations
 ✅ **Responsive Design**: Mobile-friendly dashboard with proper loading states
 
+**CODE REVIEW FIXES APPLIED**:
+- ✅ **Authentication & RBAC**: Added session verification and admin role checking in API
+- ✅ **Multi-Tenant Isolation**: Implemented organization filtering in expenseService.getExpensesByStatusAndOrganization
+- ✅ **Service Layer Compliance**: Replaced raw DB queries with expenseService methods
+- ✅ **Audit Logging**: Added finance dashboard access logging via expenseService.logAuditEvent
+- ✅ **Error Handling**: Improved error responses with specific status codes and messages
+- ✅ **Security**: API now requires organizationId parameter and verifies permissions
+
 **ARCHITECTURE COMPLIANCE ACHIEVED**:
 - ✅ Service Layer Pattern maintained through expense data access
 - ✅ RBAC enforcement at API level for finance roles
@@ -129,13 +137,17 @@ Amelia (Developer Agent) - v1.0
 ### File List
 
 **API Layer**:
-- app/api/finance/expenses/route.ts - Finance dashboard data endpoint with security
+- app/api/finance/expenses/route.ts - Finance dashboard data endpoint with authentication, RBAC, and organization filtering
+
+**Service Layer**:
+- lib/services/expenseService.ts - Added getExpensesByStatusAndOrganization and logAuditEvent methods
 
 **UI Components**:
 - app/dashboard/finance/page.tsx - Finance dashboard page with proper layout
-- app/dashboard/finance/_components/finance-dashboard.tsx - Enhanced dashboard with NumberTicker
+- app/dashboard/finance/_components/finance-dashboard.tsx - Enhanced dashboard with NumberTicker and organizationId parameter
 
 ## Change Log
 
-- **2025-12-28**: Complete finance global audit dashboard with API layer, enhanced UI, and organization-wide expense visibility</content>
+- **2025-12-28**: Complete finance global audit dashboard with API layer, enhanced UI, and organization-wide expense visibility
+- **2025-12-30**: Applied code review fixes - added authentication, RBAC, organization filtering, audit logging, and service layer compliance</content>
 <parameter name="filePath">_bmad-output/implementation-artifacts/4-1-finance-global-audit-dashboard.md

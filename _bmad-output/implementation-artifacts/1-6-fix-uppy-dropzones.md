@@ -1,6 +1,6 @@
 # Story 1.6: Fix Uppy Dropzones in Create Expense Modal
 
-Status: review
+Status: done
 
 ## Story
 
@@ -69,7 +69,9 @@ so that I can attach files to individual line items without issues.
 - **Task 3 Completed**: Updated Mongoose schema (LineItemSchema.attachments) and Zod validation to support attachment objects with url/name/type instead of strings. Updated server action parsing to handle nested attachment objects. Added comprehensive test coverage for file attachments per line item.
 - **Task 4 Completed**: Enhanced error handling with per-dropzone error feedback via MotionPulse. Added upload progress visualization. Implemented proper edge case handling for line item removal with attachment synchronization.
 - **Schema Updates**: Modified lib/models.ts AttachmentSchema, lib/validations/expense.ts attachmentSchema, and app/dashboard/expenses/_actions/expense-actions.ts to support rich attachment metadata.
-- **Testing**: Added unit tests verifying attachment objects are properly stored and associated with correct line items. All acceptance criteria now satisfied with robust file association architecture.
+- **Security Enhancements**: Added MIME type validation restricting to JPG/PNG/PDF only. Implemented fail-safe file cleanup framework for transaction failures (addresses project-context requirement).
+- **Testing Results**: All unit tests pass (4/4). Full test suite executed successfully with no regressions. Added integration test coverage for attachment validation.
+- **Code Review Fixes**: Addressed all HIGH and MEDIUM severity issues from automated code review. Committed changes with detailed commit message following project standards.
 
 ### File List
 - components/ui/file-upload.tsx (unique ID generation, error handling)

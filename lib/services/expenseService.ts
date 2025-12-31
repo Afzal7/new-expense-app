@@ -86,7 +86,7 @@ export const expenseService = {
     /**
      * Log audit events for finance operations
      */
-    async logAuditEvent(organizationId: string | null, actorId: string, action: string, changes: any, role: string) {
+    async logAuditEvent(organizationId: string | null, actorId: string, action: string, changes: Record<string, unknown>, role: string) {
         await connectMongoose();
 
         // Create a dummy expense document just for audit logging

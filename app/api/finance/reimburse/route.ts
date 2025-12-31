@@ -1,30 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { Expense } from '@/lib/models'
 import { connectMongoose } from '@/lib/db'
 import mongoose from 'mongoose'
 import { verifyPermission } from '@/lib/verifyPermission'
+import { createSuccessResponse, createUnauthorizedResponse, createBadRequestResponse, createForbiddenResponse, createNotFoundResponse, handleApiError } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
+    // Start transaction for batch reimbursement
+    const dbSession = await mongoose.startSession()
+
     try {
         const session = await auth.api.getSession({
             headers: request.headers
         });
 
         if (!session?.user) {
-            return NextResponse.json(
-                { success: false, error: 'Unauthorized' },
-                { status: 401 }
-            )
+            return createUnauthorizedResponse()
         }
 
         const { expenseIds } = await request.json()
 
-        if (!Array.isArray(expenseIds) || expenseIds.length === 0) {
-            return NextResponse.json(
-                { success: false, error: 'Expense IDs array is required' },
-                { status: 400 }
-            )
+        if (!expenseIds || !Array.isArray(expenseIds) || expenseIds.length === 0) {
+            return createBadRequestResponse('Expense IDs array is required')
         }
 
         await connectMongoose()
@@ -33,96 +31,73 @@ export async function POST(request: NextRequest) {
         const expenses = await Expense.find({
             _id: { $in: expenseIds },
             status: 'Approved'
-        }).lean();
+        }).populate('user', 'name email').lean()
 
-        // Verify user has permission to reimburse all expenses (admin/owner role required)
+        // Check permissions for each expense
         for (const expense of expenses) {
-            if (expense.organizationId) {
-                const hasPermission = await verifyPermission(session.user.id, 'admin', expense.organizationId.toString());
-                if (!hasPermission) {
-                    return NextResponse.json(
-                        { success: false, error: 'Not authorized to reimburse expenses' },
-                        { status: 403 }
-                    )
-                }
-            } else {
-                return NextResponse.json(
-                    { success: false, error: 'Cannot reimburse personal expenses' },
-                    { status: 400 }
-                )
+            const hasPermission = await verifyPermission(session.user.id, 'admin', expense.organizationId.toString());
+
+            if (!hasPermission) {
+                return createForbiddenResponse('Not authorized to reimburse expenses')
+            }
+
+            if (!expense.organizationId) {
+                return createBadRequestResponse('Cannot reimburse personal expenses')
             }
         }
-        // serializedExpenses not used in current implementation
 
         if (expenses.length !== expenseIds.length) {
-            return NextResponse.json(
-                { success: false, error: 'Some expenses not found or not in Approved state' },
-                { status: 400 }
-            )
+            return createNotFoundResponse('Some expenses not found or not in Approved state')
         }
 
-        // Start transaction for batch reimbursement
-        const dbSession = await mongoose.startSession()
         dbSession.startTransaction()
 
-        try {
-            // Update all expenses to Reimbursed status
-            const updateResult = await Expense.updateMany(
-                { _id: { $in: expenseIds }, status: 'Approved' },
-                [
-                    {
-                        $set: {
-                            status: 'Reimbursed',
-                            updatedAt: new Date()
-                        }
-                    },
-                    {
-                        $push: {
-                            auditTrail: {
-                                timestamp: new Date(),
-                                action: 'UPDATE_STATUS',
-                                actorId: session.user.id,
-                                role: 'admin', // Admin/owner roles handle reimbursements
-                                changes: [
-                                    {
-                                        field: 'status',
-                                        oldValue: 'Approved',
-                                        newValue: 'Reimbursed'
-                                    }
-                                ],
-                                metadata: {
-                                    batchReimbursement: true,
-                                    expenseCount: expenseIds.length
+        // Update all expenses to Reimbursed status
+        const updateResult = await Expense.updateMany(
+            { _id: { $in: expenseIds }, status: 'Approved' },
+            [
+                {
+                    $set: {
+                        status: 'Reimbursed',
+                        updatedAt: new Date()
+                    }
+                },
+                {
+                    $push: {
+                        auditTrail: {
+                            timestamp: new Date(),
+                            action: 'UPDATE_STATUS',
+                            actorId: session.user.id,
+                            role: 'admin', // Admin/owner roles handle reimbursements
+                            changes: [
+                                {
+                                    field: 'status',
+                                    oldValue: 'Approved',
+                                    newValue: 'Reimbursed'
                                 }
+                            ],
+                            metadata: {
+                                batchReimbursement: true,
+                                expenseCount: expenseIds.length
                             }
                         }
                     }
-                ],
-                { session: dbSession }
-            )
-
-            await dbSession.commitTransaction()
-
-            return NextResponse.json({
-                success: true,
-                data: {
-                    updatedCount: updateResult.modifiedCount,
-                    expenseIds
                 }
-            })
+            ],
+            { session: dbSession }
+        )
 
-        } catch (error) {
-            await dbSession.abortTransaction()
-            throw error
-        } finally {
-            dbSession.endSession()
-        }
+        await dbSession.commitTransaction()
+
+        return createSuccessResponse({
+            updatedCount: updateResult.modifiedCount,
+            expenseIds
+        })
 
     } catch (error) {
-        console.error('Reimbursement API error:', error)
-        return NextResponse.json(
-            { success: false, error: 'Internal server error' },
-            { status: 500 }
-        )
+        await dbSession.abortTransaction()
+        return handleApiError(error, 'finance reimburse API')
+    } finally {
+        dbSession.endSession()
     }
 }

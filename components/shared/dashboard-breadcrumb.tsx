@@ -11,6 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import Link from "next/link";
+import { useOrganizationContext } from "@/hooks/use-organization-context";
 
 interface OrganizationData {
   id: string;
@@ -33,79 +34,59 @@ function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-// Generate breadcrumbs dynamically from URL
-function generateBreadcrumbs(
-  pathname: string,
-  orgContext: OrgContext | null,
-  userOrg: OrganizationData | null
-) {
-  const segments = pathname.split("/").filter(Boolean);
+export function DashboardBreadcrumb({
+  orgContext,
+  userOrg,
+}: DashboardBreadcrumbProps) {
+  const pathname = usePathname();
+
   const breadcrumbs: Array<{
     label: string;
     href?: string;
     isCurrent?: boolean;
   }> = [];
 
-  // Special handling for dashboard routes
-  if (segments[0] === "dashboard") {
-    breadcrumbs.push({ label: "Dashboard", href: "/dashboard" });
+  // Always start with Dashboard
+  breadcrumbs.push({
+    label: "Dashboard",
+    href: "/dashboard",
+  });
 
-    if (segments.length === 1) {
-      // Just /dashboard - Dashboard is current page
-      breadcrumbs[0].isCurrent = true;
-    } else if (segments[1] === "settings") {
-      // /dashboard/settings
-      breadcrumbs.push({ label: "Settings", isCurrent: true });
-    } else if (segments[1] === "organizations" && orgContext) {
-      // Organization routes
-      const orgName = userOrg?.name || "Organization";
+  // Check if we're on an organization page
+  if (orgContext?.isOrgPage && orgContext.orgId) {
+    const orgName = userOrg?.name || "Organization";
+    breadcrumbs.push({
+      label: orgName,
+      href: `/dashboard/organizations/${orgContext.orgId}`,
+    });
+
+    if (orgContext.currentSection !== "overview") {
       breadcrumbs.push({
-        label: orgName,
-        href: `/dashboard/organizations/${orgContext.orgId}`,
+        label: capitalize(orgContext.currentSection),
+        isCurrent: true,
       });
-
-      if (orgContext.currentSection !== "overview") {
-        breadcrumbs.push({
-          label: capitalize(orgContext.currentSection),
-          isCurrent: true,
-        });
-      } else {
-        // Organization overview is current page
-        breadcrumbs[breadcrumbs.length - 1].isCurrent = true;
-        breadcrumbs[breadcrumbs.length - 1].href = undefined;
-      }
+    } else {
+      // Organization overview is current page
+      breadcrumbs[breadcrumbs.length - 1].isCurrent = true;
+      breadcrumbs[breadcrumbs.length - 1].href = undefined;
     }
   }
 
-  return breadcrumbs;
-}
-
-export function DashboardBreadcrumb({
-  orgContext,
-  userOrg,
-}: DashboardBreadcrumbProps) {
-  const pathname = usePathname();
-  const breadcrumbs = generateBreadcrumbs(pathname, orgContext, userOrg);
-
-  if (breadcrumbs.length === 0) return null;
-
   return (
-    <Breadcrumb className="hidden sm:block">
+    <Breadcrumb>
       <BreadcrumbList>
         {breadcrumbs.map((crumb, index) => (
-          <React.Fragment key={index}>
+          <React.Fragment key={crumb.label}>
+            {index > 0 && <BreadcrumbSeparator />}
             <BreadcrumbItem>
               {crumb.isCurrent ? (
                 <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-              ) : crumb.href ? (
-                <BreadcrumbLink asChild>
-                  <Link href={crumb.href}>{crumb.label}</Link>
-                </BreadcrumbLink>
               ) : (
-                <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                <BreadcrumbLink asChild>
+                  <Link href={crumb.href!}>{crumb.label}</Link>
+                </BreadcrumbLink>
               )}
             </BreadcrumbItem>
-            {index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
           </React.Fragment>
         ))}
       </BreadcrumbList>

@@ -6,6 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useUserOrganizations } from "@/hooks/use-organization-crud";
 import { SubscriptionBanner } from "@/components/shared/subscription-banner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Info } from "lucide-react";
 
 // Import dashboard card components
 import { WelcomeCard } from "./welcome-card";
@@ -24,7 +26,11 @@ const getSampleMetrics = () => ({
     membersCount: 3,
 });
 
-export function DashboardContent() {
+interface DashboardContentProps {
+    error?: string;
+}
+
+export function DashboardContent({ error }: DashboardContentProps) {
     const { data: session } = useSession();
     const { isLoading: subscriptionLoading } = useSubscription();
     const { data: organizations, isLoading: orgsLoading } = useUserOrganizations();
@@ -43,8 +49,22 @@ export function DashboardContent() {
     }
 
     return (
-        <div className="space-y-6">
-            <SubscriptionBanner />
+    <div className="space-y-6">
+        <SubscriptionBanner />
+
+        {error && (
+            <Alert variant={error === 'org-not-found' ? 'destructive' : 'default'}>
+                {error === 'org-not-found' ? (
+                    <AlertCircle className="h-4 w-4" />
+                ) : (
+                    <Info className="h-4 w-4" />
+                )}
+                <AlertDescription>
+                    {error === 'org-not-found' && 'The organization you were trying to access does not exist.'}
+                    {error === 'org-access-denied' && 'You do not have access to that organization.'}
+                </AlertDescription>
+            </Alert>
+        )}
 
             <div>
                 <h1 className="text-3xl font-bold">Dashboard</h1>

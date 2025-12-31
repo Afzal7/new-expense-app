@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { connectMongoose } from '@/lib/db';
 import { Expense } from '@/lib/models';
 import { ExpenseStatus } from '@/types/expense';
 import { organizationService } from '@/lib/services/organizationService';
 import { verifyPermission } from '@/lib/verifyPermission';
+import { createSuccessResponse, createUnauthorizedResponse, createBadRequestResponse, createForbiddenResponse, createNotFoundResponse, handleApiError } from '@/lib/api-response';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createUnauthorizedResponse();
     }
 
     await connectMongoose();
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (organizationId) {
       const member = await organizationService.findMember(organizationId, session.user.id);
       if (!member) {
-        return NextResponse.json({ error: 'Not a member of this organization' }, { status: 403 });
+        return createForbiddenResponse('Not a member of this organization');
       }
       // Role validation removed - using session-based access control
     }
@@ -85,10 +86,9 @@ export async function GET(request: NextRequest) {
       .lean();
     const serializedExpenses = JSON.parse(JSON.stringify(expenses));
 
-    return NextResponse.json(serializedExpenses);
+    return createSuccessResponse(serializedExpenses);
   } catch (error) {
-    console.error('Error fetching review queue:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'review queue GET');
   }
 }
 
@@ -99,14 +99,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createUnauthorizedResponse();
     }
 
     const body = await request.json();
     const { expenseId, action, comment } = body;
 
     if (!expenseId || !action) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return createBadRequestResponse('Missing required fields');
     }
 
     await connectMongoose();
@@ -114,22 +114,22 @@ export async function POST(request: NextRequest) {
     // Find the expense
     const expense = await Expense.findById(expenseId).lean();
     if (!expense) {
-      return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
+      return createNotFoundResponse('Expense not found');
     }
 
     // Verify the user has permission to approve expenses (admin/owner roles)
     if (expense.organizationId) {
       const hasPermission = await verifyPermission(session.user.id, 'admin', expense.organizationId.toString());
       if (!hasPermission) {
-        return NextResponse.json({ error: 'Not authorized to approve expenses' }, { status: 403 });
+        return createForbiddenResponse('Not authorized to approve expenses');
       }
     } else {
-      return NextResponse.json({ error: 'Cannot approve personal expenses through this endpoint' }, { status: 400 });
+      return createBadRequestResponse('Cannot approve personal expenses through this endpoint');
     }
 
     // Prevent self-approval (user cannot review their own expenses)
     if (expense.userId === session.user.id) {
-      return NextResponse.json({ error: 'You cannot approve your own expenses' }, { status: 403 });
+      return createForbiddenResponse('You cannot approve your own expenses');
     }
 
     // Determine new status based on action
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     } else if (action === 'pre-approve') {
       newStatus = ExpenseStatus.PRE_APPROVED;
     } else {
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+      return createBadRequestResponse('Invalid action');
     }
 
     // Determine user role for audit trail
@@ -173,13 +173,11 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({
-      success: true,
+    return createSuccessResponse({
       expenseId,
       newStatus
     });
   } catch (error) {
-    console.error('Error processing review action:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'review queue POST');
   }
 }

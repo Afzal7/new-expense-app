@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,28 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { CheckCircle, XCircle, Eye, Clock, Filter, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { ExpenseStatus } from '@/types/expense';
-import { useSession } from '@/lib/auth-client';
+import { useReviewQueueFiltered, useApproveExpense, type ReviewQueueExpense } from '@/hooks/use-review-queue';
 import { toast } from 'sonner';
-
-interface Expense {
-    _id: string;
-    totalAmount: number;
-    status: ExpenseStatus;
-    isPersonal: boolean;
-    lineItems: Array<{
-        description: string;
-        amount: number;
-        date: Date;
-    }>;
-    createdAt: Date;
-    userId: string;
-    organizationId?: string;
-    managerId?: string;
-    user?: {
-        name: string;
-        email: string;
-    };
-}
+import { usePathname } from 'next/navigation';
 
 interface ReviewQueueFilters {
     employee?: string;
@@ -42,70 +22,29 @@ interface ReviewQueueFilters {
 }
 
 export function ReviewQueueContent() {
-    const { data: session } = useSession();
+    const pathname = usePathname();
+    const orgId = pathname?.split('/')[3]; // Extract org ID from /dashboard/organizations/[id]/review-queue
     const [filters, setFilters] = useState<ReviewQueueFilters>({});
     const [reviewDialog, setReviewDialog] = useState<{
         open: boolean;
-        expense: Expense | null;
+        expense: ReviewQueueExpense | null;
         action: 'approve' | 'reject' | null;
     }>({ open: false, expense: null, action: null });
     const [reviewComment, setReviewComment] = useState('');
 
-    const queryClient = useQueryClient();
+    const { data: expensesData, isLoading, error } = useReviewQueueFiltered(
+        orgId,
+        filters
+    );
 
-    const reviewMutation = useMutation({
-        mutationFn: async ({ expenseId, action, comment }: {
-            expenseId: string;
-            action: string;
-            comment?: string;
-        }) => {
-            const response = await fetch('/api/review-queue', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ expenseId, action, comment }),
-            });
+    const expenses = expensesData || [];
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Review action failed');
-            }
-
-            return response.json();
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['review-queue'] });
-            setReviewDialog({ open: false, expense: null, action: null });
-            setReviewComment('');
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to process review');
-        },
-    });
-
-    const { data: expenses, isLoading, error } = useQuery({
-        queryKey: ['review-queue', session?.user?.id, filters],
-        queryFn: async () => {
-            if (!session?.user?.id) return [];
-
-            const params = new URLSearchParams();
-            if (filters.employee) params.set('employee', filters.employee);
-            if (filters.status) params.set('status', filters.status);
-            if (filters.dateRange) params.set('dateRange', filters.dateRange);
-
-            const response = await fetch(`/api/review-queue?${params}`);
-            if (!response.ok) throw new Error('Failed to fetch review queue');
-
-            return response.json();
-        },
-        enabled: !!session?.user?.id,
-    });
+    const reviewMutation = useApproveExpense();
 
     // Extract unique employees from expenses data
-    const employeeMap = new Map<string, NonNullable<Expense['user']>>();
+    const employeeMap = new Map<string, NonNullable<ReviewQueueExpense['user']>>();
     if (expenses) {
-        expenses.forEach((expense: Expense) => {
+        expenses.forEach((expense: ReviewQueueExpense) => {
             if (expense.user && !employeeMap.has(expense.userId)) {
                 employeeMap.set(expense.userId, expense.user);
             }
@@ -130,7 +69,7 @@ export function ReviewQueueContent() {
         );
     }
 
-    const pendingExpenses = expenses?.filter((expense: Expense) =>
+    const pendingExpenses = expenses?.filter((expense: ReviewQueueExpense) =>
         expense.status === ExpenseStatus.SUBMITTED ||
         expense.status === ExpenseStatus.PRE_APPROVED
     ) || [];
@@ -236,7 +175,7 @@ export function ReviewQueueContent() {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {pendingExpenses.map((expense: Expense) => (
+                            {pendingExpenses.map((expense: ReviewQueueExpense) => (
                                 <Card key={expense._id} className="border-l-4 border-l-amber-500">
                                     <CardContent className="pt-6">
                                         <div className="flex items-center justify-between">

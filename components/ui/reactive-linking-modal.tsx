@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useOrganizationContext } from '@/hooks/use-organization-context';
+import { useOrganization } from '@/hooks/use-organization';
+import { usePathname } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -28,20 +29,22 @@ export function ReactiveLinkingModal() {
   const [notification, setNotification] = useState<ReactiveLinkingNotification | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const orgContext = useOrganizationContext();
+  const { data: userOrg } = useOrganization();
+  const pathname = usePathname();
+  const isOnOrgPage = pathname.includes('/organizations/');
 
-  // Check for reactive linking notifications when organization context is available
+  // Check for reactive linking notifications when on organization page
   useEffect(() => {
-    if (orgContext?.orgId && orgContext.isOrgPage) {
+    if (userOrg?.id && isOnOrgPage) {
       checkForLinkingNotification();
     }
-  }, [orgContext?.orgId, orgContext?.isOrgPage]);
+  }, [userOrg?.id, isOnOrgPage]);
 
   const checkForLinkingNotification = async () => {
-    if (!orgContext?.orgId) return;
+    if (!userOrg?.id) return;
 
     try {
-      const response = await fetch(`/api/reactive-linking?organizationId=${orgContext.orgId}`);
+      const response = await fetch(`/api/reactive-linking?organizationId=${userOrg.id}`);
       if (response.ok) {
         const data = await response.json();
         if (data.notification && !data.notification.dismissed) {
@@ -55,7 +58,7 @@ export function ReactiveLinkingModal() {
   };
 
   const handleLinkDrafts = async () => {
-    if (!notification || !orgContext?.orgId) return;
+    if (!notification || !userOrg?.id) return;
 
     setIsLoading(true);
     try {
@@ -66,13 +69,13 @@ export function ReactiveLinkingModal() {
         },
         body: JSON.stringify({
           action: 'link',
-          organizationId: orgContext.orgId,
+          organizationId: userOrg.id,
           notificationId: notification._id,
         }),
       });
 
       if (response.ok) {
-        toast.success(`Successfully linked ${notification.personalDraftCount} personal expense${notification.personalDraftCount !== 1 ? 's' : ''} to ${orgContext.organization.name}!`);
+        toast.success(`Successfully linked ${notification.personalDraftCount} personal expense${notification.personalDraftCount !== 1 ? 's' : ''} to ${userOrg.name || 'organization'}!`);
         setIsOpen(false);
         setNotification(null);
         // Refresh the page to show updated data
@@ -110,7 +113,7 @@ export function ReactiveLinkingModal() {
     setNotification(null);
   };
 
-  if (!notification || !orgContext) return null;
+  if (!notification || !userOrg) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
@@ -121,7 +124,7 @@ export function ReactiveLinkingModal() {
               <Link className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <DialogTitle>Welcome to {orgContext.organization.name}!</DialogTitle>
+              <DialogTitle>Welcome to {userOrg?.name || 'the organization'}!</DialogTitle>
               <DialogDescription>
                 We found some personal expenses you can link to your organization.
               </DialogDescription>

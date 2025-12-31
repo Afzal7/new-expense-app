@@ -50,3 +50,48 @@ export function useOrganization() {
     },
   })
 }
+
+/**
+ * Hook to fetch a specific organization by ID with full details
+ */
+export function useOrganizationById(orgId: string) {
+  const { data: session } = useSession()
+
+  return useQuery({
+    queryKey: ['organization', orgId, session?.user?.id],
+    queryFn: async () => {
+      if (!session?.user) {
+        throw new Error('User not authenticated')
+      }
+
+      if (!orgId) {
+        throw new Error('Organization ID is required')
+      }
+
+      const { data, error } = await orgClient.getFullOrganization({
+        query: { organizationId: orgId }
+      })
+
+      if (error) {
+        throw new Error(error.message || 'Failed to fetch organization details')
+      }
+
+      return data
+    },
+    enabled: !!session?.user?.id && !!orgId,
+    staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    retry: (failureCount, error) => {
+      // Don't retry on authentication errors
+      if (error instanceof Error && (
+        error.message.includes('not authenticated') ||
+        error.message.includes('not found') ||
+        error.message.includes('access denied')
+      )) {
+        return false
+      }
+      // Retry up to 2 times for other errors
+      return failureCount < 2
+    },
+  })
+}

@@ -27,16 +27,16 @@ export function useExpenses(organizationId?: string) {
 
 // Hook for fetching personal drafts (for vault dashboard)
 export function usePersonalDrafts() {
-  return useQuery({
-    queryKey: [...expenseKeys.lists(), 'personal-drafts'],
-    queryFn: async () => {
-      const result = await getPersonalDraftsAction();
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      return result.data;
-    },
-  });
+    return useQuery({
+        queryKey: [...expenseKeys.lists(), 'personal-drafts'],
+        queryFn: async () => {
+            const _result = await getPersonalDraftsAction();
+            if (!_result.success) {
+                throw new Error(_result.error);
+            }
+            return _result.data;
+        },
+    });
 }
 
 // Hook for fetching a single expense
@@ -86,10 +86,10 @@ export function useUpdateExpense() {
       console.log('🎉 [useUpdateExpense] Mutation completed successfully');
       return result;
     },
-    onSuccess: (result) => {
-      console.log('🔄 [useUpdateExpense] Invalidating queries after successful update');
-      queryClient.invalidateQueries({ queryKey: expenseKeys.all });
-      console.log('✅ [useUpdateExpense] Queries invalidated');
+    onSuccess: () => {
+        console.log('🔄 [useUpdateExpense] Invalidating queries after successful update');
+        queryClient.invalidateQueries({ queryKey: expenseKeys.all });
+        console.log('✅ [useUpdateExpense] Queries invalidated');
     },
     onError: (error) => {
       console.error('❌ [useUpdateExpense] Error updating expense:', error);

@@ -13,10 +13,10 @@ import { StaggeredList, StaggeredItem } from '@/components/layout/page-transitio
 import { Lock, Plus } from 'lucide-react';
 import Link from 'next/link';
 
-interface Expense {
+interface VaultExpense {
     _id: string;
     totalAmount: number;
-    status: string; // Keep as string for vault (always 'DRAFT')
+    status: string;
     isPersonal: boolean;
     lineItems: Array<{
         description: string;
@@ -69,7 +69,7 @@ export function VaultContent() {
 
                     {/* Skeleton invitations showing what vault will look like */}
                     <div className="space-y-4 mb-6 max-w-md mx-auto">
-                        <p className="text-sm text-muted-foreground">Here's what your vault will look like:</p>
+                        <p className="text-sm text-muted-foreground">Here&apos;s what your vault will look like:</p>
                         <SkeletonExpenseCard />
                         <SkeletonExpenseCard />
                     </div>
@@ -95,7 +95,7 @@ export function VaultContent() {
     return (
         <>
             <StaggeredList>
-                {drafts.map((expense: Expense) => (
+                {drafts?.map((expense: VaultExpense) => (
                     <StaggeredItem key={expense._id}>
                         <SuccessGlow trigger={glowingItems.has(expense._id)}>
                             <ExpenseCard

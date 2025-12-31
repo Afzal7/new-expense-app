@@ -2,7 +2,6 @@
 
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { expenseService } from '@/lib/services/expenseService';
 import { expenseVisibilityService } from '@/lib/services/expenseVisibilityService';
 // Removed unused import
@@ -23,8 +22,8 @@ export async function updateExpenseAction(expenseId: string, formData: FormData)
         });
 
         if (!session?.user) {
-            console.log('❌ [updateExpenseAction] No session found, redirecting to login');
-            redirect('/login');
+            console.log('❌ [updateExpenseAction] No session found, returning error');
+            return { success: false, error: 'Authentication required' };
         }
 
         // Log FormData contents
@@ -271,7 +270,7 @@ export async function deleteExpenseAction(expenseId: string) {
         });
 
         if (!session?.user) {
-            redirect('/login');
+            return { success: false, error: 'Authentication required' };
         }
 
         // First get the expense to determine organization context

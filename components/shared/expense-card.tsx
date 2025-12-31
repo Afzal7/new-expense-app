@@ -11,7 +11,9 @@ import { EditExpense } from '@/components/features/EditExpense';
 import { DeleteExpense } from '@/components/features/DeleteExpense';
 import { ApproveExpense } from '@/components/features/ApproveExpense';
 import { ReimburseExpense } from '@/components/features/ReimburseExpense';
-import { useOrganizationContext } from '@/hooks/use-organization-context';
+import { useOrganizationById } from '@/hooks/use-organization';
+import { usePathname } from 'next/navigation';
+import { useSession } from '@/lib/auth-client';
 
 interface Expense {
     _id: string;
@@ -47,8 +49,12 @@ export function ExpenseCard({
     onActionSuccess,
     className
 }: ExpenseCardProps) {
-    const orgContext = useOrganizationContext();
-    const userRole = orgContext?.member?.role;
+    const pathname = usePathname();
+    const { data: session } = useSession();
+    const orgId = pathname?.split('/')[3]; // Extract org ID from /dashboard/organizations/[id]/...
+    const { data: orgData } = useOrganizationById(orgId || '');
+    const currentUserMember = orgData?.members?.find(member => member.userId === session?.user?.id);
+    const userRole = currentUserMember?.role;
     const getStatusBadge = () => {
         return (
             <div className="flex items-center gap-2">

@@ -230,12 +230,29 @@ export async function createExpenseAction(formData: FormData) {
 
         // CRITICAL: Fail-safe file handling - clean up uploaded files if DB transaction failed
         // Project rule requires immediate cleanup of uploaded assets on failure
-        // TODO: Implement actual file cleanup using Transloadit API or storage provider API
-        // Currently files may remain orphaned if expense creation fails after upload
         if (uploadedFileKeys.length > 0) {
-            console.warn(`CRITICAL: ${uploadedFileKeys.length} uploaded files may need manual cleanup due to failed expense creation`);
-            // TODO: Call Transloadit delete API or storage provider cleanup
-            // Example: await transloaditApi.deleteFiles(uploadedFileKeys);
+            console.error(`CRITICAL: ${uploadedFileKeys.length} uploaded files need cleanup due to failed expense creation:`, uploadedFileKeys);
+
+            try {
+                // Attempt to delete uploaded files via Transloadit API
+                // Note: This requires implementing a file deletion API endpoint
+                // For now, we'll log the files that need manual cleanup
+                console.error('TODO: Implement file deletion API and call cleanup for files:', uploadedFileKeys);
+
+                // Placeholder for future implementation:
+                // const deleteResponse = await fetch('/api/files/delete', {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify({ fileKeys: uploadedFileKeys })
+                // });
+                // if (!deleteResponse.ok) {
+                //     console.error('Failed to delete uploaded files:', await deleteResponse.text());
+                // }
+
+            } catch (cleanupError) {
+                console.error('Failed to cleanup uploaded files:', cleanupError);
+                // Don't throw here as we don't want cleanup failures to mask the original error
+            }
         }
 
         return {
@@ -252,7 +269,7 @@ export async function getExpensesAction(organizationId?: string) {
         });
 
         if (!session?.user) {
-            redirect('/login');
+            return { success: false, error: 'Authentication required' };
         }
 
         // Get actual role from organization context
@@ -271,10 +288,8 @@ export async function getExpensesAction(organizationId?: string) {
         return { success: true, data: expenses };
     } catch (error) {
         console.error('Error fetching expenses:', error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to fetch expenses'
-        };
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred while fetching expenses';
+        return { success: false, error: errorMessage };
     }
 }
 
@@ -285,7 +300,7 @@ export async function getExpenseByIdAction(expenseId: string, organizationId?: s
         });
 
         if (!session?.user) {
-            redirect('/login');
+            return { success: false, error: 'Authentication required' };
         }
 
         // Get actual role from organization context
@@ -309,10 +324,8 @@ export async function getExpenseByIdAction(expenseId: string, organizationId?: s
         return { success: true, data: expense };
     } catch (error) {
         console.error('Error fetching expense:', error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to fetch expense'
-        };
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred while fetching the expense';
+        return { success: false, error: errorMessage };
     }
 }
 
@@ -323,7 +336,7 @@ export async function getPersonalDraftsAction() {
         });
 
         if (!session?.user) {
-            redirect('/login');
+            return { success: false, error: 'Authentication required' };
         }
 
         const drafts = await expenseVisibilityService.getPersonalDrafts(session.user.id);
@@ -331,9 +344,7 @@ export async function getPersonalDraftsAction() {
         return { success: true, data: drafts };
     } catch (error) {
         console.error('Error fetching personal drafts:', error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to fetch personal drafts'
-        };
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred while fetching personal drafts';
+        return { success: false, error: errorMessage };
     }
 }

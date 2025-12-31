@@ -26,7 +26,7 @@ interface ExpenseListProps {
 }
 
 export function ExpenseList({ onExpenseUpdate, onExpenseDelete }: ExpenseListProps = {}) {
-    const { data, isLoading, error, refetch } = useExpenses();
+    const { data, isLoading, error } = useExpenses();
 
     if (isLoading) {
         return (

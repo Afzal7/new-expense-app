@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,13 +19,14 @@ import { Input } from '@/components/ui/input';
 
 import { useCreateExpense } from '@/hooks/use-expense';
 import { useOrganizationManagers } from '@/hooks/use-organization-managers';
+import { useExpenseCreationState } from '@/hooks/use-expense-creation-state';
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
 import { FileUpload } from '@/components/ui/file-upload';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { DatePicker } from '@/components/ui/date-picker';
-import { useOrganizationContext } from '@/hooks/use-organization-context';
+import { useOrganization } from '@/hooks/use-organization';
 import { MotionPulse } from '@/components/ddd';
 import { TotalDisplay } from '@/components/features/TotalDisplay';
 
@@ -54,16 +55,25 @@ interface CreateExpenseDialogProps {
 }
 
 export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogProps) {
-    const [showSuccessGlow, setShowSuccessGlow] = useState(false);
-    const [showPulseFeedback, setShowPulseFeedback] = useState(false);
-    const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; name: string; type: string }[]>>([[]]);
-    const [submissionType, setSubmissionType] = useState<'draft' | 'pre-approval' | 'submit'>('draft');
-    const [selectedManager, setSelectedManager] = useState<string>('');
-    const [managers, setManagers] = useState<Array<{ id: string, name: string, email: string, role: string }>>([]);
-    const [hasAutoSaved, setHasAutoSaved] = useState(false);
-    const [managerEmailError, setManagerEmailError] = useState<string>('');
-    const orgContext = useOrganizationContext();
+    const { data: userOrg } = useOrganization();
     const createExpense = useCreateExpense();
+
+    const {
+        uploadedFiles,
+        setUploadedFiles,
+        submissionType,
+        setSubmissionType,
+        selectedManager,
+        setSelectedManager,
+        managers,
+        setManagers,
+        managerEmailError,
+        setManagerEmailError,
+        setHasAutoSaved: _setHasAutoSaved,
+        showSuccessGlow: _showSuccessGlow,
+        setShowSuccessGlow: _setShowSuccessGlow,
+        setShowPulseFeedback: _setShowPulseFeedback,
+    } = useExpenseCreationState();
 
     const {
         register,
@@ -87,15 +97,18 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
         name: 'lineItems',
     });
 
+    // Watch all amount values
+    const amountValues = fields.map((_, index) => watch(`lineItems.${index}.amount`));
+
     const totalAmount = useMemo(() => {
-        return fields.reduce((sum, field, index) => {
-            const amount = parseFloat(watch(`lineItems.${index}.amount`) || '0');
+        return amountValues.reduce((sum, amountValue) => {
+            const amount = parseFloat(amountValue || '0');
             return sum + (isNaN(amount) ? 0 : amount);
         }, 0);
-    }, [fields, watch]);
+    }, [amountValues]);
 
     // Validate manager email exists in org or system
-    const validateManagerEmail = async (email: string) => {
+    const validateManagerEmail = useCallback(async (email: string) => {
         if (!email || email.trim() === '') {
             setManagerEmailError('');
             return;
@@ -109,39 +122,50 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
         }
 
         try {
-            // Check if email exists in organization managers
-            if (orgContext?.orgId) {
+            // Check if email exists in organization managers first
+            if (userOrg?.id) {
                 const managerExists = managers.some(manager => manager.email === email);
                 if (!managerExists) {
                     setManagerEmailError('Manager email not found in your organization');
                     return;
                 }
             } else {
-                // For personal expenses, check if user exists in system
-                // TODO: Implement system-wide user lookup API
-                // For now, accept any valid email
+                // For personal expenses, validate against system users
+                // Import the validation action dynamically to avoid SSR issues
+                const { validateUserEmailAction } = await import('../_actions/user-validation-actions');
+                const result = await validateUserEmailAction(email);
+
+                if (!result.success) {
+                    setManagerEmailError(result.error || 'Failed to validate manager email');
+                    return;
+                }
+
+                if (!result.exists) {
+                    setManagerEmailError('Manager email not found in the system');
+                    return;
+                }
             }
             setManagerEmailError('');
-        } catch (error) {
+        } catch (_error) {
             setManagerEmailError('Unable to validate manager email');
         }
-    };
+    }, [managers, userOrg?.id, setManagerEmailError]);
 
     // Validate manager email when it changes
     const watchedManagerEmail = watch('managerEmail');
     useEffect(() => {
         validateManagerEmail(watchedManagerEmail || '');
-    }, [watchedManagerEmail, managers, orgContext?.orgId]);
+    }, [watchedManagerEmail, validateManagerEmail]);
 
     // Fetch organization managers using TanStack Query hook
-    const managersQuery = useOrganizationManagers(orgContext?.orgId, open && !!orgContext?.orgId);
+    const managersQuery = useOrganizationManagers(userOrg?.id, open && !!userOrg?.id && !!userOrg?.id.trim());
 
     // Update managers state when query succeeds
     useEffect(() => {
         if (managersQuery.data) {
             setManagers(managersQuery.data);
         }
-    }, [managersQuery.data]);
+    }, [managersQuery.data, setManagers]);
 
     // Handle error states
     useEffect(() => {
@@ -154,6 +178,8 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
     // Ensure uploadedFiles array matches the number of line items
     useEffect(() => {
         setUploadedFiles(prev => {
+            if (prev.length === fields.length) return prev;
+
             const newUploadedFiles = [...prev];
             // Extend array if needed
             while (newUploadedFiles.length < fields.length) {
@@ -162,7 +188,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
             // Trim array if needed
             return newUploadedFiles.slice(0, fields.length);
         });
-    }, [fields.length]);
+    }, [fields.length, setUploadedFiles]);
 
     const onSubmit = async (data: CreateExpenseForm) => {
         const formData = new FormData();
@@ -186,7 +212,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
         formData.append('date', data.date);
 
         // Add submission options
-        if (orgContext) {
+        if (userOrg) {
             formData.append('submissionType', submissionType);
             if (selectedManager) {
                 formData.append('managerId', selectedManager);
@@ -195,14 +221,14 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                     formData.append('managerEmail', selectedManagerData.email);
                 }
             }
-            formData.append('organizationId', orgContext.orgId);
+            formData.append('organizationId', userOrg.id);
         }
 
         createExpense.mutate(formData, {
             onSuccess: (result) => {
                 if (result.success) {
                     if (submissionType === 'draft') {
-                        setShowSuccessGlow(true);
+                        _setShowSuccessGlow(true);
                         toast.success('Expense saved as draft!');
                         reset({
                             lineItems: [{ amount: '0.00', description: '' }],
@@ -212,27 +238,27 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                         setUploadedFiles([[]]);
                         setSelectedManager('');
                         setSubmissionType('draft');
-                        setHasAutoSaved(false);
+                        _setHasAutoSaved(false);
                         // Delay closing to show success animation
                         setTimeout(() => {
                             onOpenChange(false);
-                            setShowSuccessGlow(false);
+                            _setShowSuccessGlow(false);
                         }, 1200);
-                    } else {
-                        setShowPulseFeedback(true);
-                        const message = submissionType === 'pre-approval'
-                            ? 'Pre-approval request submitted!'
-                            : 'Expense submitted for approval!';
-                        toast.success(message);
-                        reset();
-                        setUploadedFiles([[]]);
-                        setSelectedManager('');
-                        // Delay closing to show pulse animation
-                        setTimeout(() => {
-                            onOpenChange(false);
-                            setShowPulseFeedback(false);
-                        }, 800);
-                    }
+        } else {
+            _setShowSuccessGlow(true);
+            const message = submissionType === 'pre-approval'
+                ? 'Pre-approval request submitted!'
+                : 'Expense submitted for approval!';
+            toast.success(message);
+            reset();
+            setUploadedFiles([[]]);
+            setSelectedManager('');
+            // Delay closing to show success animation
+            setTimeout(() => {
+                onOpenChange(false);
+                _setShowSuccessGlow(false);
+            }, 1200);
+        }
                 } else {
                     toast.error(result.error);
                 }
@@ -250,9 +276,9 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
             reset();
             setUploadedFiles([[]]);
             setSelectedManager('');
-            setShowSuccessGlow(false);
-            setShowPulseFeedback(false);
-            setHasAutoSaved(false);
+            _setShowSuccessGlow(false);
+            _setShowPulseFeedback(false);
+            _setHasAutoSaved(false);
         }
         onOpenChange(newOpen);
     };
@@ -463,7 +489,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                     )}
 
                     {/* Submission Options */}
-                    {orgContext && (
+                    {userOrg && (
                         <div className="space-y-4 border-t pt-4">
                             <div className="space-y-2">
                                 <Label>Submission Type</Label>
@@ -550,7 +576,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                         </motion.div>
 
                         {/* Submit for Pre-approval Button (only when manager selected) */}
-                        {orgContext && selectedManager && (
+                        {userOrg && selectedManager && (
                             <motion.div
                                 animate={isValid && !managerEmailError && selectedManager ? {
                                     boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
@@ -576,7 +602,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
 
                         {/* Regular Submit Button */}
                         <motion.div
-                            animate={isValid && !managerEmailError && (!orgContext?.orgId || !!selectedManager) ? {
+                            animate={isValid && !managerEmailError && (!userOrg?.id || !!selectedManager) ? {
                                 boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
                             } : {
                                 boxShadow: '0 0 0px rgba(16, 185, 129, 0)'
@@ -589,7 +615,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                                     createExpense.isPending ||
                                     !isValid ||
                                     !!managerEmailError ||
-                                    (!!orgContext?.orgId && !selectedManager)
+                                    (!!userOrg?.id && !selectedManager)
                                 }
                             >
                                 {createExpense.isPending ? 'Creating...' : 'Submit for Approval'}

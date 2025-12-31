@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { expenseService } from '@/lib/services/expenseService'
 import { verifyPermission } from '@/lib/verifyPermission'
-import { ExpenseStatus } from '@/types/expense'
+import { ExpenseStatus, Expense } from '@/types/expense'
+import { createSuccessResponse, createUnauthorizedResponse, createBadRequestResponse, createForbiddenResponse, handleApiError } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
     try {
@@ -13,10 +14,7 @@ export async function GET(request: NextRequest) {
         });
 
         if (!session?.user) {
-            return NextResponse.json(
-                { success: false, error: 'Authentication required' },
-                { status: 401 }
-            );
+            return createUnauthorizedResponse();
         }
 
         // Get organization context from query params
@@ -24,19 +22,13 @@ export async function GET(request: NextRequest) {
         const organizationId = searchParams.get('organizationId');
 
         if (!organizationId) {
-            return NextResponse.json(
-                { success: false, error: 'Organization ID required' },
-                { status: 400 }
-            );
+            return createBadRequestResponse('Organization ID required');
         }
 
         // Verify user has finance/admin access to this organization
         const hasFinanceAccess = await verifyPermission(session.user.id, 'admin', organizationId);
         if (!hasFinanceAccess) {
-            return NextResponse.json(
-                { success: false, error: 'Finance access required' },
-                { status: 403 }
-            );
+            return createForbiddenResponse('Finance access required');
         }
 
         // Get approved expenses for the organization using service layer
@@ -46,7 +38,7 @@ export async function GET(request: NextRequest) {
         );
 
         // Calculate total payout
-        const totalPayout = expenses.reduce((sum: number, expense: any) => sum + (expense.totalAmount || 0), 0);
+        const totalPayout = expenses.reduce((sum: number, expense: Expense) => sum + (expense.totalAmount || 0), 0);
 
         // Log finance dashboard access for audit compliance
         await expenseService.logAuditEvent(
@@ -57,37 +49,13 @@ export async function GET(request: NextRequest) {
             'admin'
         );
 
-        return NextResponse.json({
-            success: true,
-            data: {
-                expenses,
-                totalPayout,
-                count: expenses.length
-            }
+        return createSuccessResponse({
+            expenses,
+            totalPayout,
+            count: expenses.length
         });
 
     } catch (error) {
-        console.error('Finance dashboard API error:', error);
-
-        // Provide more specific error messages
-        if (error instanceof Error) {
-            if (error.message.includes('permission')) {
-                return NextResponse.json(
-                    { success: false, error: 'Insufficient permissions' },
-                    { status: 403 }
-                );
-            }
-            if (error.message.includes('not found')) {
-                return NextResponse.json(
-                    { success: false, error: 'Organization not found' },
-                    { status: 404 }
-                );
-            }
-        }
-
-        return NextResponse.json(
-            { success: false, error: 'Failed to load finance data' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'finance expenses API');
     }
 }

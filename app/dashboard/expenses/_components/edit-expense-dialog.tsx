@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
 import { z } from 'zod';
 import {
     Dialog,
@@ -17,11 +15,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 // Removed unused Textarea import
 import { useUpdateExpense, useDeleteExpense } from '@/hooks/use-expense';
-import { useRouter } from 'next/navigation';
+import { useOrganization } from '@/hooks/use-organization';
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
 import { useExpense } from '@/hooks/use-expense';
 import { FileUpload } from '@/components/ui/file-upload';
+import { useExpenseForm } from '@/hooks/use-expense-form';
 
 const lineItemSchema = z.object({
     amount: z.string().min(1, 'Amount is required').refine((val) => {
@@ -31,7 +30,7 @@ const lineItemSchema = z.object({
     description: z.string().optional(),
 });
 
-const editExpenseSchema = z.object({
+const _editExpenseSchema = z.object({
     lineItems: z.array(lineItemSchema).min(1, 'At least one line item is required'),
     date: z.string().min(1, 'Date is required').refine((val) => {
         const date = new Date(val);
@@ -39,7 +38,7 @@ const editExpenseSchema = z.object({
     }, 'Date must be valid and not in the future'),
 });
 
-type EditExpenseForm = z.infer<typeof editExpenseSchema>;
+type EditExpenseForm = z.infer<typeof _editExpenseSchema>;
 
 interface EditExpenseDialogProps {
     expenseId: string;
@@ -48,48 +47,31 @@ interface EditExpenseDialogProps {
 }
 
 export function EditExpenseDialog({ expenseId, open, onOpenChange }: EditExpenseDialogProps) {
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; name: string; type: string }[]>>([[]]);
+    const { data: userOrg } = useOrganization();
+    const { data: expense } = useExpense(expenseId, userOrg?.id);
     const updateExpense = useUpdateExpense();
     const deleteExpense = useDeleteExpense();
-
-    const { data: expense } = useExpense(expenseId);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const {
-        register,
-        handleSubmit,
-        control,
-        reset,
-        formState: { errors },
-    } = useForm<EditExpenseForm>({
-        resolver: zodResolver(editExpenseSchema),
-        defaultValues: {
-            lineItems: [{ amount: '', description: '' }],
-            date: new Date().toISOString().split('T')[0],
-        },
+        form: editForm,
+        fields,
+        append,
+        remove,
+        uploadedFiles,
+        setUploadedFiles
+    } = useExpenseForm({
+        mode: 'edit',
+        initialData: expense ? {
+            lineItems: expense.lineItems.map((item: { amount: number; description: string; date: Date; attachments?: Array<{ url: string; name: string; type: string }> }) => ({
+                amount: item.amount.toString(),
+                description: item.description || '',
+            })),
+            date: new Date(expense.createdAt).toISOString().split('T')[0],
+        } : undefined
     });
 
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: 'lineItems',
-    });
-
-    // Populate form when expense data loads
-    useEffect(() => {
-        if (expense && open) {
-            reset({
-                lineItems: expense.lineItems.map((item: { amount: number; description: string; date: Date; attachments?: Array<{ url: string; name: string; type: string }> }) => ({
-                    amount: item.amount.toString(),
-                    description: item.description,
-                })),
-                date: new Date(expense.createdAt).toISOString().split('T')[0],
-            });
-
-            // Initialize uploadedFiles array for new uploads only
-            // Existing attachments will be handled separately in the UI
-            setUploadedFiles(expense.lineItems.map(() => []));
-        }
-    }, [expense, open, reset]);
+    const { register, handleSubmit, reset, formState: { errors } } = editForm;
 
     const onSubmit = async (data: EditExpenseForm) => {
         console.log('📝 [EditExpenseDialog.onSubmit] Starting form submission');

@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { X } from 'lucide-react';
 import { FileUpload } from '@/components/ui/file-upload';
 import { DatePicker } from '@/components/ui/date-picker';
-import { useOrganizationContext } from '@/hooks/use-organization-context';
+import { useOrganization } from '@/hooks/use-organization';
 import { SuccessGlow, PulseFeedback, MotionPulse } from '@/components/ddd';
 import { useExpenseForm, CreateExpenseFormData } from '@/hooks/use-expense-form';
 import { useExpense, useCreateExpense, useUpdateExpense, useDeleteExpense } from '@/hooks/use-expense';
@@ -62,10 +62,10 @@ export function ExpenseFormDialog({ mode, expenseId, open, onOpenChange }: Expen
     const [managers, setManagers] = useState<Array<{id: string, name: string, email: string, role: string}>>([]);
     const [_loadingManagers, setLoadingManagers] = useState(false);
 
-    const orgContext = useOrganizationContext();
+    const { data: userOrg } = useOrganization();
 
     // Load expense data for edit mode
-    const { data: expense } = useExpense(expenseId || '', orgContext?.orgId);
+    const { data: expense } = useExpense(expenseId || '', userOrg?.id);
 
     // Mutation hooks
     const createExpenseMutation = useCreateExpense();
@@ -97,27 +97,30 @@ export function ExpenseFormDialog({ mode, expenseId, open, onOpenChange }: Expen
 
     // Fetch organization managers when dialog opens (create mode)
     useEffect(() => {
-        if (open && mode === 'create' && orgContext?.orgId) {
+        const fetchManagers = async () => {
+            if (!open || mode !== 'create' || !userOrg?.id) return;
+
             setLoadingManagers(true);
-            fetch(`/api/organizations/managers?organizationId=${orgContext.orgId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        console.error('Error fetching managers:', data.error);
-                        setManagers([]);
-                    } else {
-                        setManagers(data);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching managers:', error);
+            try {
+                const response = await fetch(`/api/organizations/managers?organizationId=${userOrg.id}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error('Error fetching managers:', data.error);
                     setManagers([]);
-                })
-                .finally(() => setLoadingManagers(false));
-        } else {
-            setManagers([]);
-        }
-    }, [open, mode, orgContext?.orgId]);
+                } else {
+                    setManagers(data);
+                }
+            } catch (error) {
+                console.error('Error fetching managers:', error);
+                setManagers([]);
+            } finally {
+                setLoadingManagers(false);
+            }
+        };
+
+        fetchManagers();
+    }, [open, mode, userOrg?.id]);
 
     const onSubmit = async (data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         const formData = new FormData();
@@ -177,7 +180,7 @@ export function ExpenseFormDialog({ mode, expenseId, open, onOpenChange }: Expen
 
         if (mode === 'create') {
             // Add submission options for create
-            if (orgContext) {
+            if (userOrg) {
                 formData.append('submissionType', submissionType);
                 if (selectedManager) {
                     formData.append('managerId', selectedManager);
@@ -186,7 +189,7 @@ export function ExpenseFormDialog({ mode, expenseId, open, onOpenChange }: Expen
                         formData.append('managerEmail', selectedManagerData.email);
                     }
                 }
-                formData.append('organizationId', orgContext.orgId);
+                formData.append('organizationId', userOrg.id);
             }
             createExpenseMutation.mutate(formData, {
                 onSuccess: handleSuccess,

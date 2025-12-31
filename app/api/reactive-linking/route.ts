@@ -4,6 +4,7 @@ import { connectMongoose } from '@/lib/db';
 import { Expense } from '@/lib/models';
 import { ExpenseStatus } from '@/types/expense';
 import { organizationService } from '@/lib/services/organizationService';
+;
 
 export async function GET(request: NextRequest) {
   try {

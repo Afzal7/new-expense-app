@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { X, Edit, Trash2 } from 'lucide-react';
 import { FileUpload } from '@/components/ui/file-upload';
 import { DatePicker } from '@/components/ui/date-picker';
-import { useOrganizationContext } from '@/hooks/use-organization-context';
+import { useOrganization } from '@/hooks/use-organization';
 import { MotionPulse, PulseFeedback } from '@/components/ddd';
 import { useExpense, useUpdateExpense, useDeleteExpense } from '@/hooks/use-expense';
 import { Expense } from '@/types/expense';
@@ -46,10 +46,10 @@ export function EditExpense({ expenseId, variant = 'button', className, onSucces
     const updateExpenseMutation = useUpdateExpense();
     const deleteExpenseMutation = useDeleteExpense();
 
-    const orgContext = useOrganizationContext();
+    const { data: userOrg } = useOrganization();
 
     // Fetch expense data
-    const { data: expense, isLoading: expenseLoading, error: expenseError } = useExpense(expenseId, orgContext?.orgId);
+    const { data: expense, isLoading: expenseLoading, error: expenseError } = useExpense(expenseId, userOrg?.id);
 
     // Transform expense data for the form
     const initialData = useMemo(() => {

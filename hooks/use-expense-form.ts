@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, useFieldArray, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -70,17 +70,20 @@ export interface UseExpenseFormReturn {
     setIsSubmitting: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function useExpenseForm({ mode, initialData }: UseExpenseFormOptions): UseExpenseFormReturn {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
+export function useExpenseForm({ mode, initialData: _initialData }: UseExpenseFormOptions): UseExpenseFormReturn {
     const schema = mode === 'create' ? createExpenseSchema : editExpenseSchema;
 
-    // Initialize uploadedFiles based on initialData
-    const initialUploadedFiles = initialData?.lineItems
-        ? new Array(initialData.lineItems.length).fill([])
-        : [[]];
+    // Compute initial uploadedFiles length based on initialData
+    const initialUploadedFilesLength = useMemo(() => {
+        if (_initialData?.lineItems) {
+            return _initialData.lineItems.length;
+        }
+        return 1; // Default for create mode
+    }, [_initialData]);
 
-    const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; name: string; type: string }[]>>(initialUploadedFiles);
+    const [uploadedFiles, setUploadedFiles] = useState<Array<{ url: string; name: string; type: string }[]>>(() =>
+        new Array(initialUploadedFilesLength).fill([])
+    );
 
     const form = useForm<CreateExpenseFormData | EditExpenseFormData>({
         resolver: zodResolver(schema),
@@ -88,7 +91,7 @@ export function useExpenseForm({ mode, initialData }: UseExpenseFormOptions): Us
             lineItems: [{ amount: '0.00', description: '' }],
             date: new Date().toISOString().split('T')[0],
             ...(mode === 'create' ? { managerEmail: '' as const } : {}),
-            ...initialData,
+            ..._initialData,
         },
     });
 
@@ -97,39 +100,9 @@ export function useExpenseForm({ mode, initialData }: UseExpenseFormOptions): Us
         name: 'lineItems',
     });
 
-    // Update uploadedFiles when initialData changes (for edit mode)
-    useEffect(() => {
-        if (initialData?.lineItems) {
-            setUploadedFiles(new Array(initialData.lineItems.length).fill([]));
-        }
-    }, [initialData]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Synchronize uploadedFiles with form fields
-    const uploadedFilesRef = useRef(uploadedFiles);
 
-    // Update ref when uploadedFiles changes
-    useEffect(() => {
-        uploadedFilesRef.current = uploadedFiles;
-    }, [uploadedFiles]);
-
-    const syncUploadedFiles = useCallback(() => {
-        const currentFiles = uploadedFilesRef.current;
-        const newUploadedFiles = [...currentFiles];
-        // Extend array if needed
-        while (newUploadedFiles.length < fields.length) {
-            newUploadedFiles.push([]);
-        }
-        // Trim array if needed
-        const trimmedFiles = newUploadedFiles.slice(0, fields.length);
-        if (trimmedFiles.length !== currentFiles.length) {
-            setUploadedFiles(trimmedFiles);
-        }
-    }, [fields.length]);
-
-    // Call sync when fields change
-    useEffect(() => {
-        syncUploadedFiles();
-    }, [syncUploadedFiles]);
 
     return {
         form,

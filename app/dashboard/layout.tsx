@@ -4,12 +4,13 @@ import { useEffect } from "react";
 import {
   HomeIcon,
   SettingsIcon,
-  Building2Icon,
   Users,
   Mail,
   Receipt,
   Lock,
   CheckCircle,
+  BarChart3,
+  Settings,
 } from "lucide-react";
 import { APP_CONFIG } from "@/lib/config";
 
@@ -98,56 +99,56 @@ export default function DashboardLayout({
                 </div>
               </div>
 
-              {/* Default dashboard navigation */}
+              {/* Personal Navigation - Always Available */}
               <SidebarGroup>
                 <SidebarGroupLabel>Personal</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                     <SidebarMenuItem>
-                       <SidebarMenuButton
-                         asChild
-                         isActive={pathname === "/dashboard"}
-                       >
-                         <Link href="/dashboard">
-                           <HomeIcon className="h-4 w-4" />
-                           <span>Dashboard</span>
-                         </Link>
-                       </SidebarMenuButton>
-                     </SidebarMenuItem>
-                     <SidebarMenuItem>
-                       <SidebarMenuButton
-                         asChild
-                         isActive={pathname === "/dashboard/expenses"}
-                       >
-                         <Link href="/dashboard/expenses">
-                           <Receipt className="h-4 w-4" />
-                           <span>Expenses</span>
-                         </Link>
-                       </SidebarMenuButton>
-                     </SidebarMenuItem>
-                     <SidebarMenuItem>
-                       <SidebarMenuButton
-                         asChild
-                         isActive={pathname === "/dashboard/vault"}
-                       >
-                         <Link href="/dashboard/vault">
-                           <Lock className="h-4 w-4" />
-                           <span>Private Vault</span>
-                         </Link>
-                       </SidebarMenuButton>
-                     </SidebarMenuItem>
-                     <SidebarMenuItem>
-                       <SidebarMenuButton
-                         asChild
-                         isActive={pathname === "/dashboard/review-queue"}
-                       >
-                         <Link href="/dashboard/review-queue">
-                           <CheckCircle className="h-4 w-4" />
-                           <span>Review Queue</span>
-                         </Link>
-                       </SidebarMenuButton>
-                     </SidebarMenuItem>
-                     <SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === "/dashboard"}
+                      >
+                        <Link href="/dashboard">
+                          <HomeIcon className="h-4 w-4" />
+                          <span>Dashboard</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === "/dashboard/expenses"}
+                      >
+                        <Link href="/dashboard/expenses">
+                          <Receipt className="h-4 w-4" />
+                          <span>Expenses</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === "/dashboard/vault"}
+                      >
+                        <Link href="/dashboard/vault">
+                          <Lock className="h-4 w-4" />
+                          <span>Private Vault</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === "/dashboard/review-queue"}
+                      >
+                        <Link href="/dashboard/review-queue">
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Review Queue</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild
                         isActive={pathname === "/dashboard/settings"}
@@ -161,85 +162,63 @@ export default function DashboardLayout({
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
-              {userOrg && (
-                <SidebarGroup>
-                  <SidebarGroupLabel>Organization</SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {/* Organization Section - Single org per user */}
 
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={orgContext?.isOrgPage}
-                        >
-                          <Link href={`/dashboard/organizations/${userOrg.id}`}>
-                            <Building2Icon className="h-4 w-4" />
-                            <span>Organization</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-
-                      {/* Organization-specific navigation when in org context */}
-                      {orgContext && (
-                        <>
-                          <SidebarMenuItem>
-                            <SidebarMenuButton
-                              asChild
-                              isActive={
-                                pathname ===
-                                `/dashboard/organizations/${orgContext.orgId}/members`
-                              }
-                              className="ml-6"
-                            >
-                              <Link
-                                href={`/dashboard/organizations/${orgContext.orgId}/members`}
-                              >
-                                <Users className="h-3 w-3" />
-                                <span className="text-sm">Members</span>
-                              </Link>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                          <SidebarMenuItem>
-                            <SidebarMenuButton
-                              asChild
-                              isActive={
-                                pathname ===
-                                `/dashboard/organizations/${orgContext.orgId}/invitations`
-                              }
-                              className="ml-6"
-                            >
-                              <Link
-                                href={`/dashboard/organizations/${orgContext.orgId}/invitations`}
-                              >
-                                <Mail className="h-3 w-3" />
-                                <span className="text-sm">Invitations</span>
-                              </Link>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                          <SidebarMenuItem>
-                            <SidebarMenuButton
-                              asChild
-                              isActive={
-                                pathname ===
-                                `/dashboard/organizations/${orgContext.orgId}/settings`
-                              }
-                              className="ml-6"
-                            >
-                              <Link
-                                href={`/dashboard/organizations/${orgContext.orgId}/settings`}
-                              >
-                                <SettingsIcon className="h-3 w-3" />
-                                <span className="text-sm">Settings</span>
-                              </Link>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        </>
-                      )}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              )}
+              {/* Organization Navigation - Always Available */}
+              <SidebarGroup>
+                <SidebarGroupLabel>Organization</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        disabled={!userOrg?.id}
+                        isActive={pathname === `/dashboard/organizations/${userOrg?.id}`}
+                      >
+                        <Link href={userOrg?.id ? `/dashboard/organizations/${userOrg.id}` : "#"}>
+                          <BarChart3 className="h-4 w-4" />
+                          <span>Overview</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        disabled={!userOrg?.id}
+                        isActive={pathname === `/dashboard/organizations/${userOrg?.id}/members` && !!userOrg?.id}
+                      >
+                        <Link href={userOrg?.id ? `/dashboard/organizations/${userOrg.id}/members` : "#"}>
+                          <Users className="h-4 w-4" />
+                          <span>Members</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        disabled={!userOrg?.id}
+                        isActive={pathname === `/dashboard/organizations/${userOrg?.id}/invitations` && !!userOrg?.id}
+                      >
+                        <Link href={userOrg?.id ? `/dashboard/organizations/${userOrg.id}/invitations` : "#"}>
+                          <Mail className="h-4 w-4" />
+                          <span>Invitations</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        disabled={!userOrg?.id}
+                        isActive={pathname === `/dashboard/organizations/${userOrg?.id}/settings` && !!userOrg?.id}
+                      >
+                        <Link href={userOrg?.id ? `/dashboard/organizations/${userOrg.id}/settings` : "#"}>
+                          <Settings className="h-4 w-4" />
+                          <span>Settings</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
             </SidebarContent>
           </Sidebar>
           <div className="flex flex-1 flex-col">

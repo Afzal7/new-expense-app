@@ -1,23 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Expense } from '@/lib/models'
 import { connectMongoose } from '@/lib/db'
+import { createBadRequestResponse, createNotFoundResponse, handleApiError } from '@/lib/api-response'
 
 export async function POST(request: NextRequest) {
     try {
         const { format, expenseIds } = await request.json()
 
         if (!format || !['csv', 'pdf'].includes(format)) {
-            return NextResponse.json(
-                { success: false, error: 'Invalid format. Must be csv or pdf.' },
-                { status: 400 }
-            )
+            return createBadRequestResponse('Invalid format. Must be csv or pdf.')
         }
 
         if (!Array.isArray(expenseIds) || expenseIds.length === 0) {
-            return NextResponse.json(
-                { success: false, error: 'Expense IDs array is required' },
-                { status: 400 }
-            )
+            return createBadRequestResponse('Expense IDs array is required')
         }
 
         await connectMongoose()
@@ -29,10 +24,7 @@ export async function POST(request: NextRequest) {
         const serializedExpenses = JSON.parse(JSON.stringify(expenses));
 
         if (expenses.length === 0) {
-            return NextResponse.json(
-                { success: false, error: 'No expenses found' },
-                { status: 404 }
-            )
+            return createNotFoundResponse('No expenses found')
         }
 
         // Generate file based on format
@@ -56,11 +48,7 @@ export async function POST(request: NextRequest) {
         }
 
     } catch (error) {
-        console.error('Export API error:', error)
-        return NextResponse.json(
-            { success: false, error: 'Internal server error' },
-            { status: 500 }
-        )
+        return handleApiError(error, 'finance export API')
     }
 }
 

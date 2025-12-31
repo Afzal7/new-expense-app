@@ -1,18 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from '@/lib/auth-client';
-import { orgClient } from '@/lib/auth-client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useOrganizationById } from '@/hooks/use-organization';
+import { useFeatureGate } from '@/hooks/use-feature-gate';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Users, Mail, Settings, Crown, Info } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
 import { ErrorState } from '@/components/shared/error-state';
-
-import { useFeatureGate } from '@/hooks/use-feature-gate';
 import type { Organization, Member } from 'better-auth/plugins/organization';
 
 export default function OrganizationPage() {
@@ -20,46 +19,15 @@ export default function OrganizationPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const { isPro } = useFeatureGate();
-  const [organization, setOrganization] = useState<Organization | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [invitations, setInvitations] = useState<{ id: string; email: string; role: string; status: string }[]>([]);
-  const [currentMember, setCurrentMember] = useState<Member | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-
   const orgId = params.id as string;
 
-  useEffect(() => {
-    const fetchOrganizationData = async () => {
-      if (!session?.user || !orgId) return;
+  const { data: orgData, isLoading, error } = useOrganizationById(orgId);
 
-      try {
-        setIsLoading(true);
-        const { data: orgData, error: orgError } = await orgClient.getFullOrganization({
-          query: { organizationId: orgId }
-        });
-
-        if (orgError) {
-          setError('Organization not found or access denied');
-          return;
-        }
-
-        const { members: orgMembers, invitations: orgInvitations, ...org } = orgData || {};
-        setOrganization(org);
-        setMembers(orgMembers || []);
-        setInvitations(orgInvitations || []);
-
-        const current = orgMembers?.find(m => m.userId === session.user.id);
-        setCurrentMember(current || null);
-      } catch {
-        setError('Failed to load organization');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchOrganizationData();
-  }, [session?.user?.id, session?.user, orgId]);
+  // Extract data from Better Auth response format
+  const organization = orgData ? { ...orgData, members: undefined, invitations: undefined } : null;
+  const members = orgData?.members || [];
+  const invitations = orgData?.invitations || [];
+  const currentMember = members.find(m => m.userId === session?.user?.id) || null;
 
 
 
@@ -71,7 +39,7 @@ export default function OrganizationPage() {
     return (
       <div className="space-y-6">
         <ErrorState
-          message={error || 'This organization may not exist or you may not have access.'}
+          message={error instanceof Error ? error.message : 'This organization may not exist or you may not have access.'}
           type="page"
           onRetry={() => window.location.reload()}
           retryLabel="Try Again"

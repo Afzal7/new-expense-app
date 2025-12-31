@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { NumberTicker } from '@/components/ddd';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,28 +19,11 @@ import {
     AlertCircle
 } from 'lucide-react';
 import { ExpenseStatus } from '@/types/expense';
-import { useSession } from '@/lib/auth-client';
-import { useOrganizationContext } from '@/hooks/use-organization-context';
+import { useFinanceExpenses, useReimburseExpenses, useExportExpenses, type FinanceExpense } from '@/hooks/use-finance';
 import { toast } from 'sonner';
+import { usePathname } from 'next/navigation';
 
-interface Expense {
-    _id: string;
-    totalAmount: number;
-    status: ExpenseStatus;
-    isPersonal: boolean;
-    lineItems: Array<{
-        description: string;
-        amount: number;
-        date: Date;
-    }>;
-    createdAt: Date;
-    userId: string;
-    organizationId?: string;
-    user?: {
-        name?: string;
-        email: string;
-    };
-}
+
 
 interface FinanceFilters {
     status?: ExpenseStatus;
@@ -50,117 +32,22 @@ interface FinanceFilters {
 }
 
 export function FinanceDashboard() {
-    const { data: _session } = useSession();
-    const orgContext = useOrganizationContext();
+    const pathname = usePathname();
+    const orgId = pathname?.split('/')[3]; // Extract org ID from /dashboard/organizations/[id]/finance
     const [filters, _setFilters] = useState<FinanceFilters>({ status: ExpenseStatus.APPROVED });
     const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set());
     const [showReimburseDialog, setShowReimburseDialog] = useState(false);
 
-    const queryClient = useQueryClient();
+    const { data: expensesData, isLoading, error } = useFinanceExpenses(
+        orgId || '',
+        filters
+    );
 
-    const { data: expenses, isLoading, error } = useQuery({
-        queryKey: ['finance-expenses', orgContext?.orgId, filters],
-        queryFn: async () => {
-            if (!orgContext?.orgId) return [];
+    const approvedExpenses = expensesData?.expenses || [];
+    const totalReimbursable = expensesData?.totalPayout || 0;
 
-            const params = new URLSearchParams();
-            params.set('organizationId', orgContext.orgId);
-            if (filters.status) params.set('status', filters.status);
-            if (filters.dateRange) params.set('dateRange', filters.dateRange);
-            if (filters.employee) params.set('employee', filters.employee);
-
-            const response = await fetch(`/api/finance/expenses?${params}`);
-            if (!response.ok) throw new Error('Failed to fetch expenses');
-
-            const result = await response.json();
-            return result.success ? result.data : [];
-        },
-        enabled: !!orgContext?.orgId,
-    });
-
-    const reimburseMutation = useMutation({
-        mutationFn: async (expenseIds: string[]) => {
-            const response = await fetch('/api/finance/reimburse', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ expenseIds }),
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Reimbursement failed');
-            }
-
-            return response.json();
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['finance-expenses'] });
-            setSelectedExpenses(new Set());
-            setShowReimburseDialog(false);
-            toast.success('Expenses marked as reimbursed successfully');
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Failed to process reimbursements');
-        },
-    });
-
-    const exportMutation = useMutation({
-        mutationFn: async (format: 'csv' | 'pdf') => {
-            const expenseIds = Array.from(selectedExpenses);
-            const response = await fetch('/api/finance/export', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ format, expenseIds }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Export failed');
-            }
-
-            // Trigger download
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `expenses.${format}`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        },
-        onSuccess: () => {
-            toast.success('Export completed successfully');
-        },
-        onError: (error: Error) => {
-            toast.error(error.message || 'Export failed');
-        },
-    });
-
-    if (isLoading) {
-        return <FinanceDashboardSkeleton />;
-    }
-
-    if (error) {
-        return (
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="text-center py-8">
-                        <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-                        <p className="text-muted-foreground">Failed to load finance dashboard</p>
-                        <p className="text-sm text-muted-foreground">{error.message}</p>
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    const approvedExpenses = expenses?.expenses || [];
-
-    const totalReimbursable = expenses?.totalPayout || 0;
+    const reimburseMutation = useReimburseExpenses();
+    const exportMutation = useExportExpenses();
 
     const handleExpenseSelect = (expenseId: string, checked: boolean) => {
         const newSelected = new Set(selectedExpenses);
@@ -263,20 +150,28 @@ export function FinanceDashboard() {
                                 Mark as Reimbursed ({selectedExpenses.size})
                             </Button>
 
-                            <Button
-                                variant="outline"
-                                onClick={() => exportMutation.mutate('csv')}
-                                disabled={selectedExpenses.size === 0 || exportMutation.isPending}
-                            >
-                                <Download className="h-4 w-4 mr-2" />
-                                Export CSV
-                            </Button>
+                             <Button
+                                 variant="outline"
+                                 onClick={() => exportMutation.mutate({
+                                     format: 'csv',
+                                     expenseIds: Array.from(selectedExpenses),
+                                     organizationId: orgId || ''
+                                 })}
+                                 disabled={selectedExpenses.size === 0 || exportMutation.isPending}
+                             >
+                                 <Download className="h-4 w-4 mr-2" />
+                                 Export CSV
+                             </Button>
 
-                            <Button
-                                variant="outline"
-                                onClick={() => exportMutation.mutate('pdf')}
-                                disabled={selectedExpenses.size === 0 || exportMutation.isPending}
-                            >
+                             <Button
+                                 variant="outline"
+                                 onClick={() => exportMutation.mutate({
+                                     format: 'pdf',
+                                     expenseIds: Array.from(selectedExpenses),
+                                     organizationId: orgId || ''
+                                 })}
+                                 disabled={selectedExpenses.size === 0 || exportMutation.isPending}
+                             >
                                 <Download className="h-4 w-4 mr-2" />
                                 Export PDF
                             </Button>
@@ -294,7 +189,7 @@ export function FinanceDashboard() {
                                 </p>
                             </div>
                         ) : (
-                            approvedExpenses.map((expense: Expense) => (
+                            approvedExpenses.map((expense: FinanceExpense) => (
                                 <Card key={expense._id} className="border-l-4 border-l-green-500">
                                     <CardContent className="pt-6">
                                         <div className="flex items-center justify-between">
@@ -362,8 +257,8 @@ export function FinanceDashboard() {
                                 <span className="text-sm font-medium">Total Amount:</span>
                                 <span className="text-lg font-bold text-green-600">
                                     ${approvedExpenses
-                                        .filter((expense: Expense) => selectedExpenses.has(expense._id))
-                                        .reduce((sum: number, expense: Expense) => sum + expense.totalAmount, 0)
+                                        .filter((expense: FinanceExpense) => selectedExpenses.has(expense._id))
+                                        .reduce((sum: number, expense: FinanceExpense) => sum + expense.totalAmount, 0)
                                         .toFixed(2)}
                                 </span>
                             </div>
@@ -374,7 +269,7 @@ export function FinanceDashboard() {
                             <h4 className="text-sm font-medium">Affected Employees:</h4>
                             <div className="max-h-32 overflow-y-auto space-y-1">
                                 {Array.from(selectedExpenses).map(expenseId => {
-                                    const expense = approvedExpenses.find((e: Expense) => e._id === expenseId)
+                                    const expense = approvedExpenses.find((e: FinanceExpense) => e._id === expenseId)
                                     return expense ? (
                                         <div key={expenseId} className="flex justify-between text-sm">
                                             <span>{expense.user?.name || expense.user?.email}</span>

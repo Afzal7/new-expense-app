@@ -88,9 +88,7 @@ export default function DashboardLayout({
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold">{APP_CONFIG.name}</h2>
-                    <p className="text-xs text-muted-foreground">
-                      {orgContext ? "Organization" : "Dashboard"}
-                    </p>
+                    <p className="text-xs text-muted-foreground">Dashboard</p>
                   </div>
                 </div>
               </div>

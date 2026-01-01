@@ -21,6 +21,10 @@ import type {
   LineItem,
   AuditEntry,
 } from "@/types/expense";
+import {
+  UpdateExpenseSchema,
+  type ExpenseUpdateData,
+} from "@/lib/validations/expense";
 
 // Zod schema for action validation
 const ExpenseActionSchema = z.object({
@@ -176,31 +180,51 @@ export async function PUT(
     }
 
     // Validate input
-    const validationResult = ExpenseInputSchema.safeParse(body);
+    const validationResult = UpdateExpenseSchema.safeParse(body);
     if (!validationResult.success) {
-      const errorMessages = validationResult.error.issues.map(
-        (err: z.ZodIssue) => err.message
-      );
-      return createErrorResponse(
-        new ValidationError(`Validation failed: ${errorMessages.join(", ")}`)
-      );
+      // Group errors by field for better toast display
+      const fieldErrors: Record<string, string[]> = {};
+      const generalErrors: string[] = [];
+
+      validationResult.error.issues.forEach((issue: z.ZodIssue) => {
+        const fieldPath = issue.path.join(".");
+        if (fieldPath) {
+          if (!fieldErrors[fieldPath]) {
+            fieldErrors[fieldPath] = [];
+          }
+          fieldErrors[fieldPath].push(issue.message);
+        } else {
+          generalErrors.push(issue.message);
+        }
+      });
+
+      // Return structured error format for toast
+      const errorResponse = {
+        error: {
+          message: "Please fix the validation errors below",
+          details: {
+            general: generalErrors,
+            fields: fieldErrors,
+          },
+        },
+      };
+
+      return Response.json(errorResponse, { status: 400 });
     }
 
     const validatedData = validationResult.data;
     const expenseInput: ExpenseInput = {
-      totalAmount: validatedData.totalAmount,
-      managerIds: validatedData.managerIds,
-      lineItems: validatedData.lineItems.map(
+      totalAmount: validatedData.totalAmount || 0, // Provide default if undefined
+      managerIds: validatedData.managerIds || [], // Provide default if undefined
+      lineItems: (validatedData.lineItems || []).map(
         (item): LineItemInput => ({
-          amount: item.amount,
+          amount: item.amount || 0, // Provide default if undefined
           date: new Date(item.date),
           description: item.description,
           category: item.category,
         })
       ),
     };
-
-
 
     // Convert line item dates to Date objects
     const lineItemsWithDates = expenseInput.lineItems.map((item) => ({

@@ -312,24 +312,71 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
               : "Upload Files"}
           </Button>
           {watch(`lineItems.${index}.attachments`)?.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-3">
               {(watch(`lineItems.${index}.attachments`) as string[])?.map(
-                (attachment: string, attachmentIndex: number) => (
-                  <Badge
-                    key={attachmentIndex}
-                    variant="outline"
-                    className="flex items-center gap-1"
-                  >
-                    <File className="h-3 w-3" />
-                    <span className="truncate max-w-32">
-                      {attachment.split("/").pop()}
-                    </span>
-                    <X
-                      className="h-3 w-3 cursor-pointer pointer-events-auto"
-                      onClick={() => removeAttachment(attachment)}
-                    />
-                  </Badge>
-                )
+                (attachment: string, attachmentIndex: number) => {
+                  const fileName = attachment.split("/").pop() || "";
+                  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
+                  const isPDF = /\.pdf$/i.test(fileName);
+
+                  return (
+                    <div
+                      key={attachmentIndex}
+                      className="relative group border rounded-lg p-2 bg-muted/30 hover:bg-muted/50 transition-colors"
+                    >
+                      {/* Preview */}
+                      <div className="aspect-square mb-2 bg-muted rounded flex items-center justify-center overflow-hidden">
+                        {isImage ? (
+                          <img
+                            src={attachment}
+                            alt={fileName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback to icon if image fails to load
+                              e.currentTarget.style.display = "none";
+                              e.currentTarget.nextElementSibling?.classList.remove(
+                                "hidden"
+                              );
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className={`w-8 h-8 text-muted-foreground ${isImage ? "hidden" : ""}`}
+                        >
+                          {isPDF ? (
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              className="w-full h-full"
+                            >
+                              <path d="M8.5 2H15.5L19 5.5V22H5V2H8.5ZM15 3.5V7H18.5L15 3.5ZM7 4V20H17V9H13V4H7ZM9 12H11V18H9V12ZM13 10H15V18H13V10Z" />
+                            </svg>
+                          ) : (
+                            <File className="w-full h-full" />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* File name */}
+                      <p
+                        className="text-xs text-center text-muted-foreground truncate"
+                        title={fileName}
+                      >
+                        {fileName}
+                      </p>
+
+                      {/* Delete button */}
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(attachment)}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+                        title="Remove file"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                }
               )}
             </div>
           )}

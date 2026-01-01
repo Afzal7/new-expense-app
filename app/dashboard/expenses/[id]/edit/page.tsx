@@ -1,46 +1,62 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExpenseForm } from "@/components/expense-form";
 import { useOrganization } from "@/hooks/use-organization";
+import { useExpense } from "@/hooks/use-expenses";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import type { Expense, ExpenseInput } from "@/types/expense";
 
-export default function CreateExpensePage() {
+export default function EditExpensePage() {
+  const params = useParams();
   const router = useRouter();
-  const { data: organization, isLoading, error } = useOrganization();
+  const id = params.id as string;
 
-  const handleSuccess = (data: Expense | ExpenseInput) => {
-    // When creating, API returns Expense with id, so we can safely cast
-    const expenseData = data as Expense;
-    router.push(`/dashboard/expenses/${expenseData.id}`);
+  const {
+    data: organization,
+    isLoading: orgLoading,
+    error: orgError,
+  } = useOrganization();
+  const {
+    data: expense,
+    isLoading: expenseLoading,
+    error: expenseError,
+  } = useExpense(id);
+
+  const handleSuccess = () => {
+    router.push(`/dashboard/expenses/${id}`);
   };
 
   const handleCancel = () => {
-    router.push("/dashboard");
+    router.push(`/dashboard/expenses/${id}`);
   };
 
-  if (isLoading) {
-    return <LoadingSkeleton type="form" count={3} />;
+  if (orgLoading || expenseLoading) {
+    return (
+      <div className="space-y-8">
+        <LoadingSkeleton type="form" count={3} />
+      </div>
+    );
   }
 
-  if (error || !organization) {
+  if (orgError || expenseError || !organization || !expense) {
     return (
-      <ErrorState
-        message="Unable to load organization. Please ensure you have an organization set up."
-        type="page"
-        onRetry={() => window.location.reload()}
-      />
+      <div className="space-y-8">
+        <ErrorState
+          message="Unable to load expense data. Please try again."
+          type="page"
+          onRetry={() => window.location.reload()}
+        />
+      </div>
     );
   }
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="space-y-2">
+      <div className="space-y-4">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -52,19 +68,20 @@ export default function CreateExpensePage() {
           </Button>
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">
-              New Expense
+              Edit Expense
             </h1>
             <p className="text-muted-foreground">
-              Record and submit your expense for approval
+              Update the expense details and line items
             </p>
           </div>
         </div>
       </div>
 
       {/* Form Container */}
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="bg-card rounded-xl border shadow-sm p-8">
           <ExpenseForm
+            initialData={expense}
             organizationId={organization.id}
             onSuccess={handleSuccess}
             onCancel={handleCancel}

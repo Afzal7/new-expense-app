@@ -75,71 +75,47 @@ export function ExpenseActionButtonGroup({
   const isDisabled = !hasLineItems || isPending;
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center justify-end gap-3">
+      {/* Cancel Button */}
+      <Button type="button" variant="ghost" onClick={onCancel}>
+        Cancel
+      </Button>
+
       {/* Save as Draft Button */}
       <Button
         type="button"
         variant="outline"
         disabled={isSubmitting}
         onClick={onSubmit}
+        className="shadow-sm"
       >
-        {isSubmitting ? "Saving..." : "Save as Draft"}
+        {isSubmitting ? "Saving..." : "Save Draft"}
       </Button>
 
-      {/* Button Group for Approval Options */}
-      <div className="divide-primary-foreground/30 inline-flex w-fit divide-x rounded-md shadow-xs">
-        <Button
-          type="button"
-          className="rounded-none rounded-l-md focus-visible:z-10"
-          disabled={isDisabled}
-          onClick={handleSubmitAction}
-        >
-          {isPending ? "Processing..." : selectedOption?.label}
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+      {/* Submit for Approval */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Submit for:</span>
+        <div className="inline-flex rounded-md shadow-sm">
+          {approvalOptions.map((option) => (
             <Button
-              size="icon"
-              className="rounded-none rounded-r-md focus-visible:z-10"
-              disabled={!hasLineItems}
+              key={option.action}
+              type="button"
+              variant={selectedAction === option.action ? "default" : "outline"}
+              size="sm"
+              disabled={isDisabled}
+              onClick={() => {
+                setSelectedAction(option.action);
+                handleSubmitAction();
+              }}
+              className="rounded-none first:rounded-l-md last:rounded-r-md border-l-0 first:border-l"
             >
-              <ChevronDownIcon />
-              <span className="sr-only">Select action</span>
+              {isPending && selectedAction === option.action
+                ? "Processing..."
+                : option.label}
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side="bottom"
-            sideOffset={4}
-            align="end"
-            className="max-w-64 md:max-w-xs"
-          >
-            <DropdownMenuRadioGroup
-              value={selectedAction}
-              onValueChange={setSelectedAction}
-            >
-              {approvalOptions.map((option) => (
-                <DropdownMenuRadioItem
-                  key={option.action}
-                  value={option.action}
-                  className="items-start [&>span]:pt-1.5"
-                >
-                  <div className="flex flex-col gap-1">
-                    <span className="text-sm font-medium">{option.label}</span>
-                    <span className="text-muted-foreground text-xs">
-                      {option.description}
-                    </span>
-                  </div>
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          ))}
+        </div>
       </div>
-
-      {/* Cancel Button */}
-      <Button type="button" variant="ghost" onClick={onCancel}>
-        Cancel
-      </Button>
     </div>
   );
 }

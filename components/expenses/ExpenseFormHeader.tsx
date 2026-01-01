@@ -11,7 +11,7 @@ interface ExpenseFormHeaderProps {
   expenseState?: string;
   errors?: any;
   register?: any;
-  calculatedTotal?: number;
+  calculatedTotal: number;
   onAutoFill?: () => void;
 }
 
@@ -30,31 +30,48 @@ export function ExpenseFormHeader({
     expenseState === EXPENSE_STATES.APPROVED;
 
   return (
-    <>
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">
-          {isEdit ? "Edit Expense" : "Create Expense"}
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h2 className="text-2xl font-semibold tracking-tight">
+          {isEdit ? "Edit Expense" : "Expense Details"}
         </h2>
+        <p className="text-muted-foreground">
+          {isEdit
+            ? "Update your expense information"
+            : "Enter the details for your expense"}
+        </p>
       </div>
-      <div>
-        <div className="flex items-center gap-2">
+
+      <div className="space-y-2">
+        <Label htmlFor="totalAmount" className="text-sm font-medium">
+          Total Amount
+        </Label>
+        <div className="flex items-end gap-3">
           <div className="flex-1">
-            <Label htmlFor="totalAmount">Total Amount</Label>
             {isReadOnly ? (
-              <Input
-                id="totalAmount"
-                type="number"
-                step="0.01"
-                value={totalAmount.toFixed(2)}
-                readOnly
-                className="bg-muted"
-              />
+              <div className="relative">
+                <Input
+                  id="totalAmount"
+                  type="number"
+                  step="0.01"
+                  value={totalAmount.toFixed(2)}
+                  readOnly
+                  className="bg-muted/50 h-11"
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                    Locked
+                  </span>
+                </div>
+              </div>
             ) : register ? (
               <Input
                 id="totalAmount"
                 type="number"
                 step="0.01"
                 {...register("totalAmount", { valueAsNumber: true })}
+                className="h-11"
+                placeholder="0.00"
               />
             ) : (
               <Input
@@ -62,40 +79,45 @@ export function ExpenseFormHeader({
                 type="number"
                 step="0.01"
                 value={totalAmount.toFixed(2)}
+                className="h-11"
               />
             )}
           </div>
-          {!isReadOnly && onAutoFill && (
-            <div className="flex items-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onAutoFill}
-                className="whitespace-nowrap"
-              >
-                Auto Fill
-              </Button>
-            </div>
+          {!isReadOnly && onAutoFill && calculatedTotal > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onAutoFill}
+              className="h-11 px-4 whitespace-nowrap"
+            >
+              Auto Fill
+            </Button>
           )}
         </div>
         {errors?.totalAmount && (
-          <p className="text-red-500 text-sm">{errors.totalAmount.message}</p>
+          <p className="text-sm text-destructive">
+            {errors.totalAmount.message}
+          </p>
         )}
         {isReadOnly ? (
           <p className="text-sm text-muted-foreground">
-            Total amount is locked for approved expenses
+            This expense has been approved and the total cannot be changed
           </p>
-        ) : calculatedTotal !== undefined && calculatedTotal !== totalAmount ? (
+        ) : (calculatedTotal ?? 0) > 0 ? (
           <p className="text-sm text-muted-foreground">
-            Click "Auto Fill" to set total to ${calculatedTotal.toFixed(2)}
+            Line items total: ${calculatedTotal.toFixed(2)}
+            {(calculatedTotal ?? 0) !== totalAmount && (
+              <span className="ml-2 text-primary font-medium">
+                Click Auto Fill to match
+              </span>
+            )}
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Sum of line item amounts
+            Add line items to calculate the total automatically
           </p>
         )}
       </div>
-    </>
+    </div>
   );
 }

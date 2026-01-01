@@ -160,17 +160,20 @@ export function ManagerSelector({
   errors,
 }: ManagerSelectorProps) {
   return (
-    <div>
-      <Label>Managers</Label>
-      <div className="space-y-2">
-        <ManagerCombobox
-          organization={organization}
-          selectedManagerIds={watchedManagerIds}
-          onSelectionChange={onSelectionChange}
-        />
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <Label className="text-base font-medium">Approval Manager *</Label>
+        <p className="text-sm text-muted-foreground">
+          Select who will review and approve this expense
+        </p>
       </div>
+      <ManagerCombobox
+        organization={organization}
+        selectedManagerIds={watchedManagerIds}
+        onSelectionChange={onSelectionChange}
+      />
       {errors.managerIds && (
-        <p className="text-red-500 text-sm">{errors.managerIds.message}</p>
+        <p className="text-sm text-destructive">{errors.managerIds.message}</p>
       )}
     </div>
   );

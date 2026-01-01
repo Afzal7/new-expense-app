@@ -13,12 +13,8 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "@/lib/errors";
-import { CreateExpenseSchema } from "@/lib/validations/expense";
-import type {
-  ExpenseInput,
-  LineItemInput,
-  DatabaseLineItem,
-} from "@/lib/validations/expense";
+import { CreateExpenseSchema, LineItemSchema } from "@/lib/validations/expense";
+import type { ExpenseInput, DatabaseLineItem } from "@/lib/validations/expense";
 import type { AuditEntry } from "@/types/expense";
 
 // GET /api/expenses - List expenses with pagination and filtering
@@ -155,37 +151,52 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validationResult = CreateExpenseSchema.safeParse(body);
     if (!validationResult.success) {
-      const errorMessages = validationResult.error.issues.map(
-        (err: z.ZodIssue) => err.message
-      );
-      return createErrorResponse(
-        new ValidationError(`Validation failed: ${errorMessages.join(", ")}`)
-      );
+      // Group errors by field for better toast display
+      const fieldErrors: Record<string, string[]> = {};
+      const generalErrors: string[] = [];
+
+      validationResult.error.issues.forEach((issue: z.ZodIssue) => {
+        const fieldPath = issue.path.join(".");
+        if (fieldPath) {
+          if (!fieldErrors[fieldPath]) {
+            fieldErrors[fieldPath] = [];
+          }
+          fieldErrors[fieldPath].push(issue.message);
+        } else {
+          generalErrors.push(issue.message);
+        }
+      });
+
+      // Return structured error format for toast
+      const errorResponse = {
+        error: {
+          message: "Please fix the validation errors below",
+          details: {
+            general: generalErrors,
+            fields: fieldErrors,
+          },
+        },
+      };
+
+      return Response.json(errorResponse, { status: 400 });
     }
 
     const validatedData = validationResult.data;
-    const expenseInput: ExpenseInput = {
-      totalAmount: validatedData.totalAmount,
-      managerIds: validatedData.managerIds,
-      lineItems: validatedData.lineItems.map(
-        (item): LineItemInput => ({
-          amount: item.amount,
-          date: item.date, // Keep as string for LineItemInput
-          description: item.description,
-          category: item.category,
-          attachments: item.attachments || [],
-        })
-      ),
-    };
 
     // Convert line item dates to Date objects
-    const lineItemsWithDates = expenseInput.lineItems.map(
-      (item: LineItemInput) => ({
-        amount: item.amount,
+    const lineItemsWithDates = (validatedData.lineItems || []).map(
+      (item: {
+        amount?: number;
+        date: string;
+        description?: string;
+        category?: string;
+        attachments?: string[];
+      }) => ({
+        amount: item.amount || 0,
         date: new Date(item.date),
         description: item.description,
         category: item.category,
-        attachments: item.attachments || [], // Use provided attachments or empty array
+        attachments: item.attachments || [],
       })
     );
 
@@ -193,23 +204,18 @@ export async function POST(request: NextRequest) {
     const expense = new Expense({
       userId: session.user.id,
       organizationId: null, // For now, all expenses are private. TODO: Add organization support
-      managerIds: expenseInput.managerIds,
-      totalAmount: expenseInput.totalAmount,
-      state:
-        expenseInput.status === EXPENSE_STATES.PRE_APPROVAL_PENDING
-          ? EXPENSE_STATES.PRE_APPROVAL_PENDING
-          : expenseInput.status === EXPENSE_STATES.APPROVAL_PENDING
-            ? EXPENSE_STATES.APPROVAL_PENDING
-            : EXPENSE_STATES.DRAFT,
+      managerIds: validatedData.managerIds,
+      totalAmount: validatedData.totalAmount || 0,
+      state: validatedData.status || EXPENSE_STATES.DRAFT,
       lineItems: lineItemsWithDates,
       auditLog: [],
     });
 
     // Add audit entry
     const action =
-      expenseInput.status === EXPENSE_STATES.PRE_APPROVAL_PENDING
+      validatedData.status === EXPENSE_STATES.PRE_APPROVAL_PENDING
         ? "created_and_submitted"
-        : expenseInput.status === EXPENSE_STATES.APPROVAL_PENDING
+        : validatedData.status === EXPENSE_STATES.APPROVAL_PENDING
           ? "created_and_submitted_for_approval"
           : "created";
     expense.addAuditEntry(action, session.user.id);

@@ -7,6 +7,7 @@
 import mongoose from "mongoose";
 import { EXPENSE_STATES } from "../constants/expense-states";
 import type { ExpenseState } from "../constants/expense-states";
+import { getChangedFields } from "../utils";
 
 // Re-export for convenience
 export { EXPENSE_STATES };
@@ -71,6 +72,8 @@ const AuditLogSchema = new mongoose.Schema(
         "approved",
         "rejected",
         "reimbursed",
+        "deleted",
+        "restored",
       ],
     },
     date: {
@@ -135,6 +138,11 @@ const ExpenseSchema = new mongoose.Schema(
       },
     },
     auditLog: [AuditLogSchema],
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt automatically
@@ -158,12 +166,44 @@ ExpenseSchema.methods.addAuditEntry = function (
   previousValues?: Record<string, unknown>,
   updatedValues?: Record<string, unknown>
 ) {
-  this.auditLog.push({
-    action,
-    actorId,
-    previousValues,
-    updatedValues,
-  });
+  // Only store fields that actually changed
+  const changedFields = getChangedFields(previousValues, updatedValues);
+
+  if (changedFields && Object.keys(changedFields).length > 0) {
+    // Filter previousValues and updatedValues to only include changed fields
+    const filteredPreviousValues: Record<string, unknown> = {};
+    const filteredUpdatedValues: Record<string, unknown> = {};
+
+    for (const key of Object.keys(changedFields)) {
+      if (previousValues && key in previousValues) {
+        filteredPreviousValues[key] = previousValues[key];
+      }
+      if (updatedValues && key in updatedValues) {
+        filteredUpdatedValues[key] = updatedValues[key];
+      }
+    }
+
+    this.auditLog.push({
+      action,
+      actorId,
+      previousValues:
+        Object.keys(filteredPreviousValues).length > 0
+          ? filteredPreviousValues
+          : undefined,
+      updatedValues:
+        Object.keys(filteredUpdatedValues).length > 0
+          ? filteredUpdatedValues
+          : undefined,
+    });
+  } else {
+    // No changes, still add the entry but with undefined values
+    this.auditLog.push({
+      action,
+      actorId,
+      previousValues: undefined,
+      updatedValues: undefined,
+    });
+  }
 };
 
 // Static method to find expenses by user

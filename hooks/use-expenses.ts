@@ -6,6 +6,7 @@ interface UseExpensesOptions {
   limit?: number;
   search?: string;
   type?: "all" | "private" | "org";
+  includeDeleted?: boolean;
 }
 
 interface ExpensesResponse {
@@ -17,7 +18,13 @@ interface ExpensesResponse {
 }
 
 export function useExpenses(options: UseExpensesOptions = {}) {
-  const { page = 1, limit = 20, search, type = "all" } = options;
+  const {
+    page = 1,
+    limit = 20,
+    search,
+    type = "all",
+    includeDeleted = false,
+  } = options;
 
   const queryParams = new URLSearchParams({
     page: page.toString(),
@@ -29,8 +36,12 @@ export function useExpenses(options: UseExpensesOptions = {}) {
     queryParams.set("search", search);
   }
 
+  if (includeDeleted) {
+    queryParams.set("includeDeleted", "true");
+  }
+
   return useQuery<ExpensesResponse>({
-    queryKey: ["expenses", page, limit, search, type],
+    queryKey: ["expenses", page, limit, search, type, includeDeleted],
     queryFn: async () => {
       const response = await fetch(`/api/expenses?${queryParams.toString()}`);
       if (!response.ok) {

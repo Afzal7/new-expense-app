@@ -185,6 +185,64 @@ export function useExpenseMutations() {
     },
   });
 
+  const deleteExpense = useMutation({
+    mutationFn: async (id: string): Promise<Expense> => {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "delete" }),
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Failed to delete expense" }));
+        throw new Error(error.message || "Failed to delete expense");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense deleted successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to delete expense");
+    },
+  });
+
+  const restoreExpense = useMutation({
+    mutationFn: async (id: string): Promise<Expense> => {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "restore" }),
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Failed to restore expense" }));
+        throw new Error(error.message || "Failed to restore expense");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense restored successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to restore expense");
+    },
+  });
+
   return {
     createExpense,
     updateExpense,
@@ -192,5 +250,7 @@ export function useExpenseMutations() {
     approveExpense,
     rejectExpense,
     reimburseExpense,
+    deleteExpense,
+    restoreExpense,
   };
 }

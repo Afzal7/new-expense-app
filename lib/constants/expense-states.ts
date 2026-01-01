@@ -3,6 +3,7 @@ export const EXPENSE_STATES = {
   DRAFT: "Draft",
   PRE_APPROVAL_PENDING: "Pre-Approval Pending",
   PRE_APPROVED: "Pre-Approved",
+  APPROVAL_PENDING: "Approval Pending",
   APPROVED: "Approved",
   REJECTED: "Rejected",
   REIMBURSED: "Reimbursed",

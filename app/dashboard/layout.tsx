@@ -115,7 +115,7 @@ export default function DashboardLayout({
                         asChild
                         isActive={pathname.startsWith("/dashboard/expenses")}
                       >
-                        <Link href="/dashboard/expenses/create">
+                        <Link href="/dashboard/expenses">
                           <DollarSign className="h-4 w-4" />
                           <span>Expenses</span>
                         </Link>

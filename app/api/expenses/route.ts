@@ -38,6 +38,7 @@ const ExpenseInputSchema = z.object({
   totalAmount: z.number().min(0, "Total amount must be non-negative"),
   managerIds: z.array(z.string()).min(1, "At least one manager ID is required"),
   lineItems: z.array(LineItemInputSchema).optional().default([]),
+  status: z.enum(["draft", "pre-approval", "approval-pending", "approved"]).optional().default("draft"),
 });
 
 // GET /api/expenses - List expenses with pagination and filtering
@@ -64,6 +65,7 @@ export async function GET(request: NextRequest) {
       100,
       Math.max(1, parseInt(url.searchParams.get("limit") || "20"))
     );
+    const includeDeleted = url.searchParams.get("includeDeleted") === "true";
 
     // Build query
     const query: Record<string, unknown> = { userId: session.user.id };
@@ -75,11 +77,26 @@ export async function GET(request: NextRequest) {
       query.organizationId = { $ne: null };
     }
 
-    // Search filter
+    // Exclude soft-deleted expenses by default unless explicitly requested
+    if (!includeDeleted) {
+      query.deletedAt = null;
+    }
+
+    // Search filter with input validation and sanitization
     if (search) {
+      // Validate search input length and content
+      if (search.length > 100) {
+        return createErrorResponse(
+          new ValidationError("Search query too long (max 100 characters)")
+        );
+      }
+
+      // Escape special regex characters to prevent ReDoS
+      const sanitizedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
       query.$or = [
-        { "lineItems.description": { $regex: search, $options: "i" } },
-        { "lineItems.category": { $regex: search, $options: "i" } },
+        { "lineItems.description": { $regex: sanitizedSearch, $options: "i" } },
+        { "lineItems.category": { $regex: sanitizedSearch, $options: "i" } },
       ];
     }
 
@@ -119,6 +136,7 @@ export async function GET(request: NextRequest) {
         })),
         createdAt: expense.createdAt.toISOString(),
         updatedAt: expense.updatedAt.toISOString(),
+        deletedAt: expense.deletedAt?.toISOString() || null,
       })),
       total,
       page,
@@ -179,20 +197,7 @@ export async function POST(request: NextRequest) {
       ),
     };
 
-    // Additional business validation
-    if (expenseInput.lineItems.length > 0) {
-      const totalFromLineItems = expenseInput.lineItems.reduce(
-        (sum, item) => sum + item.amount,
-        0
-      );
-      if (Math.abs(totalFromLineItems - expenseInput.totalAmount) > 0.01) {
-        return createErrorResponse(
-          new ValidationError(
-            "Total amount must match sum of line item amounts"
-          )
-        );
-      }
-    }
+
 
     // Convert line item dates to Date objects
     const lineItemsWithDates = expenseInput.lineItems.map((item) => ({
@@ -209,13 +214,20 @@ export async function POST(request: NextRequest) {
       organizationId: null, // For now, all expenses are private. TODO: Add organization support
       managerIds: expenseInput.managerIds,
       totalAmount: expenseInput.totalAmount,
-      state: EXPENSE_STATES.DRAFT,
+      state: expenseInput.status === "pre-approval" ? EXPENSE_STATES.PRE_APPROVAL_PENDING :
+             expenseInput.status === "approval-pending" ? EXPENSE_STATES.APPROVAL_PENDING :
+             expenseInput.status === "approved" ? EXPENSE_STATES.APPROVED :
+             EXPENSE_STATES.DRAFT,
       lineItems: lineItemsWithDates,
       auditLog: [],
     });
 
     // Add audit entry
-    expense.addAuditEntry("created", session.user.id);
+    const action = expenseInput.status === "pre-approval" ? "created_and_submitted" :
+                   expenseInput.status === "approval-pending" ? "created_and_submitted_for_approval" :
+                   expenseInput.status === "approved" ? "created_and_approved" :
+                   "created";
+    expense.addAuditEntry(action, session.user.id);
 
     // Save to database
     const savedExpense = await expense.save();
@@ -245,6 +257,7 @@ export async function POST(request: NextRequest) {
         })),
         createdAt: savedExpense.createdAt.toISOString(),
         updatedAt: savedExpense.updatedAt.toISOString(),
+        deletedAt: savedExpense.deletedAt?.toISOString() || null,
       },
       { status: 201 }
     );

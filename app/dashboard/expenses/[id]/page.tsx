@@ -9,6 +9,7 @@ import { useExpense } from "@/hooks/use-expenses";
 import { useExpenseMutations } from "@/hooks/use-expense-mutations";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
+import ApprovalButtonGroup from "@/components/approval-button-group";
 import type { LineItem, AuditEntry } from "@/types/expense";
 
 export default function ExpenseDetailPage() {
@@ -20,19 +21,41 @@ export default function ExpenseDetailPage() {
   const { approveExpense, rejectExpense, reimburseExpense } =
     useExpenseMutations();
 
-  const handleApprove = async () => {
-    if (!expense) return;
-    await approveExpense.mutateAsync(expense.id);
-  };
+  const approvalOptions = [
+    {
+      label: "Approve",
+      description: "Approve this expense for further processing.",
+      action: "approve",
+      variant: "default" as const,
+    },
+    {
+      label: "Reject",
+      description: "Reject this expense submission.",
+      action: "reject",
+      variant: "destructive" as const,
+    },
+    {
+      label: "Reimburse",
+      description: "Mark this expense as reimbursed.",
+      action: "reimburse",
+      variant: "default" as const,
+    },
+  ];
 
-  const handleReject = async () => {
+  const handleAction = async (action: string) => {
     if (!expense) return;
-    await rejectExpense.mutateAsync(expense.id);
-  };
 
-  const handleReimburse = async () => {
-    if (!expense) return;
-    await reimburseExpense.mutateAsync(expense.id);
+    switch (action) {
+      case "approve":
+        await approveExpense.mutateAsync(expense.id);
+        break;
+      case "reject":
+        await rejectExpense.mutateAsync(expense.id);
+        break;
+      case "reimburse":
+        await reimburseExpense.mutateAsync(expense.id);
+        break;
+    }
   };
 
   if (isLoading) {
@@ -59,6 +82,19 @@ export default function ExpenseDetailPage() {
   );
   const canReimburse = expense.state === "Approved";
 
+  const availableOptions = approvalOptions.filter((option) => {
+    switch (option.action) {
+      case "approve":
+        return canApprove;
+      case "reject":
+        return canReject;
+      case "reimburse":
+        return canReimburse;
+      default:
+        return false;
+    }
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -77,30 +113,17 @@ export default function ExpenseDetailPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {canApprove && (
-            <Button onClick={handleApprove} disabled={approveExpense.isPending}>
-              Approve
-            </Button>
-          )}
-          {canReject && (
-            <Button
-              variant="destructive"
-              onClick={handleReject}
-              disabled={rejectExpense.isPending}
-            >
-              Reject
-            </Button>
-          )}
-          {canReimburse && (
-            <Button
-              onClick={handleReimburse}
-              disabled={reimburseExpense.isPending}
-            >
-              Reimburse
-            </Button>
-          )}
-        </div>
+        {availableOptions.length > 0 && (
+          <ApprovalButtonGroup
+            options={availableOptions}
+            onAction={handleAction}
+            disabled={
+              approveExpense.isPending ||
+              rejectExpense.isPending ||
+              reimburseExpense.isPending
+            }
+          />
+        )}
       </div>
 
       {/* Expense Overview */}

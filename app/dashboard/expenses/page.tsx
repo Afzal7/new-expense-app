@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit, Search, Filter, Receipt, Eye } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Search,
+  Filter,
+  Receipt,
+  Eye,
+  Trash2,
+  RotateCcw,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +31,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ExpenseForm } from "@/components/expense-form";
 import { useExpenses } from "@/hooks/use-expenses";
+import { useExpenseMutations } from "@/hooks/use-expense-mutations";
 import { useOrganization } from "@/hooks/use-organization";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
@@ -41,6 +53,7 @@ export default function ExpensesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [type, setType] = useState<"all" | "private" | "org">("all");
+  const [includeDeleted, setIncludeDeleted] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
@@ -54,7 +67,10 @@ export default function ExpensesPage() {
     limit: 10,
     search: search || undefined,
     type,
+    includeDeleted,
   });
+
+  const { deleteExpense, restoreExpense } = useExpenseMutations();
 
   if (orgLoading) {
     return <LoadingSkeleton type="list" count={5} />;
@@ -89,6 +105,21 @@ export default function ExpensesPage() {
   const handleTypeChange = (value: "all" | "private" | "org") => {
     setType(value);
     setPage(1); // Reset to first page when changing filter
+  };
+
+  const handleIncludeDeletedChange = (checked: boolean) => {
+    setIncludeDeleted(checked);
+    setPage(1); // Reset to first page when changing filter
+  };
+
+  const handleDeleteExpense = async (expenseId: string) => {
+    if (confirm("Are you sure you want to delete this expense?")) {
+      await deleteExpense.mutateAsync(expenseId);
+    }
+  };
+
+  const handleRestoreExpense = async (expenseId: string) => {
+    await restoreExpense.mutateAsync(expenseId);
   };
 
   return (
@@ -126,18 +157,30 @@ export default function ExpensesPage() {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={type} onValueChange={handleTypeChange}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Expenses</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                  <SelectItem value="org">Organization</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={type} onValueChange={handleTypeChange}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Expenses</SelectItem>
+                    <SelectItem value="private">Private</SelectItem>
+                    <SelectItem value="org">Organization</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="include-deleted"
+                  checked={includeDeleted}
+                  onCheckedChange={handleIncludeDeletedChange}
+                />
+                <Label htmlFor="include-deleted" className="text-sm">
+                  Include Deleted
+                </Label>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -182,31 +225,52 @@ export default function ExpensesPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">
+                        <p
+                          className={`font-medium truncate ${expense.deletedAt ? "line-through text-muted-foreground" : ""}`}
+                        >
                           Expense #{expense.id.slice(-8)}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {expense.lineItems.length} item
                           {expense.lineItems.length !== 1 ? "s" : ""} • Created{" "}
                           {new Date(expense.createdAt).toLocaleDateString()}
+                          {expense.deletedAt && (
+                            <>
+                              {" "}
+                              • Deleted{" "}
+                              {new Date(expense.deletedAt).toLocaleDateString()}
+                            </>
+                          )}
                         </p>
                       </div>
-                      <Badge
-                        variant={
-                          expense.state === "Approved"
-                            ? "default"
-                            : expense.state === "Rejected"
-                              ? "destructive"
-                              : "secondary"
-                        }
-                      >
-                        {expense.state}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            expense.state === "Approved"
+                              ? "default"
+                              : expense.state === "Rejected"
+                                ? "destructive"
+                                : "secondary"
+                          }
+                        >
+                          {expense.state}
+                        </Badge>
+                        {expense.deletedAt && (
+                          <Badge
+                            variant="outline"
+                            className="text-muted-foreground"
+                          >
+                            Deleted
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className="font-semibold">
+                      <p
+                        className={`font-semibold ${expense.deletedAt ? "line-through text-muted-foreground" : ""}`}
+                      >
                         ${expense.totalAmount.toFixed(2)}
                       </p>
                       <p className="text-sm text-muted-foreground">
@@ -218,35 +282,57 @@ export default function ExpensesPage() {
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Dialog
-                      open={
-                        isEditDialogOpen && editingExpense?.id === expense.id
-                      }
-                      onOpenChange={setIsEditDialogOpen}
-                    >
-                      <DialogTrigger asChild>
+                    {expense.deletedAt ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRestoreExpense(expense.id)}
+                        disabled={restoreExpense.isPending}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <>
+                        <Dialog
+                          open={
+                            isEditDialogOpen &&
+                            editingExpense?.id === expense.id
+                          }
+                          onOpenChange={setIsEditDialogOpen}
+                        >
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingExpense(expense)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>Edit Expense</DialogTitle>
+                            </DialogHeader>
+                            {editingExpense && (
+                              <ExpenseForm
+                                initialData={editingExpense}
+                                organizationId={organization.id}
+                                onSuccess={handleEditSuccess}
+                                onCancel={handleEditCancel}
+                              />
+                            )}
+                          </DialogContent>
+                        </Dialog>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setEditingExpense(expense)}
+                          onClick={() => handleDeleteExpense(expense.id)}
+                          disabled={deleteExpense.isPending}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Edit Expense</DialogTitle>
-                        </DialogHeader>
-                        {editingExpense && (
-                          <ExpenseForm
-                            initialData={editingExpense}
-                            organizationId={organization.id}
-                            onSuccess={handleEditSuccess}
-                            onCancel={handleEditCancel}
-                          />
-                        )}
-                      </DialogContent>
-                    </Dialog>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

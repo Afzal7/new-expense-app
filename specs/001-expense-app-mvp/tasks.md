@@ -128,7 +128,7 @@ description: "Task list template for feature implementation"
 - [ ] T021 [US1] Create expense queries hook in hooks/use-expenses.ts
 - [ ] T024 [US1] Add loading and error states to all components
 - [ ] T025 [US1] Add success/error toast notifications for all actions
-- [ ] T026 [US1] Implement draft auto-save functionality
+- [x] T026 [US1] Implement draft auto-save functionality (REMOVED)
 - [ ] T027 [US1] Add expense state transitions (Draft → Pre-Approval Pending)
 - [ ] T028 [US1] Implement audit log recording in expense operations
 

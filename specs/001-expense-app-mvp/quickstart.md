@@ -3,15 +3,20 @@
 ## Prerequisites
 
 - Node.js 18+
-- MongoDB
-- Cloudflare R2 account
+- MongoDB (local installation or MongoDB Atlas)
+- Cloudflare R2 account for file storage (optional for basic functionality)
+- Accounts for optional services: Stripe (payments), Resend (emails), Google/Microsoft OAuth
 
 ## Setup
 
-1. Clone repo
+1. Clone the repository
 2. Install dependencies: `npm install`
-3. Set environment variables for MongoDB and Cloudflare R2
-4. Run dev server: `npm run dev`
+3. Set up environment variables:
+   - Copy `.env.example` to `.env`
+   - Fill in the required values (at minimum: `MONGODB_URI`, `BETTER_AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`)
+   - For file uploads, configure Cloudflare R2 credentials
+4. Run the development server: `npm run dev`
+   - The app will be available at `http://localhost:3000`
 
 ## Testing User Story 1
 

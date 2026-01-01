@@ -58,6 +58,10 @@ vi.mock("@/hooks/use-expense-mutations", () => ({
       mutateAsync: vi.fn().mockResolvedValue({ id: "submitted-expense-id" }),
       isPending: false,
     },
+    approveExpense: {
+      mutateAsync: vi.fn().mockResolvedValue({ id: "approved-expense-id" }),
+      isPending: false,
+    },
   })),
 }));
 
@@ -81,13 +85,21 @@ describe("ExpenseForm", () => {
     render(<ExpenseForm {...defaultProps} />);
 
     expect(screen.getByLabelText(/total amount/i)).toBeInTheDocument();
-    expect(screen.getByText(/managers/i)).toBeInTheDocument();
-    expect(screen.getByText(/add a manager/i)).toBeInTheDocument();
+    expect(screen.getByText("Managers")).toBeInTheDocument();
+    expect(screen.getByText(/select managers/i)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /add line item/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /create expense/i })
+      screen.getByRole("button", { name: /save as draft/i })
+    ).toBeInTheDocument();
+    // Main submit button that shows selected option (defaults to "Submit for Pre-approval")
+    expect(
+      screen.getByRole("button", { name: /submit for pre-approval/i })
+    ).toBeInTheDocument();
+    // Dropdown trigger for selecting different approval options
+    expect(
+      screen.getByRole("button", { name: /select action/i })
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
   });
@@ -102,7 +114,7 @@ describe("ExpenseForm", () => {
       await user.type(totalAmountInput, "abc");
 
       const submitButton = screen.getByRole("button", {
-        name: /create expense/i,
+        name: /save as draft/i,
       });
       await user.click(submitButton);
 
@@ -120,7 +132,7 @@ describe("ExpenseForm", () => {
       await user.type(totalAmountInput, "0");
 
       const submitButton = screen.getByRole("button", {
-        name: /create expense/i,
+        name: /save as draft/i,
       });
       await user.click(submitButton);
 
@@ -147,7 +159,7 @@ describe("ExpenseForm", () => {
       await user.type(dateInput, futureDate.toISOString().split("T")[0]);
 
       const submitButton = screen.getByRole("button", {
-        name: /create expense/i,
+        name: /save as draft/i,
       });
       await user.click(submitButton);
 
@@ -205,7 +217,7 @@ describe("ExpenseForm", () => {
 
       // Submit form
       const submitButton = screen.getByRole("button", {
-        name: /create expense/i,
+        name: /save as draft/i,
       });
       await user.click(submitButton);
 
@@ -224,6 +236,7 @@ describe("ExpenseForm", () => {
                 date: "2023-12-01T00:00:00.000Z",
                 description: "Office supplies",
                 category: "Office",
+                attachments: [],
               },
             ],
           }),
@@ -254,7 +267,7 @@ describe("ExpenseForm", () => {
       await user.click(managerOption);
 
       const submitButton = screen.getByRole("button", {
-        name: /create expense/i,
+        name: /save as draft/i,
       });
       await user.click(submitButton);
 
@@ -306,7 +319,7 @@ describe("ExpenseForm", () => {
       await user.click(managerOption);
 
       const submitButton = screen.getByRole("button", {
-        name: /create expense/i,
+        name: /save as draft/i,
       });
       await user.click(submitButton);
 

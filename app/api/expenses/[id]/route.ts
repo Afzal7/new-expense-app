@@ -24,7 +24,14 @@ import type {
 
 // Zod schema for action validation
 const ExpenseActionSchema = z.object({
-  action: z.enum(["submit", "approve", "reject", "reimburse"]),
+  action: z.enum([
+    "submit",
+    "approve",
+    "reject",
+    "reimburse",
+    "delete",
+    "restore",
+  ]),
 });
 
 // Zod schemas for validation (reuse from main route)
@@ -106,6 +113,7 @@ export async function GET(
       })),
       createdAt: expense.createdAt.toISOString(),
       updatedAt: expense.updatedAt.toISOString(),
+      deletedAt: expense.deletedAt?.toISOString() || null,
     });
   } catch (error) {
     console.error("[API] GET /api/expenses/[id] error:", error);
@@ -152,6 +160,13 @@ export async function PUT(
       );
     }
 
+    // Prevent updates on deleted expenses
+    if (expense.deletedAt) {
+      return createErrorResponse(
+        new ForbiddenError("Cannot update deleted expenses")
+      );
+    }
+
     // Parse and validate request body
     let body: unknown;
     try {
@@ -185,20 +200,7 @@ export async function PUT(
       ),
     };
 
-    // Additional business validation
-    if (expenseInput.lineItems.length > 0) {
-      const totalFromLineItems = expenseInput.lineItems.reduce(
-        (sum, item) => sum + item.amount,
-        0
-      );
-      if (Math.abs(totalFromLineItems - expenseInput.totalAmount) > 0.01) {
-        return createErrorResponse(
-          new ValidationError(
-            "Total amount must match sum of line item amounts"
-          )
-        );
-      }
-    }
+
 
     // Convert line item dates to Date objects
     const lineItemsWithDates = expenseInput.lineItems.map((item) => ({
@@ -275,6 +277,7 @@ export async function PUT(
       })),
       createdAt: savedExpense.createdAt.toISOString(),
       updatedAt: savedExpense.updatedAt.toISOString(),
+      deletedAt: savedExpense.deletedAt?.toISOString() || null,
     });
   } catch (error) {
     console.error("[API] PUT /api/expenses/[id] error:", error);
@@ -494,6 +497,76 @@ export async function PATCH(
         previousValues,
         updatedValues
       );
+    } else if (action === "delete") {
+      // Only owners can delete their own expenses
+      if (!isOwner) {
+        return createErrorResponse(
+          new ForbiddenError("Only expense owners can delete expenses")
+        );
+      }
+
+      // Cannot delete already deleted expenses
+      if (expense.deletedAt) {
+        return createErrorResponse(
+          new ForbiddenError("Expense is already deleted")
+        );
+      }
+
+      // Store previous values for audit log
+      const previousValues = {
+        deletedAt: expense.deletedAt,
+      };
+
+      // Set deleted timestamp
+      expense.deletedAt = new Date();
+
+      // Store updated values for audit log
+      const updatedValues = {
+        deletedAt: expense.deletedAt,
+      };
+
+      // Add audit entry
+      expense.addAuditEntry(
+        "deleted",
+        session.user.id,
+        previousValues,
+        updatedValues
+      );
+    } else if (action === "restore") {
+      // Only owners can restore their own expenses
+      if (!isOwner) {
+        return createErrorResponse(
+          new ForbiddenError("Only expense owners can restore expenses")
+        );
+      }
+
+      // Cannot restore expenses that are not deleted
+      if (!expense.deletedAt) {
+        return createErrorResponse(
+          new ForbiddenError("Expense is not deleted")
+        );
+      }
+
+      // Store previous values for audit log
+      const previousValues = {
+        deletedAt: expense.deletedAt,
+      };
+
+      // Clear deleted timestamp
+      expense.deletedAt = null;
+
+      // Store updated values for audit log
+      const updatedValues = {
+        deletedAt: expense.deletedAt,
+      };
+
+      // Add audit entry
+      expense.addAuditEntry(
+        "restored",
+        session.user.id,
+        previousValues,
+        updatedValues
+      );
     }
 
     // Save to database
@@ -523,6 +596,7 @@ export async function PATCH(
       })),
       createdAt: savedExpense.createdAt.toISOString(),
       updatedAt: savedExpense.updatedAt.toISOString(),
+      deletedAt: savedExpense.deletedAt?.toISOString() || null,
     });
   } catch (error) {
     console.error("[API] PATCH /api/expenses/[id] error:", error);

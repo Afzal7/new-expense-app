@@ -41,6 +41,7 @@ export interface Expense {
   auditLog: AuditEntry[];
   createdAt: Date;
   updatedAt: Date;
+  deletedAt: Date | null;
 }
 
 /**
@@ -60,6 +61,7 @@ export interface ExpenseInput {
   totalAmount: number;
   managerIds: string[];
   lineItems: LineItemInput[];
+  status?: "draft" | "pre-approval" | "approval-pending" | "approved";
 }
 
 /**

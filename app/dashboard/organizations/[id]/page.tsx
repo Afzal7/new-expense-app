@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useSession } from '@/lib/auth-client';
-import { orgClient } from '@/lib/auth-client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Users, Mail, Settings, Crown, Info } from 'lucide-react';
-import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
-import { ErrorState } from '@/components/shared/error-state';
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
+import { orgClient } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Users, Mail, Settings, Crown, Info } from "lucide-react";
+import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { ErrorState } from "@/components/shared/error-state";
 
-import { useFeatureGate } from '@/hooks/use-feature-gate';
-import type { Organization, Member } from 'better-auth/plugins/organization';
+import { useFeatureGate } from "@/hooks/use-feature-gate";
+import type { Organization, Member } from "better-auth/plugins/organization";
 
 export default function OrganizationPage() {
   const params = useParams();
@@ -22,10 +22,12 @@ export default function OrganizationPage() {
   const { isPro } = useFeatureGate();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
-  const [invitations, setInvitations] = useState<{ id: string; email: string; role: string; status: string }[]>([]);
+  const [invitations, setInvitations] = useState<
+    { id: string; email: string; role: string; status: string }[]
+  >([]);
   const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const orgId = params.id as string;
 
@@ -35,24 +37,29 @@ export default function OrganizationPage() {
 
       try {
         setIsLoading(true);
-        const { data: orgData, error: orgError } = await orgClient.getFullOrganization({
-          query: { organizationId: orgId }
-        });
+        const { data: orgData, error: orgError } =
+          await orgClient.getFullOrganization({
+            query: { organizationId: orgId },
+          });
 
         if (orgError) {
-          setError('Organization not found or access denied');
+          setError("Organization not found or access denied");
           return;
         }
 
-        const { members: orgMembers, invitations: orgInvitations, ...org } = orgData || {};
+        const {
+          members: orgMembers,
+          invitations: orgInvitations,
+          ...org
+        } = orgData || {};
         setOrganization(org);
         setMembers(orgMembers || []);
         setInvitations(orgInvitations || []);
 
-        const current = orgMembers?.find(m => m.userId === session.user.id);
+        const current = orgMembers?.find((m) => m.userId === session.user.id);
         setCurrentMember(current || null);
       } catch {
-        setError('Failed to load organization');
+        setError("Failed to load organization");
       } finally {
         setIsLoading(false);
       }
@@ -60,8 +67,6 @@ export default function OrganizationPage() {
 
     fetchOrganizationData();
   }, [session?.user?.id, session?.user, orgId]);
-
-
 
   if (isLoading) {
     return <LoadingSkeleton type="page" count={4} />;
@@ -71,7 +76,10 @@ export default function OrganizationPage() {
     return (
       <div className="space-y-6">
         <ErrorState
-          message={error || 'This organization may not exist or you may not have access.'}
+          message={
+            error ||
+            "This organization may not exist or you may not have access."
+          }
           type="page"
           onRetry={() => window.location.reload()}
           retryLabel="Try Again"
@@ -80,19 +88,26 @@ export default function OrganizationPage() {
     );
   }
 
-  const isOwner = currentMember?.role === 'owner';
-  const pendingInvitations = invitations.filter(inv => inv.status === 'pending');
+  const isOwner = currentMember?.role === "owner";
+  const pendingInvitations = invitations.filter(
+    (inv) => inv.status === "pending"
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold capitalize">{organization.name}</h1>
-          <p className="text-muted-foreground">Manage your organization workspace</p>
+          <p className="text-muted-foreground">
+            Manage your organization workspace
+          </p>
         </div>
-        <Badge variant={isOwner ? 'default' : 'secondary'} className="flex items-center gap-1">
+        <Badge
+          variant={isOwner ? "default" : "secondary"}
+          className="flex items-center gap-1"
+        >
           <Crown className="h-3 w-3" />
-          {isOwner ? 'Owner' : 'Member'}
+          {isOwner ? "Owner" : "Member"}
         </Badge>
       </div>
 
@@ -104,22 +119,22 @@ export default function OrganizationPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{members.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Active team members
-            </p>
+            <p className="text-xs text-muted-foreground">Active team members</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Invites</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Invites
+            </CardTitle>
             <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingInvitations.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting acceptance
-            </p>
+            <div className="text-2xl font-bold">
+              {pendingInvitations.length}
+            </div>
+            <p className="text-xs text-muted-foreground">Awaiting acceptance</p>
           </CardContent>
         </Card>
 
@@ -131,7 +146,9 @@ export default function OrganizationPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Button
                 variant="outline"
-                onClick={() => router.push(`/dashboard/organizations/${orgId}/members`)}
+                onClick={() =>
+                  router.push(`/dashboard/organizations/${orgId}/members`)
+                }
                 className="justify-start"
               >
                 <Users className="h-4 w-4 mr-2" />
@@ -139,7 +156,9 @@ export default function OrganizationPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => router.push(`/dashboard/organizations/${orgId}/invitations`)}
+                onClick={() =>
+                  router.push(`/dashboard/organizations/${orgId}/invitations`)
+                }
                 className="justify-start"
               >
                 <Mail className="h-4 w-4 mr-2" />
@@ -147,7 +166,9 @@ export default function OrganizationPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => router.push(`/dashboard/organizations/${orgId}/settings`)}
+                onClick={() =>
+                  router.push(`/dashboard/organizations/${orgId}/settings`)
+                }
                 className="justify-start"
               >
                 <Settings className="h-4 w-4 mr-2" />
@@ -162,12 +183,11 @@ export default function OrganizationPage() {
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            <strong>Your organization is on the Free plan.</strong> Upgrade to Pro plan to unlock unlimited members and advanced features.
+            <strong>Your organization is on the Free plan.</strong> Upgrade to
+            Pro plan to unlock unlimited members and advanced features.
           </AlertDescription>
         </Alert>
       )}
-
-
     </div>
   );
 }

@@ -2,7 +2,13 @@
 
 import { Lightbulb, Target, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export function TipsGuidanceCard() {
   return (
@@ -23,7 +29,8 @@ export function TipsGuidanceCard() {
             <div>
               <p className="text-sm font-medium">Set up your organization</p>
               <p className="text-xs text-muted-foreground">
-                Create a workspace to invite team members and collaborate effectively.
+                Create a workspace to invite team members and collaborate
+                effectively.
               </p>
             </div>
           </div>
@@ -32,7 +39,8 @@ export function TipsGuidanceCard() {
             <div>
               <p className="text-sm font-medium">Explore features</p>
               <p className="text-xs text-muted-foreground">
-                Try out different tools and features to understand what works best for you.
+                Try out different tools and features to understand what works
+                best for you.
               </p>
             </div>
           </div>

@@ -1,0 +1,255 @@
+/**
+ * Expense API routes
+ * Handles CRUD operations for expenses
+ */
+
+import { NextRequest } from "next/server";
+import { z } from "zod";
+import { auth } from "@/lib/auth";
+import { connectMongoose } from "@/lib/db";
+import { Expense, EXPENSE_STATES } from "@/lib/models/expense";
+import {
+  createErrorResponse,
+  UnauthorizedError,
+  ValidationError,
+} from "@/lib/errors";
+import type {
+  ExpenseInput,
+  LineItemInput,
+  LineItem,
+  AuditEntry,
+} from "@/types/expense";
+
+// Zod schemas for validation
+const LineItemInputSchema = z.object({
+  amount: z.number().positive("Amount must be greater than 0"),
+  date: z
+    .string()
+    .refine((date) => !isNaN(Date.parse(date)), "Invalid date format")
+    .refine(
+      (date) => new Date(date) <= new Date(),
+      "Date cannot be in the future"
+    ),
+  description: z.string().optional(),
+  category: z.string().optional(),
+});
+
+const ExpenseInputSchema = z.object({
+  totalAmount: z.number().min(0, "Total amount must be non-negative"),
+  managerIds: z.array(z.string()).min(1, "At least one manager ID is required"),
+  lineItems: z.array(LineItemInputSchema).optional().default([]),
+});
+
+// GET /api/expenses - List expenses with pagination and filtering
+export async function GET(request: NextRequest) {
+  try {
+    // Ensure database connection
+    await connectMongoose();
+
+    // Authenticate user
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+
+    if (!session) {
+      return createErrorResponse(new UnauthorizedError());
+    }
+
+    // Parse query parameters
+    const url = new URL(request.url);
+    const type = url.searchParams.get("type") || "all";
+    const search = url.searchParams.get("search");
+    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(url.searchParams.get("limit") || "20"))
+    );
+
+    // Build query
+    const query: Record<string, unknown> = { userId: session.user.id };
+
+    // Filter by type
+    if (type === "private") {
+      query.organizationId = null;
+    } else if (type === "org") {
+      query.organizationId = { $ne: null };
+    }
+
+    // Search filter
+    if (search) {
+      query.$or = [
+        { "lineItems.description": { $regex: search, $options: "i" } },
+        { "lineItems.category": { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Get total count
+    const total = await Expense.countDocuments(query);
+
+    // Get expenses with pagination
+    const expenses = await Expense.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    const totalPages = Math.ceil(total / limit);
+
+    return Response.json({
+      expenses: expenses.map((expense) => ({
+        id: expense._id.toString(),
+        userId: expense.userId,
+        organizationId: expense.organizationId,
+        managerIds: expense.managerIds,
+        totalAmount: expense.totalAmount,
+        state: expense.state,
+        lineItems: expense.lineItems.map((item: LineItem) => ({
+          amount: item.amount,
+          date: item.date.toISOString(),
+          description: item.description,
+          category: item.category,
+          attachments: item.attachments,
+        })),
+        auditLog: expense.auditLog.map((entry: AuditEntry) => ({
+          action: entry.action,
+          date: entry.date.toISOString(),
+          actorId: entry.actorId,
+          previousValues: entry.previousValues,
+          updatedValues: entry.updatedValues,
+        })),
+        createdAt: expense.createdAt.toISOString(),
+        updatedAt: expense.updatedAt.toISOString(),
+      })),
+      total,
+      page,
+      limit,
+      totalPages,
+    });
+  } catch (error) {
+    console.error("[API] GET /api/expenses error:", error);
+    return createErrorResponse(error);
+  }
+}
+
+// POST /api/expenses - Create new expense
+export async function POST(request: NextRequest) {
+  try {
+    // Ensure database connection
+    await connectMongoose();
+
+    // Authenticate user
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+
+    if (!session) {
+      return createErrorResponse(new UnauthorizedError());
+    }
+
+    // Parse and validate request body
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(new ValidationError("Invalid JSON body"));
+    }
+
+    // Validate input
+    const validationResult = ExpenseInputSchema.safeParse(body);
+    if (!validationResult.success) {
+      const errorMessages = validationResult.error.issues.map(
+        (err: z.ZodIssue) => err.message
+      );
+      return createErrorResponse(
+        new ValidationError(`Validation failed: ${errorMessages.join(", ")}`)
+      );
+    }
+
+    const validatedData = validationResult.data;
+    const expenseInput: ExpenseInput = {
+      totalAmount: validatedData.totalAmount,
+      managerIds: validatedData.managerIds,
+      lineItems: validatedData.lineItems.map(
+        (item): LineItemInput => ({
+          amount: item.amount,
+          date: new Date(item.date),
+          description: item.description,
+          category: item.category,
+        })
+      ),
+    };
+
+    // Additional business validation
+    if (expenseInput.lineItems.length > 0) {
+      const totalFromLineItems = expenseInput.lineItems.reduce(
+        (sum, item) => sum + item.amount,
+        0
+      );
+      if (Math.abs(totalFromLineItems - expenseInput.totalAmount) > 0.01) {
+        return createErrorResponse(
+          new ValidationError(
+            "Total amount must match sum of line item amounts"
+          )
+        );
+      }
+    }
+
+    // Convert line item dates to Date objects
+    const lineItemsWithDates = expenseInput.lineItems.map((item) => ({
+      amount: item.amount,
+      date: new Date(item.date),
+      description: item.description,
+      category: item.category,
+      attachments: [], // Attachments will be added via separate upload
+    }));
+
+    // Create expense
+    const expense = new Expense({
+      userId: session.user.id,
+      organizationId: null, // For now, all expenses are private. TODO: Add organization support
+      managerIds: expenseInput.managerIds,
+      totalAmount: expenseInput.totalAmount,
+      state: EXPENSE_STATES.DRAFT,
+      lineItems: lineItemsWithDates,
+      auditLog: [],
+    });
+
+    // Add audit entry
+    expense.addAuditEntry("created", session.user.id);
+
+    // Save to database
+    const savedExpense = await expense.save();
+
+    // Return created expense
+    return Response.json(
+      {
+        id: savedExpense._id.toString(),
+        userId: savedExpense.userId,
+        organizationId: savedExpense.organizationId,
+        managerIds: savedExpense.managerIds,
+        totalAmount: savedExpense.totalAmount,
+        state: savedExpense.state,
+        lineItems: savedExpense.lineItems.map((item: LineItem) => ({
+          amount: item.amount,
+          date: item.date.toISOString(),
+          description: item.description,
+          category: item.category,
+          attachments: item.attachments,
+        })),
+        auditLog: savedExpense.auditLog.map((entry: AuditEntry) => ({
+          action: entry.action,
+          date: entry.date.toISOString(),
+          actorId: entry.actorId,
+          previousValues: entry.previousValues,
+          updatedValues: entry.updatedValues,
+        })),
+        createdAt: savedExpense.createdAt.toISOString(),
+        updatedAt: savedExpense.updatedAt.toISOString(),
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("[API] POST /api/expenses error:", error);
+    return createErrorResponse(error);
+  }
+}

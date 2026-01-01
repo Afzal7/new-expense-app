@@ -29,18 +29,17 @@ export const FREE_TRIAL_DAYS = 14;
 export const SUBSCRIPTION_PRICING = {
   PRO_MONTHLY: {
     price: 2900, // $29.00
-    interval: 'month',
-    name: 'Pro Monthly'
+    interval: "month",
+    name: "Pro Monthly",
   },
   PRO_ANNUAL: {
     price: 29000, // $290.00
-    interval: 'year',
-    name: 'Pro Annual'
-  }
+    interval: "year",
+    name: "Pro Annual",
+  },
 } as const;
 
 /**
  * Database name
  */
 export const DATABASE_NAME = "saas_db";
-

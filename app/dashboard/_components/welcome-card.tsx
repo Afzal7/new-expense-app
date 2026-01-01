@@ -47,10 +47,14 @@ export function WelcomeCard() {
   const isComplete = percent === 100;
 
   return (
-    <Card className={cn(
-      "border-border/60 shadow-sm transition-all duration-300",
-      isComplete ? "bg-gradient-to-br from-background to-primary/5 border-primary/20" : ""
-    )}>
+    <Card
+      className={cn(
+        "border-border/60 shadow-sm transition-all duration-300",
+        isComplete
+          ? "bg-gradient-to-br from-background to-primary/5 border-primary/20"
+          : ""
+      )}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -71,8 +75,7 @@ export function WelcomeCard() {
         <CardDescription>
           {isComplete
             ? "Great job! You've completed all setup tasks."
-            : `Complete ${totalCount - completedCount} more tasks to unlock your full potential.`
-          }
+            : `Complete ${totalCount - completedCount} more tasks to unlock your full potential.`}
         </CardDescription>
       </CardHeader>
 
@@ -90,22 +93,33 @@ export function WelcomeCard() {
         {/* Steps List */}
         <div className="space-y-3">
           {steps.map((step) => (
-            <div key={step.key} className="flex items-center justify-between group">
+            <div
+              key={step.key}
+              className="flex items-center justify-between group"
+            >
               <div className="flex items-center gap-3">
-                <div className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-full border transition-colors duration-300",
-                  step.completed ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/30 text-muted-foreground"
-                )}>
+                <div
+                  className={cn(
+                    "flex h-6 w-6 items-center justify-center rounded-full border transition-colors duration-300",
+                    step.completed
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-muted-foreground/30 text-muted-foreground"
+                  )}
+                >
                   {step.completed ? (
                     <CheckCircle2 className="h-3.5 w-3.5" />
                   ) : (
                     <span className="h-1.5 w-1.5 rounded-full bg-current" />
                   )}
                 </div>
-                <span className={cn(
-                  "text-sm transition-colors duration-300",
-                  step.completed ? "text-muted-foreground line-through decoration-border" : "font-medium text-foreground"
-                )}>
+                <span
+                  className={cn(
+                    "text-sm transition-colors duration-300",
+                    step.completed
+                      ? "text-muted-foreground line-through decoration-border"
+                      : "font-medium text-foreground"
+                  )}
+                >
                   {step.name}
                 </span>
               </div>
@@ -117,9 +131,20 @@ export function WelcomeCard() {
                   className="h-7 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => {
                     // Routing logic based on key
-                    if (step.key === "org") router.push(firstOrgId ? `/dashboard/organizations/${firstOrgId}` : "/dashboard/organizations/new");
-                    if (step.key === "invite") router.push(firstOrgId ? `/dashboard/organizations/${firstOrgId}/invitations` : "/dashboard");
-                    if (step.key === "subscription") router.push("/dashboard/settings/billing");
+                    if (step.key === "org")
+                      router.push(
+                        firstOrgId
+                          ? `/dashboard/organizations/${firstOrgId}`
+                          : "/dashboard/organizations/new"
+                      );
+                    if (step.key === "invite")
+                      router.push(
+                        firstOrgId
+                          ? `/dashboard/organizations/${firstOrgId}/invitations`
+                          : "/dashboard"
+                      );
+                    if (step.key === "subscription")
+                      router.push("/dashboard/settings/billing");
                   }}
                 >
                   Go <ArrowRight className="ml-1 h-3 w-3" />

@@ -7,6 +7,7 @@
 **Rationale**: Client requests signed URL from server, then uploads directly to R2. Secure and efficient.
 
 **Alternatives Considered**:
+
 - Server-side upload: Increases server load.
 - Base64 encoding: Inefficient.
 
@@ -17,6 +18,7 @@
 **Rationale**: Handles loading states, error handling, and optimistic updates automatically.
 
 **Alternatives Considered**:
+
 - Redux: Overkill for this scope.
 - Native fetch: Violates constitution.
 
@@ -27,6 +29,7 @@
 **Rationale**: Provides type-safe validation and seamless UI integration.
 
 **Alternatives Considered**:
+
 - Manual validation: Error-prone.
 - Formik: Less integrated with shadcn.
 
@@ -37,6 +40,7 @@
 **Rationale**: Prevents data loss while avoiding excessive API calls.
 
 **Alternatives Considered**:
+
 - Manual save button: Less user-friendly.
 - Local storage only: No persistence across devices.
 
@@ -47,5 +51,6 @@
 **Rationale**: Aligns with constitution requirements for action feedback.
 
 **Alternatives Considered**:
+
 - Alerts: Less modern.
 - No feedback: Poor UX.

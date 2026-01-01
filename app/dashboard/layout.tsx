@@ -7,6 +7,7 @@ import {
   Building2Icon,
   Users,
   Mail,
+  DollarSign,
 } from "lucide-react";
 import { APP_CONFIG } from "@/lib/config";
 
@@ -106,6 +107,17 @@ export default function DashboardLayout({
                         <Link href="/dashboard">
                           <HomeIcon className="h-4 w-4" />
                           <span>Dashboard</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname.startsWith("/dashboard/expenses")}
+                      >
+                        <Link href="/dashboard/expenses/create">
+                          <DollarSign className="h-4 w-4" />
+                          <span>Expenses</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

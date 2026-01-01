@@ -14,12 +14,16 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, Crown } from "lucide-react";
 
 interface UpgradeModalProps {
-  proTrigger: ReactElement;   // Trigger for pro users (performs action)
-  freeTrigger: ReactElement;  // Trigger for free users (opens modal)
-  action?: () => void;        // Action to perform for pro users
+  proTrigger: ReactElement; // Trigger for pro users (performs action)
+  freeTrigger: ReactElement; // Trigger for free users (opens modal)
+  action?: () => void; // Action to perform for pro users
 }
 
-export function UpgradeModal({ proTrigger, freeTrigger, action }: UpgradeModalProps) {
+export function UpgradeModal({
+  proTrigger,
+  freeTrigger,
+  action,
+}: UpgradeModalProps) {
   const { isPro } = useFeatureGate();
   const [open, setOpen] = useState(false);
   const upgradeSubscriptionMutation = useUpgradeSubscription();
@@ -35,15 +39,21 @@ export function UpgradeModal({ proTrigger, freeTrigger, action }: UpgradeModalPr
 
   // If user is pro, return the pro trigger with the action attached
   if (isPro) {
-    return cloneElement(proTrigger as ReactElement<ComponentProps<typeof Button>>, {
-      onClick: action,
-    });
+    return cloneElement(
+      proTrigger as ReactElement<ComponentProps<typeof Button>>,
+      {
+        onClick: action,
+      }
+    );
   }
 
   // If user is not pro, return the free trigger that opens the modal
-  const freeTriggerWithHandler = cloneElement(freeTrigger as ReactElement<ComponentProps<typeof Button>>, {
-    onClick: () => setOpen(true),
-  });
+  const freeTriggerWithHandler = cloneElement(
+    freeTrigger as ReactElement<ComponentProps<typeof Button>>,
+    {
+      onClick: () => setOpen(true),
+    }
+  );
 
   return (
     <>
@@ -74,7 +84,7 @@ export function UpgradeModal({ proTrigger, freeTrigger, action }: UpgradeModalPr
                   "Advanced analytics",
                   "Priority support",
                   "Export features",
-                  "Team collaboration"
+                  "Team collaboration",
                 ].map((feature, index) => (
                   <div key={index} className="flex items-center gap-3">
                     <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />

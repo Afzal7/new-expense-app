@@ -13,7 +13,12 @@ import mongoose from "mongoose";
 declare global {
   var _mongoClient: MongoClient | null | undefined;
   var _mongoDbInstance: Db | null | undefined;
-  var mongoose: { conn: typeof import("mongoose") | null; promise: Promise<typeof import("mongoose")> | null } | undefined;
+  var mongoose:
+    | {
+        conn: typeof import("mongoose") | null;
+        promise: Promise<typeof import("mongoose")> | null;
+      }
+    | undefined;
 }
 
 let client: MongoClient | null = globalThis._mongoClient ?? null;
@@ -76,7 +81,8 @@ export async function getDb(): Promise<Db> {
     } catch (error) {
       console.error("[MongoDB] Failed to connect:", error);
       throw new Error(
-        `Failed to connect to MongoDB: ${error instanceof Error ? error.message : "Unknown error"
+        `Failed to connect to MongoDB: ${
+          error instanceof Error ? error.message : "Unknown error"
         }`
       );
     }
@@ -119,9 +125,11 @@ export async function connectMongoose() {
       bufferCommands: false,
     };
 
-    cached!.promise = mongoose.connect(env.MONGODB_URI, opts).then((mongoose) => {
-      return mongoose;
-    });
+    cached!.promise = mongoose
+      .connect(env.MONGODB_URI, opts)
+      .then((mongoose) => {
+        return mongoose;
+      });
   }
 
   try {
@@ -142,4 +150,3 @@ export const db = (() => {
   const mongoClient = getClient();
   return mongoClient.db(DATABASE_NAME);
 })();
-

@@ -412,7 +412,6 @@ export async function GET(req: Request) {
 ## What You Build
 
 1. **UI Components** (~200-300 lines total)
-
    - Login/signup forms
    - Pricing page
    - Dashboard showing subscription status
@@ -420,7 +419,6 @@ export async function GET(req: Request) {
    - Feature gates/paywalls
 
 2. **Feature Implementation** (varies)
-
    - Free tier features
    - Pro tier features
    - Business logic for your app

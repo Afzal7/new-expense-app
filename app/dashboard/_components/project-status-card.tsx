@@ -12,9 +12,24 @@ import {
 
 // Sample data for project status
 const getProjectStatus = () => [
-  { name: "Q4 Marketing Campaign", progress: 75, status: "On Track", dueDate: "Dec 31" },
-  { name: "API Integration", progress: 45, status: "In Progress", dueDate: "Jan 15" },
-  { name: "User Onboarding Flow", progress: 90, status: "Review", dueDate: "Dec 20" },
+  {
+    name: "Q4 Marketing Campaign",
+    progress: 75,
+    status: "On Track",
+    dueDate: "Dec 31",
+  },
+  {
+    name: "API Integration",
+    progress: 45,
+    status: "In Progress",
+    dueDate: "Jan 15",
+  },
+  {
+    name: "User Onboarding Flow",
+    progress: 90,
+    status: "Review",
+    dueDate: "Dec 20",
+  },
 ];
 
 export function ProjectStatusCard() {
@@ -40,8 +55,8 @@ export function ProjectStatusCard() {
                     project.status === "On Track"
                       ? "bg-green-100 text-green-700"
                       : project.status === "Review"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-yellow-100 text-yellow-700"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-yellow-100 text-yellow-700"
                   }`}
                 >
                   {project.status}

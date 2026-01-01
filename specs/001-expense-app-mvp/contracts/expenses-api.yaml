@@ -42,7 +42,7 @@ paths:
                   expenses:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Expense'
+                      $ref: "#/components/schemas/Expense"
                   total:
                     type: integer
                   page:
@@ -57,14 +57,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExpenseInput'
+              $ref: "#/components/schemas/ExpenseInput"
       responses:
         201:
           description: Expense created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Expense'
+                $ref: "#/components/schemas/Expense"
   /api/expenses/{id}:
     get:
       summary: Get expense by ID
@@ -80,7 +80,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Expense'
+                $ref: "#/components/schemas/Expense"
     put:
       summary: Update expense draft
       parameters:
@@ -93,14 +93,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExpenseInput'
+              $ref: "#/components/schemas/ExpenseInput"
       responses:
         200:
           description: Expense updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Expense'
+                $ref: "#/components/schemas/Expense"
   /api/upload/signed-url:
     get:
       summary: Get signed URL for file upload
@@ -150,11 +150,11 @@ components:
         lineItems:
           type: array
           items:
-            $ref: '#/components/schemas/LineItem'
+            $ref: "#/components/schemas/LineItem"
         auditLog:
           type: array
           items:
-            $ref: '#/components/schemas/AuditEntry'
+            $ref: "#/components/schemas/AuditEntry"
         createdAt:
           type: string
           format: date-time
@@ -173,7 +173,7 @@ components:
         lineItems:
           type: array
           items:
-            $ref: '#/components/schemas/LineItemInput'
+            $ref: "#/components/schemas/LineItemInput"
     LineItem:
       type: object
       properties:

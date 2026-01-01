@@ -22,16 +22,19 @@ interface CreateOrganizationModalProps {
 
 export function CreateOrganizationModal({
   trigger,
-  onOrganizationCreated
+  onOrganizationCreated,
 }: CreateOrganizationModalProps) {
   const [open, setOpen] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
 
-  const triggerWithHandler = cloneElement(trigger as ReactElement<ComponentProps<typeof Button>>, {
-    onClick: () => setOpen(true),
-  });
+  const triggerWithHandler = cloneElement(
+    trigger as ReactElement<ComponentProps<typeof Button>>,
+    {
+      onClick: () => setOpen(true),
+    }
+  );
 
   const handleOrgNameChange = (name: string) => {
     setOrgName(name);

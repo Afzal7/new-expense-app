@@ -26,7 +26,7 @@
 - Q: Should User Story 4 be removed? → A: Yes, completely remove User Story 4 as the flow is not needed.
 - Q: What are the Better Auth org roles for the system? → A: Owner can do everything, Admin can do manager and accountant jobs, Member is employee.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Employee Expense Capture and Submission (Priority: P1)
 
@@ -96,7 +96,7 @@ As a finance user, I want to process approved expenses for reimbursement and exp
 - Can private expenses be converted to organizational later? User can attach manager to convert.
 - What if sum of line item amounts exceeds totalAmount on pre-approved expense? Manager sees message that expense has crossed pre-approved limit.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -135,7 +135,7 @@ As a finance user, I want to process approved expenses for reimbursement and exp
 - **FR-034**: System MUST validate that the sum of line item amounts does not exceed totalAmount; notify manager if exceeded.
 - **FR-035**: Attachments MUST be in JPG/PNG/PDF formats and limited to 5MB max size per file.
 
-### Key Entities *(include if feature involves data)*
+### Key Entities _(include if feature involves data)_
 
 - **Expense**: Represents a financial transaction with totalAmount (frozen on pre-approval), line items, attachments, state, audit log; relationships to User, Organization, Managers (multiple).
 - **User**: Individual with roles (Owner, Admin, Member); associated with personal expenses and organizational memberships.
@@ -143,7 +143,7 @@ As a finance user, I want to process approved expenses for reimbursement and exp
 - **Line Item**: Component of expense with amount, category, date, merchant.
 - **Audit Log**: Immutable record of changes to expenses with timestamps and user IDs.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

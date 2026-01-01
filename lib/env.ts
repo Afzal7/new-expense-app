@@ -45,7 +45,14 @@ export const env = {
 
   // Resend (Email)
   RESEND_API_KEY: getEnvVar("RESEND_API_KEY"),
-  RESEND_FROM_EMAIL: getOptionalEnvVar("RESEND_FROM_EMAIL") || "onboarding@resend.dev",
+  RESEND_FROM_EMAIL:
+    getOptionalEnvVar("RESEND_FROM_EMAIL") || "onboarding@resend.dev",
+
+  // Cloudflare R2
+  AWS_ACCESS_KEY_ID: getEnvVar("AWS_ACCESS_KEY_ID"),
+  AWS_SECRET_ACCESS_KEY: getEnvVar("AWS_SECRET_ACCESS_KEY"),
+  AWS_ENDPOINT_URL_S3: getEnvVar("AWS_ENDPOINT_URL_S3"),
+  S3_BUCKET: getEnvVar("S3_BUCKET"),
 
   // Node environment
   NODE_ENV: process.env.NODE_ENV || "development",
@@ -54,7 +61,10 @@ export const env = {
 } as const;
 
 // Validate MongoDB URI format
-if (!env.MONGODB_URI.startsWith("mongodb://") && !env.MONGODB_URI.startsWith("mongodb+srv://")) {
+if (
+  !env.MONGODB_URI.startsWith("mongodb://") &&
+  !env.MONGODB_URI.startsWith("mongodb+srv://")
+) {
   throw new Error(
     "Invalid MONGODB_URI format. Must start with 'mongodb://' or 'mongodb+srv://'"
   );
@@ -76,9 +86,7 @@ try {
 
 // Validate Stripe key format
 if (!env.STRIPE_SECRET_KEY.startsWith("sk_")) {
-  throw new Error(
-    "Invalid STRIPE_SECRET_KEY format. Must start with 'sk_'"
-  );
+  throw new Error("Invalid STRIPE_SECRET_KEY format. Must start with 'sk_'");
 }
 
 // Validate Stripe webhook secret format
@@ -95,9 +103,11 @@ if (!env.STRIPE_PRO_MONTHLY_PRICE_ID.startsWith("price_")) {
   );
 }
 
-if (env.STRIPE_PRO_ANNUAL_PRICE_ID && !env.STRIPE_PRO_ANNUAL_PRICE_ID.startsWith("price_")) {
+if (
+  env.STRIPE_PRO_ANNUAL_PRICE_ID &&
+  !env.STRIPE_PRO_ANNUAL_PRICE_ID.startsWith("price_")
+) {
   throw new Error(
     "Invalid STRIPE_PRO_ANNUAL_PRICE_ID format. Must start with 'price_'"
   );
 }
-

@@ -15,7 +15,7 @@ tests/
 
 ## Commands
 
-npm test && npm run lint
+npm run lint && npm run format:check
 
 ## Code Style
 

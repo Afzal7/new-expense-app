@@ -1,7 +1,13 @@
 "use client";
 
 import { Zap } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 // Sample data for system health
 const getSystemHealth = () => ({
@@ -20,9 +26,7 @@ export function SystemHealthCard() {
           <Zap className="h-5 w-5" />
           System Health
         </CardTitle>
-        <CardDescription>
-          Infrastructure status and performance
-        </CardDescription>
+        <CardDescription>Infrastructure status and performance</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
@@ -31,10 +35,14 @@ export function SystemHealthCard() {
               <div className="h-2 w-2 bg-green-500 rounded-full"></div>
               <div>
                 <p className="text-sm font-medium">API Services</p>
-                <p className="text-xs text-muted-foreground">{systemHealth.api.uptime} uptime</p>
+                <p className="text-xs text-muted-foreground">
+                  {systemHealth.api.uptime} uptime
+                </p>
               </div>
             </div>
-            <span className="text-xs font-medium text-green-700">{systemHealth.api.responseTime}</span>
+            <span className="text-xs font-medium text-green-700">
+              {systemHealth.api.responseTime}
+            </span>
           </div>
 
           <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
@@ -42,10 +50,14 @@ export function SystemHealthCard() {
               <div className="h-2 w-2 bg-green-500 rounded-full"></div>
               <div>
                 <p className="text-sm font-medium">Database</p>
-                <p className="text-xs text-muted-foreground">{systemHealth.database.connections} active connections</p>
+                <p className="text-xs text-muted-foreground">
+                  {systemHealth.database.connections} active connections
+                </p>
               </div>
             </div>
-            <span className="text-xs font-medium text-green-700">{systemHealth.database.uptime}</span>
+            <span className="text-xs font-medium text-green-700">
+              {systemHealth.database.uptime}
+            </span>
           </div>
 
           <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
@@ -53,10 +65,14 @@ export function SystemHealthCard() {
               <div className="h-2 w-2 bg-yellow-500 rounded-full"></div>
               <div>
                 <p className="text-sm font-medium">Storage</p>
-                <p className="text-xs text-muted-foreground">{systemHealth.storage.available} available</p>
+                <p className="text-xs text-muted-foreground">
+                  {systemHealth.storage.available} available
+                </p>
               </div>
             </div>
-            <span className="text-xs font-medium text-yellow-700">{systemHealth.storage.used} used</span>
+            <span className="text-xs font-medium text-yellow-700">
+              {systemHealth.storage.used} used
+            </span>
           </div>
         </div>
       </CardContent>

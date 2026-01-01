@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSession } from '@/lib/auth-client'
-import { orgClient } from '@/lib/auth-client'
-import type { Organization } from 'better-auth/plugins/organization'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "@/lib/auth-client";
+import { orgClient } from "@/lib/auth-client";
+import type { Organization } from "better-auth/plugins/organization";
+import { toast } from "@/lib/toast";
 
 interface Invitation {
   id: string;
@@ -25,29 +26,31 @@ interface OrganizationWithInvitations extends Organization {
  * @returns Query result with organization and invitation data
  */
 export function useOrganizationInvitations(orgId: string) {
-  const { data: session } = useSession()
+  const { data: session } = useSession();
 
   return useQuery({
-    queryKey: ['organization-invitations', orgId],
+    queryKey: ["organization-invitations", orgId],
     queryFn: async (): Promise<OrganizationWithInvitations | null> => {
       if (!session?.user || !orgId) {
-        throw new Error('User not authenticated or organization ID missing')
+        throw new Error("User not authenticated or organization ID missing");
       }
 
       const { data, error } = await orgClient.getFullOrganization({
-        query: { organizationId: orgId }
-      })
+        query: { organizationId: orgId },
+      });
 
       if (error) {
-        throw new Error(error.message || 'Failed to fetch organization invitations')
+        throw new Error(
+          error.message || "Failed to fetch organization invitations"
+        );
       }
 
-      return data || null
+      return data || null;
     },
     enabled: !!session?.user?.id && !!orgId,
     staleTime: 1 * 60 * 1000, // Consider data fresh for 1 minute (invitations change frequently)
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-  })
+  });
 }
 
 /**
@@ -58,29 +61,29 @@ export function useOrganizationInvitations(orgId: string) {
  * @returns Query result with invitations array
  */
 export function useInvitationsList(orgId: string) {
-  const { data: session } = useSession()
+  const { data: session } = useSession();
 
   return useQuery({
-    queryKey: ['invitations-list', orgId],
+    queryKey: ["invitations-list", orgId],
     queryFn: async (): Promise<Invitation[]> => {
       if (!session?.user || !orgId) {
-        throw new Error('User not authenticated or organization ID missing')
+        throw new Error("User not authenticated or organization ID missing");
       }
 
       const { data, error } = await orgClient.listInvitations({
-        query: { organizationId: orgId }
-      })
+        query: { organizationId: orgId },
+      });
 
       if (error) {
-        throw new Error(error.message || 'Failed to fetch invitations')
+        throw new Error(error.message || "Failed to fetch invitations");
       }
 
-      return data || []
+      return data || [];
     },
     enabled: !!session?.user?.id && !!orgId,
     staleTime: 1 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
-  })
+  });
 }
 
 /**
@@ -88,37 +91,51 @@ export function useInvitationsList(orgId: string) {
  * Includes optimistic updates and cache invalidation
  */
 export function useInviteMember() {
-  const queryClient = useQueryClient()
-  const { data: session } = useSession()
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
 
   return useMutation<
-    { email: string; role: 'member' | 'admin' | 'owner'; organizationId: string },
+    {
+      email: string;
+      role: "member" | "admin" | "owner";
+      organizationId: string;
+    },
     Error,
-    { email: string; role: 'member' | 'admin' | 'owner'; organizationId: string }
+    {
+      email: string;
+      role: "member" | "admin" | "owner";
+      organizationId: string;
+    }
   >({
     mutationFn: async (variables) => {
       if (!session?.user) {
-        throw new Error('User not authenticated')
+        throw new Error("User not authenticated");
       }
 
-      const { error } = await orgClient.inviteMember(variables)
+      const { error } = await orgClient.inviteMember(variables);
 
       if (error) {
-        throw new Error(error.message || 'Failed to send invitation')
+        throw new Error(error.message || "Failed to send invitation");
       }
 
-      return variables
+      return variables;
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(`Invitation sent to ${variables.email}`);
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to send invitation");
     },
     onSettled: (_data, _error, variables) => {
       // Invalidate both organization invitations and invitations list
       queryClient.invalidateQueries({
-        queryKey: ['organization-invitations', variables.organizationId]
-      })
+        queryKey: ["organization-invitations", variables.organizationId],
+      });
       queryClient.invalidateQueries({
-        queryKey: ['invitations-list', variables.organizationId]
-      })
-    }
-  })
+        queryKey: ["invitations-list", variables.organizationId],
+      });
+    },
+  });
 }
 
 /**
@@ -126,37 +143,41 @@ export function useInviteMember() {
  * Includes optimistic updates and cache invalidation
  */
 export function useCancelInvitation() {
-  const queryClient = useQueryClient()
-  const { data: session } = useSession()
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
 
-  return useMutation<
-    { invitationId: string },
-    Error,
-    { invitationId: string }
-  >({
-    mutationFn: async (variables) => {
-      if (!session?.user) {
-        throw new Error('User not authenticated')
-      }
+  return useMutation<{ invitationId: string }, Error, { invitationId: string }>(
+    {
+      mutationFn: async (variables) => {
+        if (!session?.user) {
+          throw new Error("User not authenticated");
+        }
 
-      const { error } = await orgClient.cancelInvitation(variables)
+        const { error } = await orgClient.cancelInvitation(variables);
 
-      if (error) {
-        throw new Error(error.message || 'Failed to cancel invitation')
-      }
+        if (error) {
+          throw new Error(error.message || "Failed to cancel invitation");
+        }
 
-      return variables
-    },
-    onSettled: (_data, _error, _variables) => {
-      // Invalidate all invitation queries since we don't know which org this invitation belonged to
-      queryClient.invalidateQueries({
-        queryKey: ['organization-invitations']
-      })
-      queryClient.invalidateQueries({
-        queryKey: ['invitations-list']
-      })
+        return variables;
+      },
+      onSuccess: () => {
+        toast.success("Invitation cancelled successfully");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Failed to cancel invitation");
+      },
+      onSettled: (_data, _error, _variables) => {
+        // Invalidate all invitation queries since we don't know which org this invitation belonged to
+        queryClient.invalidateQueries({
+          queryKey: ["organization-invitations"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["invitations-list"],
+        });
+      },
     }
-  })
+  );
 }
 
 /**
@@ -164,17 +185,27 @@ export function useCancelInvitation() {
  * Updates the invitation's created date optimistically
  */
 export function useResendInvitation() {
-  const queryClient = useQueryClient()
-  const { data: session } = useSession()
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
 
   return useMutation<
-    { invitationId: string; email: string; role: 'member' | 'admin' | 'owner'; organizationId: string },
+    {
+      invitationId: string;
+      email: string;
+      role: "member" | "admin" | "owner";
+      organizationId: string;
+    },
     Error,
-    { invitationId: string; email: string; role: 'member' | 'admin' | 'owner'; organizationId: string }
+    {
+      invitationId: string;
+      email: string;
+      role: "member" | "admin" | "owner";
+      organizationId: string;
+    }
   >({
     mutationFn: async (variables) => {
       if (!session?.user) {
-        throw new Error('User not authenticated')
+        throw new Error("User not authenticated");
       }
 
       const { error } = await orgClient.inviteMember({
@@ -182,22 +213,28 @@ export function useResendInvitation() {
         role: variables.role,
         organizationId: variables.organizationId,
         resend: true,
-      })
+      });
 
       if (error) {
-        throw new Error(error.message || 'Failed to resend invitation')
+        throw new Error(error.message || "Failed to resend invitation");
       }
 
-      return variables
+      return variables;
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(`Invitation resent to ${variables.email}`);
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to resend invitation");
     },
     onSettled: (_data, _error, variables) => {
       // Always refetch after mutation settles
       queryClient.invalidateQueries({
-        queryKey: ['organization-invitations', variables.organizationId]
-      })
+        queryKey: ["organization-invitations", variables.organizationId],
+      });
       queryClient.invalidateQueries({
-        queryKey: ['invitations-list', variables.organizationId]
-      })
-    }
-  })
+        queryKey: ["invitations-list", variables.organizationId],
+      });
+    },
+  });
 }

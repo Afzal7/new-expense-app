@@ -140,7 +140,9 @@ export default function AcceptInvitationPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Invited By</span>
                 <span className="text-sm text-muted-foreground">
-                  {invitation.inviterName || invitation.inviterEmail || "Team member"}
+                  {invitation.inviterName ||
+                    invitation.inviterEmail ||
+                    "Team member"}
                 </span>
               </div>
             </div>

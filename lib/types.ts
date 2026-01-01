@@ -2,8 +2,6 @@
  * Type definitions for the application
  */
 
-
-
 /**
  * Subscription status types
  */

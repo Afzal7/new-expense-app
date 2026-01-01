@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -98,7 +97,9 @@ function SettingsPageContent() {
     try {
       await deleteUser();
       setDeleteEmailSent(true);
-      toast.success("Verification email sent. Check your inbox to confirm deletion.");
+      toast.success(
+        "Verification email sent. Check your inbox to confirm deletion."
+      );
     } catch (error) {
       console.error("Delete account failed:", error);
       toast.error("Failed to initiate account deletion. Please try again.");
@@ -222,7 +223,8 @@ function SettingsPageContent() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Permanently delete your account and all associated data. This action cannot be undone.
+            Permanently delete your account and all associated data. This action
+            cannot be undone.
           </p>
           <Button
             variant="destructive"
@@ -234,16 +236,21 @@ function SettingsPageContent() {
       </Card>
 
       {/* Delete Account Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={(open) => {
-        setShowDeleteDialog(open);
-        if (!open) {
-          setDeleteConfirmText("");
-          setDeleteEmailSent(false);
-        }
-      }}>
+      <Dialog
+        open={showDeleteDialog}
+        onOpenChange={(open) => {
+          setShowDeleteDialog(open);
+          if (!open) {
+            setDeleteConfirmText("");
+            setDeleteEmailSent(false);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-destructive">Delete Account</DialogTitle>
+            <DialogTitle className="text-destructive">
+              Delete Account
+            </DialogTitle>
             <DialogDescription>
               This will permanently delete your account, including:
             </DialogDescription>
@@ -263,7 +270,8 @@ function SettingsPageContent() {
                     Verification email sent
                   </h4>
                   <p className="text-green-800 text-sm">
-                    Check your inbox and click the link to confirm account deletion.
+                    Check your inbox and click the link to confirm account
+                    deletion.
                   </p>
                 </div>
               </div>
@@ -272,7 +280,8 @@ function SettingsPageContent() {
             <>
               <div className="space-y-2">
                 <Label htmlFor="delete-confirm">
-                  Type <span className="font-mono font-bold">DELETE</span> to confirm
+                  Type <span className="font-mono font-bold">DELETE</span> to
+                  confirm
                 </Label>
                 <Input
                   id="delete-confirm"

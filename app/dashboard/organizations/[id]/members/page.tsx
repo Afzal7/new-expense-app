@@ -59,7 +59,8 @@ export default function OrganizationMembersPage() {
   const currentMember = members.find((m) => m.userId === session?.user?.id);
 
   // Check if current user can manage members (owners and admins)
-  const canManageMembers = currentMember?.role === 'owner' || currentMember?.role === 'admin';
+  const canManageMembers =
+    currentMember?.role === "owner" || currentMember?.role === "admin";
 
   const handleUpdateRole = (memberId: string, newRole: string) => {
     // Find target member to check permissions

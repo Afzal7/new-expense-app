@@ -1,15 +1,22 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { useRouter } from 'next/navigation'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 interface UpgradeModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title?: string
-  description?: string
-  featureName?: string
-  ctaText?: string
-  showTrial?: boolean
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title?: string;
+  description?: string;
+  featureName?: string;
+  ctaText?: string;
+  showTrial?: boolean;
 }
 
 export function UpgradeModal({
@@ -21,12 +28,12 @@ export function UpgradeModal({
   ctaText = "Start Free Trial",
   showTrial = true,
 }: UpgradeModalProps) {
-  const router = useRouter()
+  const router = useRouter();
 
   const handleUpgrade = () => {
-    onOpenChange(false)
-    router.push('/dashboard/upgrade')
-  }
+    onOpenChange(false);
+    router.push("/dashboard/upgrade");
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -34,7 +41,7 @@ export function UpgradeModal({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {featureName ? `Unlock ${featureName} and ` : ''}
+            {featureName ? `Unlock ${featureName} and ` : ""}
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -63,11 +70,9 @@ export function UpgradeModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Maybe Later
           </Button>
-          <Button onClick={handleUpgrade}>
-            {ctaText}
-          </Button>
+          <Button onClick={handleUpgrade}>{ctaText}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

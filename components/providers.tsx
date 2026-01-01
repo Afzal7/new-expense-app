@@ -7,6 +7,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense, useState } from "react";
 import { FeedbackProvider } from "./providers/feedback-provider";
+import { ToastProvider } from "./providers/toast-provider";
 
 const ReactQueryDevtools = lazy(() =>
   import("@tanstack/react-query-devtools").then((mod) => ({
@@ -56,13 +57,15 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <FeedbackProvider>
-        {children}
-        {/* React Query DevTools - only in development, lazy loaded to reduce bundle size */}
-        {process.env.NODE_ENV === "development" && (
-          <Suspense fallback={null}>
-            <ReactQueryDevtools initialIsOpen={false} />
-          </Suspense>
-        )}
+        <ToastProvider>
+          {children}
+          {/* React Query DevTools - only in development, lazy loaded to reduce bundle size */}
+          {process.env.NODE_ENV === "development" && (
+            <Suspense fallback={null}>
+              <ReactQueryDevtools initialIsOpen={false} />
+            </Suspense>
+          )}
+        </ToastProvider>
       </FeedbackProvider>
     </QueryClientProvider>
   );

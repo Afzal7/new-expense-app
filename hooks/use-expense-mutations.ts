@@ -1,0 +1,196 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Expense, ExpenseInput } from "@/types/expense";
+import { toast } from "@/lib/toast";
+
+export function useExpenseMutations() {
+  const queryClient = useQueryClient();
+
+  const createExpense = useMutation({
+    mutationFn: async (expenseInput: ExpenseInput): Promise<Expense> => {
+      const response = await fetch("/api/expenses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(expenseInput),
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Failed to create expense" }));
+        throw new Error(error.message || "Failed to create expense");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense created successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to create expense");
+    },
+  });
+
+  const updateExpense = useMutation({
+    mutationFn: async ({
+      id,
+      expenseInput,
+    }: {
+      id: string;
+      expenseInput: ExpenseInput;
+    }): Promise<Expense> => {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(expenseInput),
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Failed to update expense" }));
+        throw new Error(error.message || "Failed to update expense");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense updated successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to update expense");
+    },
+  });
+
+  const submitExpense = useMutation({
+    mutationFn: async (id: string): Promise<Expense> => {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "submit" }),
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Failed to submit expense" }));
+        throw new Error(error.message || "Failed to submit expense");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense submitted for pre-approval successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to submit expense");
+    },
+  });
+
+  const approveExpense = useMutation({
+    mutationFn: async (id: string): Promise<Expense> => {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "approve" }),
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Failed to approve expense" }));
+        throw new Error(error.message || "Failed to approve expense");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense approved successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to approve expense");
+    },
+  });
+
+  const rejectExpense = useMutation({
+    mutationFn: async (id: string): Promise<Expense> => {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "reject" }),
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Failed to reject expense" }));
+        throw new Error(error.message || "Failed to reject expense");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense rejected successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to reject expense");
+    },
+  });
+
+  const reimburseExpense = useMutation({
+    mutationFn: async (id: string): Promise<Expense> => {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "reimburse" }),
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Failed to reimburse expense" }));
+        throw new Error(error.message || "Failed to reimburse expense");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense reimbursed successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to reimburse expense");
+    },
+  });
+
+  return {
+    createExpense,
+    updateExpense,
+    submitExpense,
+    approveExpense,
+    rejectExpense,
+    reimburseExpense,
+  };
+}

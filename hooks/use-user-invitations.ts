@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-client";
 import { orgClient } from "@/lib/auth-client";
 import type { Invitation } from "better-auth/plugins/organization";
+import { toast } from "@/lib/toast";
 
 export interface InvitationWithDetails extends Invitation {
   organizationName?: string;
@@ -52,7 +53,9 @@ export function useInvitation(invitationId: string) {
 
           // Find inviter in members
           if (orgData?.members && data.inviterId) {
-            const inviter = orgData.members.find(m => m.userId === data.inviterId);
+            const inviter = orgData.members.find(
+              (m) => m.userId === data.inviterId
+            );
             inviterName = inviter?.user?.name;
             inviterEmail = inviter?.user?.email;
           }
@@ -130,6 +133,11 @@ export function useAcceptInvitation() {
           staleTime: 2 * 60 * 1000,
         });
       }
+
+      toast.success("Invitation accepted successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to accept invitation");
     },
   });
 }
@@ -168,6 +176,11 @@ export function useRejectInvitation() {
       queryClient.invalidateQueries({
         queryKey: ["user-invitations"],
       });
+
+      toast.success("Invitation rejected successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to reject invitation");
     },
   });
 }

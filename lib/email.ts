@@ -80,7 +80,9 @@ export async function sendEmail({
     // Check if Resend returned an error
     if (result.error) {
       console.error("[Email] Resend API error:", result.error);
-      throw new Error(result.error.message || 'Failed to send email via Resend');
+      throw new Error(
+        result.error.message || "Failed to send email via Resend"
+      );
     }
 
     if (env.isDevelopment) {
@@ -92,7 +94,9 @@ export async function sendEmail({
     if (env.isDevelopment) {
       console.error("[Email] Error details:", error);
     }
-    throw error instanceof Error ? error : new Error(`Failed to send email: ${error}`);
+    throw error instanceof Error
+      ? error
+      : new Error(`Failed to send email: ${error}`);
   }
 }
 

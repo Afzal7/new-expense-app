@@ -29,7 +29,11 @@ import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { toast } from "@/lib/toast";
 import { useOrganizationMembers } from "@/hooks/use-organization-members";
-import { useUpdateOrganization, useDeleteOrganization, useLeaveOrganization } from "@/hooks/use-organization-crud";
+import {
+  useUpdateOrganization,
+  useDeleteOrganization,
+  useLeaveOrganization,
+} from "@/hooks/use-organization-crud";
 import { useSession } from "@/lib/auth-client";
 
 export default function OrganizationSettingsPage() {
@@ -44,11 +48,10 @@ export default function OrganizationSettingsPage() {
   const deleteOrgMutation = useDeleteOrganization();
   const leaveOrgMutation = useLeaveOrganization();
 
-
   // Extract data from query result
   const organization = orgData || null;
   const members = orgData?.members || [];
-  const currentMember = members.find(m => m.userId === session?.user?.id);
+  const currentMember = members.find((m) => m.userId === session?.user?.id);
 
   // Check permissions based on role
   const canEdit = currentMember?.role === "owner";
@@ -71,9 +74,9 @@ export default function OrganizationSettingsPage() {
   const generateSlug = (name: string) => {
     return name
       .toLowerCase()
-      .replace(/[^a-z0-9]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+      .replace(/[^a-z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
   };
 
   const handleNameChange = (newName: string) => {
@@ -83,7 +86,9 @@ export default function OrganizationSettingsPage() {
 
   const handleSave = () => {
     if (!organization || !currentMember || currentMember.role !== "owner") {
-      toast.warning("You don't have permission to update organization settings.");
+      toast.warning(
+        "You don't have permission to update organization settings."
+      );
       return;
     }
 
@@ -144,8 +149,6 @@ export default function OrganizationSettingsPage() {
     );
   };
 
-
-
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -158,7 +161,10 @@ export default function OrganizationSettingsPage() {
     return (
       <div className="space-y-6">
         <ErrorState
-          message={error?.message || 'This organization may not exist or you may not have access.'}
+          message={
+            error?.message ||
+            "This organization may not exist or you may not have access."
+          }
           type="page"
           onRetry={() => window.location.reload()}
           retryLabel="Try Again"
@@ -166,8 +172,6 @@ export default function OrganizationSettingsPage() {
       </div>
     );
   }
-
-
 
   return (
     <div className="space-y-6">
@@ -188,7 +192,9 @@ export default function OrganizationSettingsPage() {
               General Settings
             </CardTitle>
             <CardDescription>
-              {canEdit ? "Update your organization information" : "View organization information"}
+              {canEdit
+                ? "Update your organization information"
+                : "View organization information"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -211,7 +217,8 @@ export default function OrganizationSettingsPage() {
                 placeholder="Auto-generated from name"
               />
               <p className="text-sm text-muted-foreground">
-                Auto-generated from organization name. Used in URLs and cannot contain spaces or special characters.
+                Auto-generated from organization name. Used in URLs and cannot
+                contain spaces or special characters.
               </p>
             </div>
 
@@ -244,9 +251,7 @@ export default function OrganizationSettingsPage() {
               </p>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    Delete Organization
-                  </Button>
+                  <Button variant="destructive">Delete Organization</Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -264,7 +269,9 @@ export default function OrganizationSettingsPage() {
                       onClick={handleDelete}
                       disabled={deleteOrgMutation.isPending}
                     >
-                      {deleteOrgMutation.isPending ? "Deleting..." : "Delete Organization"}
+                      {deleteOrgMutation.isPending
+                        ? "Deleting..."
+                        : "Delete Organization"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -276,21 +283,25 @@ export default function OrganizationSettingsPage() {
         {canLeave && (
           <Card className="border-destructive/50">
             <CardHeader>
-              <CardTitle className="text-destructive">Leave Organization</CardTitle>
-              <CardDescription>Remove yourself from this organization</CardDescription>
+              <CardTitle className="text-destructive">
+                Leave Organization
+              </CardTitle>
+              <CardDescription>
+                Remove yourself from this organization
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    Leave Organization
-                  </Button>
+                  <Button variant="destructive">Leave Organization</Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Leave Organization</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to leave {organization?.name}? You will lose access to all organization resources and projects.
+                      Are you sure you want to leave {organization?.name}? You
+                      will lose access to all organization resources and
+                      projects.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -300,7 +311,9 @@ export default function OrganizationSettingsPage() {
                       disabled={leaveOrgMutation.isPending}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      {leaveOrgMutation.isPending ? "Leaving..." : "Leave Organization"}
+                      {leaveOrgMutation.isPending
+                        ? "Leaving..."
+                        : "Leave Organization"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

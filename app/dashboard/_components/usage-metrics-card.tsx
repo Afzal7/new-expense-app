@@ -2,7 +2,13 @@
 
 import { Download, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { UpgradeModal } from "./upgrade-modal";
 
 interface UsageMetricsCardProps {
@@ -21,9 +27,7 @@ export function UsageMetricsCard({ metrics }: UsageMetricsCardProps) {
           <BarChart3 className="h-5 w-5" />
           Usage Overview
         </CardTitle>
-        <CardDescription>
-          Your activity and engagement metrics
-        </CardDescription>
+        <CardDescription>Your activity and engagement metrics</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-4">
@@ -33,9 +37,7 @@ export function UsageMetricsCard({ metrics }: UsageMetricsCardProps) {
               <p className="text-xs text-muted-foreground">This month</p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold">
-                {metrics.projectsCount || 0}
-              </p>
+              <p className="text-2xl font-bold">{metrics.projectsCount || 0}</p>
             </div>
           </div>
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
@@ -44,9 +46,7 @@ export function UsageMetricsCard({ metrics }: UsageMetricsCardProps) {
               <p className="text-xs text-muted-foreground">This month</p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold">
-                {metrics.featuresCount || 0}
-              </p>
+              <p className="text-2xl font-bold">{metrics.featuresCount || 0}</p>
             </div>
           </div>
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
@@ -55,9 +55,7 @@ export function UsageMetricsCard({ metrics }: UsageMetricsCardProps) {
               <p className="text-xs text-muted-foreground">Active</p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold">
-                {metrics.membersCount || 0}
-              </p>
+              <p className="text-2xl font-bold">{metrics.membersCount || 0}</p>
             </div>
           </div>
         </div>

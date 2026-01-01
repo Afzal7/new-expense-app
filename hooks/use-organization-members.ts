@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useSession } from '@/lib/auth-client'
-import { orgClient } from '@/lib/auth-client'
-import type { Organization, Member } from 'better-auth/plugins/organization'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "@/lib/auth-client";
+import { orgClient } from "@/lib/auth-client";
+import type { Organization, Member } from "better-auth/plugins/organization";
+import { toast } from "@/lib/toast";
 
 interface MemberWithUser extends Member {
   user: {
@@ -26,29 +27,31 @@ interface OrganizationWithMembers extends Organization {
  * @returns Query result with organization and member data
  */
 export function useOrganizationMembers(orgId: string) {
-  const { data: session } = useSession()
+  const { data: session } = useSession();
 
   return useQuery({
-    queryKey: ['organization-members', orgId],
+    queryKey: ["organization-members", orgId],
     queryFn: async (): Promise<OrganizationWithMembers | null> => {
       if (!session?.user || !orgId) {
-        throw new Error('User not authenticated or organization ID missing')
+        throw new Error("User not authenticated or organization ID missing");
       }
 
       const { data, error } = await orgClient.getFullOrganization({
-        query: { organizationId: orgId }
-      })
+        query: { organizationId: orgId },
+      });
 
       if (error) {
-        throw new Error(error.message || 'Failed to fetch organization members')
+        throw new Error(
+          error.message || "Failed to fetch organization members"
+        );
       }
 
-      return data || null
+      return data || null;
     },
     enabled: !!session?.user?.id && !!orgId,
     staleTime: 2 * 60 * 1000, // Consider data fresh for 2 minutes (more dynamic data)
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-  })
+  });
 }
 
 /**
@@ -56,33 +59,47 @@ export function useOrganizationMembers(orgId: string) {
  * Includes cache invalidation
  */
 export function useUpdateMemberRole() {
-  const queryClient = useQueryClient()
-  const { data: session } = useSession()
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
 
   return useMutation<
-    { memberId: string; role: 'member' | 'admin' | 'owner'; organizationId: string },
+    {
+      memberId: string;
+      role: "member" | "admin" | "owner";
+      organizationId: string;
+    },
     Error,
-    { memberId: string; role: 'member' | 'admin' | 'owner'; organizationId: string }
+    {
+      memberId: string;
+      role: "member" | "admin" | "owner";
+      organizationId: string;
+    }
   >({
     mutationFn: async (variables) => {
       if (!session?.user) {
-        throw new Error('User not authenticated')
+        throw new Error("User not authenticated");
       }
 
-      const { error } = await orgClient.updateMemberRole(variables)
+      const { error } = await orgClient.updateMemberRole(variables);
 
       if (error) {
-        throw new Error(error.message || 'Failed to update member role')
+        throw new Error(error.message || "Failed to update member role");
       }
 
-      return variables
+      return variables;
+    },
+    onSuccess: (_data, variables) => {
+      toast.success(`Member role updated to ${variables.role}`);
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to update member role");
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ['organization-members', variables?.organizationId]
-      })
-    }
-  })
+        queryKey: ["organization-members", variables?.organizationId],
+      });
+    },
+  });
 }
 
 /**
@@ -90,8 +107,8 @@ export function useUpdateMemberRole() {
  * Includes cache invalidation
  */
 export function useRemoveMember() {
-  const queryClient = useQueryClient()
-  const { data: session } = useSession()
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
 
   return useMutation<
     { memberIdOrEmail: string; organizationId: string },
@@ -100,21 +117,27 @@ export function useRemoveMember() {
   >({
     mutationFn: async (variables) => {
       if (!session?.user) {
-        throw new Error('User not authenticated')
+        throw new Error("User not authenticated");
       }
 
-      const { error } = await orgClient.removeMember(variables)
+      const { error } = await orgClient.removeMember(variables);
 
       if (error) {
-        throw new Error(error.message || 'Failed to remove member')
+        throw new Error(error.message || "Failed to remove member");
       }
 
-      return variables
+      return variables;
+    },
+    onSuccess: () => {
+      toast.success("Member removed successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to remove member");
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ['organization-members', variables?.organizationId]
-      })
-    }
-  })
+        queryKey: ["organization-members", variables?.organizationId],
+      });
+    },
+  });
 }

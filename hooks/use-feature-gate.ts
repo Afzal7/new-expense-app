@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react'
-import { useSubscription } from './use-subscription'
+import { useMemo, useState } from "react";
+import { useSubscription } from "./use-subscription";
 
 /**
  * Business logic hook for feature gating based on subscription status
@@ -10,22 +10,22 @@ import { useSubscription } from './use-subscription'
  * @returns Feature access state with business logic applied
  */
 export function useFeatureGate() {
-  const { data: subscriptionData, isLoading } = useSubscription()
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const { data: subscriptionData, isLoading } = useSubscription();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Memoize subscription status to prevent unnecessary recalculations
   const subscriptionStatus = useMemo(() => {
-    if (!subscriptionData?.subscription) return null
+    if (!subscriptionData?.subscription) return null;
 
-    const status = subscriptionData.subscription.status
-    const isActive = status === 'active'
-    const isTrialing = status === 'trialing'
-    const isPastDue = status === 'past_due'
-    const isCanceled = status === 'canceled'
+    const status = subscriptionData.subscription.status;
+    const isActive = status === "active";
+    const isTrialing = status === "trialing";
+    const isPastDue = status === "past_due";
+    const isCanceled = status === "canceled";
 
     // Pro features are available for active, trialing, or past_due subscriptions
     // (past_due allows continued access during dunning period)
-    const isPro = isActive || isTrialing || isPastDue
+    const isPro = isActive || isTrialing || isPastDue;
 
     return {
       id: subscriptionData.subscription.id,
@@ -42,8 +42,8 @@ export function useFeatureGate() {
       trialStart: subscriptionData.subscription.trialStart,
       trialEnd: subscriptionData.subscription.trialEnd,
       seats: subscriptionData.subscription.seats,
-    }
-  }, [subscriptionData])
+    };
+  }, [subscriptionData]);
 
   // Business logic: NEVER allow access while loading
   // This prevents flash content and security issues
@@ -52,29 +52,29 @@ export function useFeatureGate() {
       return {
         allowed: false,
         loading: true,
-        reason: 'loading',
-      }
+        reason: "loading",
+      };
     }
 
     if (!subscriptionStatus) {
       return {
         allowed: false,
         loading: false,
-        reason: 'no_subscription',
-      }
+        reason: "no_subscription",
+      };
     }
 
     return {
       allowed: subscriptionStatus.isPro,
       loading: false,
-      reason: subscriptionStatus.isPro ? 'pro_user' : 'free_user',
+      reason: subscriptionStatus.isPro ? "pro_user" : "free_user",
       subscription: subscriptionStatus,
-    }
-  }, [isLoading, subscriptionStatus])
+    };
+  }, [isLoading, subscriptionStatus]);
 
   const triggerUpgrade = () => {
-    setShowUpgradeModal(true)
-  }
+    setShowUpgradeModal(true);
+  };
 
   return {
     // Feature access
@@ -104,5 +104,5 @@ export function useFeatureGate() {
     showUpgradeModal,
     setShowUpgradeModal,
     triggerUpgrade,
-  }
+  };
 }

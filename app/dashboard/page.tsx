@@ -6,7 +6,7 @@ import { DashboardContent } from "./_components/dashboard-content";
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({
-    headers: await headers()
+    headers: await headers(),
   });
 
   if (!session) {

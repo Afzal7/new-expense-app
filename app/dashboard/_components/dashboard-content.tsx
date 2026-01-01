@@ -19,55 +19,54 @@ import { UsageMetricsCard } from "./usage-metrics-card";
 
 // Sample metrics data
 const getSampleMetrics = () => ({
-    projectsCount: 12,
-    featuresCount: 47,
-    membersCount: 3,
+  projectsCount: 12,
+  featuresCount: 47,
+  membersCount: 3,
 });
 
 export function DashboardContent() {
-    const { data: session } = useSession();
-    const { isLoading: subscriptionLoading } = useSubscription();
-    const { data: organizations, isLoading: orgsLoading } = useUserOrganizations();
+  const { data: session } = useSession();
+  const { isLoading: subscriptionLoading } = useSubscription();
+  const { data: organizations, isLoading: orgsLoading } =
+    useUserOrganizations();
 
-    if (subscriptionLoading) {
-        return (
-            <div className="space-y-6">
-                <Skeleton className="h-16 w-full rounded-lg" />
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <Skeleton className="h-32 w-full" />
-                    <Skeleton className="h-32 w-full" />
-                    <Skeleton className="h-32 w-full" />
-                </div>
-            </div>
-        );
-    }
-
+  if (subscriptionLoading) {
     return (
-        <div className="space-y-6">
-            <SubscriptionBanner />
-
-            <div>
-                <h1 className="text-3xl font-bold">Dashboard</h1>
-                <p className="text-muted-foreground">
-                    Welcome back, {session?.user?.name || "User"}!
-                </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <OrganizationCard
-                    organizations={organizations}
-                    isLoading={orgsLoading}
-                />
-                <WelcomeCard />
-                <QuickActionsCard />
-                <TeamActivityCard />
-                <ProjectStatusCard />
-                <SystemHealthCard />
-                <KeyMetricsCard />
-                <UsageMetricsCard
-                    metrics={getSampleMetrics()}
-                />
-            </div>
+      <div className="space-y-6">
+        <Skeleton className="h-16 w-full rounded-lg" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
         </div>
+      </div>
     );
+  }
+
+  return (
+    <div className="space-y-6">
+      <SubscriptionBanner />
+
+      <div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Welcome back, {session?.user?.name || "User"}!
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <OrganizationCard
+          organizations={organizations}
+          isLoading={orgsLoading}
+        />
+        <WelcomeCard />
+        <QuickActionsCard />
+        <TeamActivityCard />
+        <ProjectStatusCard />
+        <SystemHealthCard />
+        <KeyMetricsCard />
+        <UsageMetricsCard metrics={getSampleMetrics()} />
+      </div>
+    </div>
+  );
 }

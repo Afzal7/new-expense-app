@@ -3,7 +3,12 @@
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertTriangleIcon, ClockIcon, CreditCardIcon, SparklesIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  ClockIcon,
+  CreditCardIcon,
+  SparklesIcon,
+} from "lucide-react";
 import { useSubscription } from "@/hooks/use-subscription";
 
 export function SubscriptionBanner() {
@@ -30,7 +35,8 @@ export function SubscriptionBanner() {
         <CreditCardIcon className="h-4 w-4" />
         <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
           <span>
-            <strong>Payment failed.</strong> Please update your payment method to continue using Pro features.
+            <strong>Payment failed.</strong> Please update your payment method
+            to continue using Pro features.
           </span>
           <Button
             size="sm"
@@ -51,7 +57,8 @@ export function SubscriptionBanner() {
         <SparklesIcon className="h-4 w-4 text-primary" />
         <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
           <span className="text-foreground/80">
-            <strong>Pro Features Active.</strong> You have {daysLeft} days left in your trial. Enjoy the power!
+            <strong>Pro Features Active.</strong> You have {daysLeft} days left
+            in your trial. Enjoy the power!
           </span>
           {/* Minimalist: No upsell button. Trust the auto-renew. */}
         </AlertDescription>

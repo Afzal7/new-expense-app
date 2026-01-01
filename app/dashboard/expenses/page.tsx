@@ -40,6 +40,7 @@ import { useOrganization } from "@/hooks/use-organization";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import type { Expense } from "@/types/expense";
 
 export default function ExpensesPage() {
@@ -113,13 +114,34 @@ export default function ExpensesPage() {
   };
 
   const handleDeleteExpense = async (expenseId: string) => {
-    if (confirm("Are you sure you want to delete this expense?")) {
-      await deleteExpense.mutateAsync(expenseId);
-    }
+    await deleteExpense.mutateAsync(expenseId);
   };
 
   const handleRestoreExpense = async (expenseId: string) => {
     await restoreExpense.mutateAsync(expenseId);
+  };
+
+  const getExpenseTitle = (expense: Expense) => {
+    // Try to get a meaningful title from the first line item
+    const firstItem = expense.lineItems[0];
+    if (firstItem?.description) {
+      return firstItem.description.length > 50
+        ? `${firstItem.description.substring(0, 50)}...`
+        : firstItem.description;
+    }
+
+    // Fall back to categories if available
+    const categories = expense.lineItems
+      .map((item) => item.category)
+      .filter(Boolean)
+      .filter((value, index, self) => self.indexOf(value) === index); // unique
+
+    if (categories.length > 0) {
+      return categories.join(", ");
+    }
+
+    // Final fallback
+    return `Expense #${expense.id.slice(-8)}`;
   };
 
   return (
@@ -228,9 +250,10 @@ export default function ExpensesPage() {
                         <p
                           className={`font-medium truncate ${expense.deletedAt ? "line-through text-muted-foreground" : ""}`}
                         >
-                          Expense #{expense.id.slice(-8)}
+                          {getExpenseTitle(expense)}
                         </p>
                         <p className="text-sm text-muted-foreground">
+                          ${expense.totalAmount.toFixed(2)} •{" "}
                           {expense.lineItems.length} item
                           {expense.lineItems.length !== 1 ? "s" : ""} • Created{" "}
                           {new Date(expense.createdAt).toLocaleDateString()}
@@ -323,14 +346,22 @@ export default function ExpensesPage() {
                             )}
                           </DialogContent>
                         </Dialog>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteExpense(expense.id)}
-                          disabled={deleteExpense.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <ConfirmationDialog
+                          trigger={
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={deleteExpense.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          }
+                          title="Delete Expense"
+                          description="Are you sure you want to delete this expense? This action cannot be undone."
+                          confirmText="Delete"
+                          variant="destructive"
+                          onConfirm={() => handleDeleteExpense(expense.id)}
+                        />
                       </>
                     )}
                   </div>

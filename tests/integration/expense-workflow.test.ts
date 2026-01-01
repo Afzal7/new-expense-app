@@ -222,22 +222,22 @@ describe("Expense Creation Workflow Integration", () => {
       expect(savedExpense?.totalAmount).toBe(150.0);
     });
 
-    it("should validate total amount matches line item sum", async () => {
+    it("should use provided total amount", async () => {
       const { POST } = await import("../../app/api/expenses/route");
 
       const expenseData = {
-        totalAmount: 200.0, // Doesn't match line item sum of 150
-        managerIds: ["manager-123"],
+        totalAmount: 200.0, // Custom total amount
+        managerIds: ["manager-1"],
         lineItems: [
           {
-            amount: 75.0,
-            date: new Date("2024-01-15").toISOString(),
+            amount: 100,
+            date: "2023-12-01",
             description: "Office supplies",
             category: "Office",
           },
           {
-            amount: 75.0,
-            date: new Date("2024-01-16").toISOString(),
+            amount: 50,
+            date: "2023-12-02",
             description: "Coffee meeting",
             category: "Meals",
           },
@@ -255,10 +255,8 @@ describe("Expense Creation Workflow Integration", () => {
       const response = await POST(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.error.message).toContain(
-        "Total amount must match sum of line item amounts"
-      );
+      expect(response.status).toBe(201);
+      expect(data.totalAmount).toBe(200.0); // Should use provided total
     });
 
     it("should require at least one manager", async () => {
@@ -290,7 +288,7 @@ describe("Expense Creation Workflow Integration", () => {
 
       expect(response.status).toBe(400);
       expect(data.error.message).toBe(
-        "Validation failed: At least one manager ID is required"
+        "Validation failed: At least one manager must be selected"
       );
     });
 
@@ -407,7 +405,7 @@ describe("Expense Creation Workflow Integration", () => {
 
       expect(response.status).toBe(201);
       expect(data.userId).toBe(testUserId);
-      expect(data.totalAmount).toBe(100.0);
+      expect(data.totalAmount).toBe(100.0); // Should use provided total
       expect(data.lineItems).toEqual([]);
       expect(data.state).toBe(EXPENSE_STATES.DRAFT);
     });

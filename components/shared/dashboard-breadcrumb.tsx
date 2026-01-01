@@ -56,6 +56,25 @@ function generateBreadcrumbs(
     } else if (segments[1] === "settings") {
       // /dashboard/settings
       breadcrumbs.push({ label: "Settings", isCurrent: true });
+    } else if (segments[1] === "expenses") {
+      // Expense routes
+      breadcrumbs.push({ label: "Expenses", href: "/dashboard/expenses" });
+
+      if (segments.length === 2) {
+        // /dashboard/expenses - Expenses list is current page
+        breadcrumbs[breadcrumbs.length - 1].isCurrent = true;
+        breadcrumbs[breadcrumbs.length - 1].href = undefined;
+      } else if (segments[2] === "create") {
+        // /dashboard/expenses/create
+        breadcrumbs.push({ label: "Create Expense", isCurrent: true });
+      } else if (segments[2] && segments[2] !== "create") {
+        // /dashboard/expenses/[id] - assuming it's an ID
+        breadcrumbs.push({
+          label: "Expense Details",
+          href: `/dashboard/expenses/${segments[2]}`,
+          isCurrent: true,
+        });
+      }
     } else if (segments[1] === "organizations" && orgContext) {
       // Organization routes
       const orgName = userOrg?.name || "Organization";

@@ -24,3 +24,5 @@ the project needs to follow best practices for react, nextjs, mongo. it should f
 - no server actions. always create generic reusable rest apis that follows best practices.
 - no shortcuts allowed in code. the code should be ideal, readable and maintainable.
 - divide tasks in logical blocks and run lint then build after completing each block.
+
+Make it something Steve Jobs and Jony Ive would approve. Apple-level aesthetics.

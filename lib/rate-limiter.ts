@@ -82,7 +82,7 @@ export const apiRateLimiter = new RateLimiter(60 * 1000, 100); // 100 requests p
 export function checkRateLimit(
   rateLimiter: RateLimiter,
   key: string,
-  headers?: Record<string, string>
+  _headers?: Record<string, string>
 ): { allowed: boolean; headers: Record<string, string> } {
   const result = rateLimiter.check(key);
 

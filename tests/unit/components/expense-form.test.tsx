@@ -119,7 +119,9 @@ describe("ExpenseForm", () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/invalid input/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/Invalid input: expected number, received NaN/i)
+        ).toBeInTheDocument();
       });
     });
 
@@ -138,7 +140,7 @@ describe("ExpenseForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/total amount must be greater than 0/i)
+          screen.getByText(/Total amount must be greater than 0/i)
         ).toBeInTheDocument();
       });
     });
@@ -146,6 +148,11 @@ describe("ExpenseForm", () => {
     it("shows validation error for line item with future date", async () => {
       const user = userEvent.setup();
       render(<ExpenseForm {...defaultProps} />);
+
+      // Set valid total amount first
+      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      await user.clear(totalAmountInput);
+      await user.type(totalAmountInput, "100");
 
       const addLineItemButton = screen.getByRole("button", {
         name: /add line item/i,
@@ -165,7 +172,7 @@ describe("ExpenseForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/date cannot be in the future/i)
+          screen.getByText(/Date cannot be in the future/i)
         ).toBeInTheDocument();
       });
     });
@@ -296,7 +303,7 @@ describe("ExpenseForm", () => {
 
       render(<ExpenseForm {...defaultProps} />);
 
-      // Fill valid form with line item to match total
+      // Fill valid form with line item
       const totalAmountInput = screen.getByLabelText(/total amount/i);
       await user.clear(totalAmountInput);
       await user.type(totalAmountInput, "100");

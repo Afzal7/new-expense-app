@@ -13,33 +13,13 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "@/lib/errors";
+import { CreateExpenseSchema } from "@/lib/validations/expense";
 import type {
   ExpenseInput,
   LineItemInput,
-  LineItem,
-  AuditEntry,
-} from "@/types/expense";
-
-// Zod schemas for validation
-const LineItemInputSchema = z.object({
-  amount: z.number().positive("Amount must be greater than 0"),
-  date: z
-    .string()
-    .refine((date) => !isNaN(Date.parse(date)), "Invalid date format")
-    .refine(
-      (date) => new Date(date) <= new Date(),
-      "Date cannot be in the future"
-    ),
-  description: z.string().optional(),
-  category: z.string().optional(),
-});
-
-const ExpenseInputSchema = z.object({
-  totalAmount: z.number().min(0, "Total amount must be non-negative"),
-  managerIds: z.array(z.string()).min(1, "At least one manager ID is required"),
-  lineItems: z.array(LineItemInputSchema).optional().default([]),
-  status: z.enum(["draft", "pre-approval", "approval-pending", "approved"]).optional().default("draft"),
-});
+  DatabaseLineItem,
+} from "@/lib/validations/expense";
+import type { AuditEntry } from "@/types/expense";
 
 // GET /api/expenses - List expenses with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -120,7 +100,7 @@ export async function GET(request: NextRequest) {
         managerIds: expense.managerIds,
         totalAmount: expense.totalAmount,
         state: expense.state,
-        lineItems: expense.lineItems.map((item: LineItem) => ({
+        lineItems: expense.lineItems.map((item: DatabaseLineItem) => ({
           amount: item.amount,
           date: item.date.toISOString(),
           description: item.description,
@@ -173,7 +153,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate input
-    const validationResult = ExpenseInputSchema.safeParse(body);
+    const validationResult = CreateExpenseSchema.safeParse(body);
     if (!validationResult.success) {
       const errorMessages = validationResult.error.issues.map(
         (err: z.ZodIssue) => err.message
@@ -190,23 +170,24 @@ export async function POST(request: NextRequest) {
       lineItems: validatedData.lineItems.map(
         (item): LineItemInput => ({
           amount: item.amount,
-          date: new Date(item.date),
+          date: item.date, // Keep as string for LineItemInput
           description: item.description,
           category: item.category,
+          attachments: item.attachments || [],
         })
       ),
     };
 
-
-
     // Convert line item dates to Date objects
-    const lineItemsWithDates = expenseInput.lineItems.map((item) => ({
-      amount: item.amount,
-      date: new Date(item.date),
-      description: item.description,
-      category: item.category,
-      attachments: [], // Attachments will be added via separate upload
-    }));
+    const lineItemsWithDates = expenseInput.lineItems.map(
+      (item: LineItemInput) => ({
+        amount: item.amount,
+        date: new Date(item.date),
+        description: item.description,
+        category: item.category,
+        attachments: item.attachments || [], // Use provided attachments or empty array
+      })
+    );
 
     // Create expense
     const expense = new Expense({
@@ -214,19 +195,23 @@ export async function POST(request: NextRequest) {
       organizationId: null, // For now, all expenses are private. TODO: Add organization support
       managerIds: expenseInput.managerIds,
       totalAmount: expenseInput.totalAmount,
-      state: expenseInput.status === "pre-approval" ? EXPENSE_STATES.PRE_APPROVAL_PENDING :
-             expenseInput.status === "approval-pending" ? EXPENSE_STATES.APPROVAL_PENDING :
-             expenseInput.status === "approved" ? EXPENSE_STATES.APPROVED :
-             EXPENSE_STATES.DRAFT,
+      state:
+        expenseInput.status === EXPENSE_STATES.PRE_APPROVAL_PENDING
+          ? EXPENSE_STATES.PRE_APPROVAL_PENDING
+          : expenseInput.status === EXPENSE_STATES.APPROVAL_PENDING
+            ? EXPENSE_STATES.APPROVAL_PENDING
+            : EXPENSE_STATES.DRAFT,
       lineItems: lineItemsWithDates,
       auditLog: [],
     });
 
     // Add audit entry
-    const action = expenseInput.status === "pre-approval" ? "created_and_submitted" :
-                   expenseInput.status === "approval-pending" ? "created_and_submitted_for_approval" :
-                   expenseInput.status === "approved" ? "created_and_approved" :
-                   "created";
+    const action =
+      expenseInput.status === EXPENSE_STATES.PRE_APPROVAL_PENDING
+        ? "created_and_submitted"
+        : expenseInput.status === EXPENSE_STATES.APPROVAL_PENDING
+          ? "created_and_submitted_for_approval"
+          : "created";
     expense.addAuditEntry(action, session.user.id);
 
     // Save to database
@@ -241,7 +226,7 @@ export async function POST(request: NextRequest) {
         managerIds: savedExpense.managerIds,
         totalAmount: savedExpense.totalAmount,
         state: savedExpense.state,
-        lineItems: savedExpense.lineItems.map((item: LineItem) => ({
+        lineItems: savedExpense.lineItems.map((item: DatabaseLineItem) => ({
           amount: item.amount,
           date: item.date.toISOString(),
           description: item.description,

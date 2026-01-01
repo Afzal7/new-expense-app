@@ -1,50 +1,82 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: N/A → 1.0.0 (initial version)
+- Added sections: All principles and sections added
+- Templates requiring updates: None (constitution newly created)
+- Follow-up TODOs: None
+-->
+
+# Expense App Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. DRY Principle
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Always follow DRY principle. Create common components, hooks, utils, etc. Never repeat code. This ensures maintainability and reduces bugs from duplicated logic.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Component Completeness
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+Always create common components and hooks that contain the complete user action. For example: CreateExpenseButton should contain the button code + modal code for creating the expense + API calls etc. so the button can be copy pasted at multiple places. This promotes reusability and consistency across the UI.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. API Management
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+No native fetch calls allowed. Always use TanStack Query for data fetching and mutations. This provides caching, error handling, and optimistic updates out of the box. No multiple retries in tanstack query.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. UI Component Library
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+No custom components allowed without asking the user. Always use shadcn and its registries for components. This ensures consistent design system and accessibility. use shadcn mcp for fetching the components.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. State Management
+
+Always maintain empty, loading, error state for every page/section/modal. This provides a robust user experience and handles all possible UI states.
+
+### VI. Action Feedback
+
+Always check what should happen when an action is successful. For example: on creating an expense, loading is shown on the button, a toast is shown on success/error, expenses list is updated on success, etc. This ensures users receive clear feedback on their actions.
+
+### VII. API Design
+
+No server actions. Always create generic reusable REST APIs that follow best practices. This allows for better testing, caching, and client flexibility.
+
+### VIII. Code Quality
+
+No shortcuts allowed in code. The code should be ideal, readable and maintainable. This includes proper naming, comments, and structure.
+
+### IX. Development Workflow
+
+Divide tasks in logical blocks and run lint then build after completing each block. This ensures incremental quality and catches issues early.
+
+### X. Type Safety
+
+Always use TypeScript with strict mode enabled. This prevents runtime errors and improves developer experience. No any type allowed.
+
+### XI. Configuration Management
+
+Use environment variables for all configuration. Never hardcode secrets or environment-specific values.
+
+### XII. Error Handling
+
+Implement error boundaries in React and proper error handling in APIs. Always log errors and provide user-friendly messages.
+
+### XIII. Existing Code
+
+Always use existing code and components if they are already present. Do not create new components if they are already present.
+
+## Technology Stack
+
+The project uses React, Next.js, MongoDB, Better Auth, TanStack Query, shadcn UI, and Cloudflare R2 for storage. All code must adhere to the specified stack without deviations.
+
+## Quality Assurance
+
+- Automated linting and building in CI/CD
+- Unit tests for components and hooks
+- Integration tests for API calls
+- E2E tests for critical user flows
+- Code reviews required for all changes
+- Performance monitoring and optimization
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+Amendments to this constitution require consensus from all contributors and documentation of changes. Version increments follow semantic versioning: MAJOR for breaking changes, MINOR for additions, PATCH for clarifications. Compliance is reviewed in pull requests, with references to this constitution for justification of any deviations.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2025-12-31 | **Last Amended**: 2025-12-31

@@ -1,0 +1,218 @@
+openapi: 3.0.0
+info:
+  title: Expense API
+  version: 1.0.0
+paths:
+  /api/expenses:
+    get:
+      summary: Get expenses for user with pagination and filtering
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [all, private, org]
+            default: all
+        - name: search
+          in: query
+          schema:
+            type: string
+            description: Search in descriptions or categories
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        200:
+          description: Paginated expenses list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  expenses:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Expense'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  totalPages:
+                    type: integer
+    post:
+      summary: Create a new expense
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseInput'
+      responses:
+        201:
+          description: Expense created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+  /api/expenses/{id}:
+    get:
+      summary: Get expense by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Expense details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+    put:
+      summary: Update expense draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseInput'
+      responses:
+        200:
+          description: Expense updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+  /api/upload/signed-url:
+    get:
+      summary: Get signed URL for file upload
+      parameters:
+        - name: fileName
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: fileType
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Signed URL returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signedUrl:
+                    type: string
+                  publicUrl:
+                    type: string
+components:
+  schemas:
+    Expense:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        organizationId:
+          type: string
+          nullable: true
+        managerIds:
+          type: array
+          items:
+            type: string
+        totalAmount:
+          type: number
+        state:
+          type: string
+        lineItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineItem'
+        auditLog:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEntry'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ExpenseInput:
+      type: object
+      properties:
+        totalAmount:
+          type: number
+        managerIds:
+          type: array
+          items:
+            type: string
+        lineItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineItemInput'
+    LineItem:
+      type: object
+      properties:
+        amount:
+          type: number
+        date:
+          type: string
+          format: date
+        description:
+          type: string
+        category:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: string
+    LineItemInput:
+      type: object
+      properties:
+        amount:
+          type: number
+        date:
+          type: string
+          format: date
+        description:
+          type: string
+        category:
+          type: string
+    AuditEntry:
+      type: object
+      properties:
+        action:
+          type: string
+        date:
+          type: string
+          format: date-time
+        actorId:
+          type: string
+        previousValues:
+          type: object
+        updatedValues:
+          type: object

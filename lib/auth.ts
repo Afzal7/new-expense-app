@@ -53,7 +53,7 @@ export const auth = betterAuth({
       const verificationUrl = `${env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}`;
 
       if (env.isDevelopment) {
-        console.log("[Auth] Sending email verification to:", user.email);
+        // Email verification being sent in development
       }
 
       const html = generateEmailHTML.verification({
@@ -73,7 +73,7 @@ export const auth = betterAuth({
       const resetUrl = `${env.NEXT_PUBLIC_APP_URL}/reset-password?token=${encodedToken}`;
 
       if (env.isDevelopment) {
-        console.log("[Auth] Sending password reset to:", user.email);
+        // Password reset email being sent in development
       }
 
       const html = generateEmailHTML.passwordReset({
@@ -99,10 +99,7 @@ export const auth = betterAuth({
       enabled: true,
       sendDeleteAccountVerification: async ({ user, url }) => {
         if (env.isDevelopment) {
-          console.log(
-            "[Auth] Sending delete account verification to:",
-            user.email
-          );
+          // Delete account verification email being sent in development
         }
 
         // URL is already properly formatted by Better Auth
@@ -267,7 +264,6 @@ export const auth = betterAuth({
       async sendInvitationEmail(data) {
         try {
           const acceptUrl = `${env.NEXT_PUBLIC_APP_URL}/dashboard/invitations/${data.id}`;
-          // console.log("Accept URL:", acceptUrl);
           const html = generateEmailHTML.invitation({
             organizationName: data.organization.name,
             inviterName: data.inviter.user.name || data.inviter.user.email,
@@ -280,10 +276,7 @@ export const auth = betterAuth({
             html,
             from: EMAIL_TEMPLATES.invitation.from,
           });
-
-          // console.log("Invitation email sent to:", data.email);
         } catch (error) {
-          // console.error("Failed to send invitation email:", error);
           throw error;
         }
       },

@@ -179,6 +179,236 @@ Open [http://localhost:3000](http://localhost:3000) to start capturing expenses!
 3. **Link Drafts**: Automatically associate existing drafts with your team
 4. **Full Access**: Gain access to team workflows and approvals
 
+## API Documentation
+
+The expense management system provides a RESTful API for managing expenses, file uploads, and user authentication. All API endpoints require authentication via session tokens.
+
+### Authentication
+
+Authentication is handled through Better Auth, which supports email/password and Google OAuth. Include the session token in the `Authorization` header or use cookies for authenticated requests.
+
+### Expense States
+
+Expenses can be in the following states:
+
+- **Draft**: Initial state, editable by owner
+- **Pre-Approval Pending**: Submitted for pre-approval
+- **Pre-Approved**: Approved for spending (pre-approval flow)
+- **Approval Pending**: Submitted for final approval
+- **Approved**: Approved and ready for reimbursement
+- **Rejected**: Denied by manager
+- **Reimbursed**: Payment processed
+
+### Expense API
+
+#### GET /api/expenses
+
+List expenses with pagination and filtering.
+
+**Query Parameters:**
+
+- `type` (optional): Filter by expense type - `"all"`, `"private"`, or `"org"`
+- `search` (optional): Search in line item descriptions and categories
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20, max: 100)
+- `includeDeleted` (optional): Include soft-deleted expenses (default: false)
+
+**Response:**
+
+```json
+{
+  "expenses": [
+    {
+      "id": "string",
+      "userId": "string",
+      "organizationId": "string|null",
+      "managerIds": ["string"],
+      "totalAmount": "number",
+      "state": "string",
+      "lineItems": [
+        {
+          "amount": "number",
+          "date": "string (ISO)",
+          "description": "string",
+          "category": "string",
+          "attachments": ["string"]
+        }
+      ],
+      "auditLog": [
+        {
+          "action": "string",
+          "date": "string (ISO)",
+          "actorId": "string",
+          "previousValues": "object",
+          "updatedValues": "object"
+        }
+      ],
+      "createdAt": "string (ISO)",
+      "updatedAt": "string (ISO)",
+      "deletedAt": "string (ISO)|null"
+    }
+  ],
+  "total": "number",
+  "page": "number",
+  "limit": "number",
+  "totalPages": "number"
+}
+```
+
+#### POST /api/expenses
+
+Create a new expense.
+
+**Request Body:**
+
+```json
+{
+  "totalAmount": "number (optional)",
+  "managerIds": ["string"] (optional for drafts),
+  "lineItems": [
+    {
+      "amount": "number",
+      "date": "string (ISO)",
+      "description": "string (optional)",
+      "category": "string (optional)",
+      "attachments": ["string"]
+    }
+  ] (optional),
+  "status": "string (optional, defaults to Draft)"
+}
+```
+
+**Response:** Same as individual expense object (201 status)
+
+#### GET /api/expenses/[id]
+
+Get a specific expense by ID. Users can access their own expenses; managers can access expenses they manage.
+
+**Response:** Individual expense object
+
+#### PUT /api/expenses/[id]
+
+Update a draft expense. Only the owner can update their expenses, and only when in draft state.
+
+**Request Body:** Same as create, but all fields optional for partial updates
+
+**Response:** Updated expense object
+
+#### PATCH /api/expenses/[id]
+
+Perform actions on expenses (submit, approve, reject, reimburse, delete, restore).
+
+**Request Body:**
+
+```json
+{
+  "action": "submit|approve|reject|reimburse|delete|restore"
+}
+```
+
+**Response:** Updated expense object
+
+### File Upload API
+
+#### GET /api/upload/signed-url
+
+Generate a signed URL for secure file upload to Cloudflare R2.
+
+**Query Parameters:**
+
+- `fileName`: Original filename
+- `fileType`: MIME type (image/\*, application/pdf, etc.)
+- `fileSize`: File size in bytes (max 50MB)
+
+**Supported File Types:** JPEG, PNG, GIF, WebP, PDF, plain text, Word documents
+
+**Response:**
+
+```json
+{
+  "signedUrl": "string",
+  "publicUrl": "string",
+  "fileKey": "string"
+}
+```
+
+#### DELETE /api/upload/delete-signed-url
+
+Generate a signed URL for secure file deletion from Cloudflare R2.
+
+**Query Parameters:**
+
+- `fileKey`: The file key to delete
+
+**Response:**
+
+```json
+{
+  "signedUrl": "string",
+  "fileKey": "string"
+}
+```
+
+### Health Check API
+
+#### GET /api/health
+
+Check system health and database connectivity.
+
+**Response:**
+
+```json
+{
+  "status": "healthy|unhealthy",
+  "timestamp": "string (ISO)",
+  "services": {
+    "database": "connected|disconnected"
+  },
+  "error": "string (only if unhealthy)"
+}
+```
+
+### Authentication API
+
+All authentication endpoints are handled by Better Auth at `/api/auth/[...all]`. This includes:
+
+- **POST /api/auth/sign-up**: User registration
+- **POST /api/auth/sign-in**: User login
+- **POST /api/auth/sign-out**: User logout
+- **GET /api/auth/session**: Get current session
+- **GET/POST /api/auth/google**: Google OAuth flow
+
+Refer to [Better Auth documentation](https://www.better-auth.com/) for detailed authentication API usage.
+
+### Error Handling
+
+All API endpoints return standardized error responses:
+
+```json
+{
+  "error": {
+    "message": "string",
+    "details": {
+      "general": ["string"],
+      "fields": {
+        "fieldName": ["string"]
+      }
+    }
+  }
+}
+```
+
+Common HTTP status codes:
+
+- `200`: Success
+- `201`: Created
+- `400`: Bad Request (validation errors)
+- `401`: Unauthorized
+- `403`: Forbidden
+- `404`: Not Found
+- `429`: Rate Limited
+- `500`: Internal Server Error
+
 ## Scripts
 
 ```bash

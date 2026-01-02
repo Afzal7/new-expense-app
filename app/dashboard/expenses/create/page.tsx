@@ -20,7 +20,7 @@ export default function CreateExpensePage() {
   };
 
   const handleCancel = () => {
-    router.push("/dashboard");
+    router.push("/dashboard/expenses");
   };
 
   if (isLoading) {

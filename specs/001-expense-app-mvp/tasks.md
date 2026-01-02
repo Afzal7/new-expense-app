@@ -103,8 +103,8 @@ description: "Task list template for feature implementation"
 ### Implementation for User Story 1 - UI Components
 
 - [ ] T013 [US1] Create reusable expense form component (DRY: used for both create and edit) in components/expense-form.tsx
-- [ ] T014 [US1] Create line item form component in components/line-item-form.tsx
-- [ ] T015 [US1] Create file upload component using React Dropzone in components/file-upload.tsx
+- [x] T014 [US1] Create line item form component in components/line-item-form.tsx
+- [x] T015 [US1] Create file upload component using React Dropzone in components/file-upload.tsx
 - [ ] T022 [US1] Create expense creation page using shared form component in app/dashboard/expenses/create/page.tsx
 - [ ] T023 [US1] Create expense list page with edit functionality using shared form component in app/dashboard/expenses/page.tsx
 
@@ -126,11 +126,11 @@ description: "Task list template for feature implementation"
 
 - [ ] T020 [US1] Create expense mutations hook in hooks/use-expense-mutations.ts
 - [ ] T021 [US1] Create expense queries hook in hooks/use-expenses.ts
-- [ ] T024 [US1] Add loading and error states to all components
-- [ ] T025 [US1] Add success/error toast notifications for all actions
+- [x] T024 [US1] Add loading and error states to all components
+- [x] T025 [US1] Add success/error toast notifications for all actions
 - [x] T026 [US1] Implement draft auto-save functionality (REMOVED)
-- [ ] T027 [US1] Add expense state transitions (Draft → Pre-Approval Pending)
-- [ ] T028 [US1] Implement audit log recording in expense operations
+- [x] T027 [US1] Add expense state transitions (Draft → Pre-Approval Pending)
+- [x] T028 [US1] Implement audit log recording in expense operations
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -142,10 +142,10 @@ description: "Task list template for feature implementation"
 
 - [ ] T029 [P] Documentation updates in README.md
 - [ ] T030 Code cleanup and refactoring
-- [ ] T031 Performance optimization for file uploads
-- [ ] T032 [P] Additional unit tests in tests/unit/
-- [ ] T033 Security review and hardening
-- [ ] T034 Run quickstart.md validation
+- [x] T031 Performance optimization for file uploads
+- [x] T032 [P] Additional unit tests in tests/unit/
+- [x] T033 Security review and hardening
+- [x] T034 Run quickstart.md validation
 
 ---
 

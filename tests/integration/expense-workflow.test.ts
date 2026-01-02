@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 import { NextRequest } from "next/server";
 import { Expense, EXPENSE_STATES } from "../../lib/models/expense";
 import { auth } from "../../lib/auth";
+import type { AuditEntry } from "../../types/expense";
 
 // Mock external services and environment
 vi.mock("@/lib/env", () => ({
@@ -259,7 +260,7 @@ describe("Expense Creation Workflow Integration", () => {
       expect(data.totalAmount).toBe(200.0); // Should use provided total
     });
 
-    it("should require at least one manager", async () => {
+    it("should require at least one manager when submitting", async () => {
       const { POST } = await import("../../app/api/expenses/route");
 
       const expenseData = {
@@ -273,6 +274,7 @@ describe("Expense Creation Workflow Integration", () => {
             category: "Office",
           },
         ],
+        status: EXPENSE_STATES.PRE_APPROVAL_PENDING, // Submit for validation
       };
 
       const request = new NextRequest("http://localhost:3000/api/expenses", {
@@ -287,12 +289,13 @@ describe("Expense Creation Workflow Integration", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error.message).toBe(
-        "Validation failed: At least one manager must be selected"
+      expect(data.error.message).toContain(
+        "Please fix the validation errors below"
       );
+      expect(data.error.details.fields.managerIds).toBeDefined();
     });
 
-    it("should reject future dates in line items", async () => {
+    it("should reject future dates in line items when submitting", async () => {
       const { POST } = await import("../../app/api/expenses/route");
 
       const futureDate = new Date();
@@ -309,6 +312,7 @@ describe("Expense Creation Workflow Integration", () => {
             category: "Office",
           },
         ],
+        status: EXPENSE_STATES.PRE_APPROVAL_PENDING, // Submit for validation
       };
 
       const request = new NextRequest("http://localhost:3000/api/expenses", {
@@ -323,10 +327,12 @@ describe("Expense Creation Workflow Integration", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error.message).toContain("Validation failed");
+      expect(data.error.message).toContain(
+        "Please fix the validation errors below"
+      );
     });
 
-    it("should reject negative amounts", async () => {
+    it("should reject negative amounts when submitting", async () => {
       const { POST } = await import("../../app/api/expenses/route");
 
       const expenseData = {
@@ -340,6 +346,7 @@ describe("Expense Creation Workflow Integration", () => {
             category: "Office",
           },
         ],
+        status: EXPENSE_STATES.PRE_APPROVAL_PENDING, // Submit for validation
       };
 
       const request = new NextRequest("http://localhost:3000/api/expenses", {
@@ -354,7 +361,9 @@ describe("Expense Creation Workflow Integration", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error.message).toContain("Validation failed");
+      expect(data.error.message).toContain(
+        "Please fix the validation errors below"
+      );
     });
 
     it("should handle unauthenticated requests", async () => {
@@ -501,6 +510,405 @@ describe("Expense Creation Workflow Integration", () => {
       expect(response.status).toBe(200);
       expect(data.expenses).toHaveLength(1);
       expect(data.expenses[0].organizationId).toBeNull();
+    });
+  });
+
+  describe("Complete Expense Workflow Integration (T014)", () => {
+    let employeeId: string;
+    let managerId: string;
+    let testExpenseId: string;
+
+    beforeEach(async () => {
+      // Set up test users
+      employeeId = "employee-test-user";
+      managerId = "manager-test-user";
+    });
+
+    it("should complete the full expense workflow from creation to reimbursement", async () => {
+      // Step 1: Employee creates expense (DRAFT state)
+      vi.mocked(auth.api.getSession).mockResolvedValue(
+        createMockSession(employeeId)
+      );
+
+      const { POST } = await import("../../app/api/expenses/route");
+
+      const expenseData = {
+        totalAmount: 200.0,
+        managerIds: [managerId],
+        lineItems: [
+          {
+            amount: 100.0,
+            date: new Date("2024-01-15").toISOString(),
+            description: "Client meeting lunch",
+            category: "Meals",
+          },
+          {
+            amount: 100.0,
+            date: new Date("2024-01-16").toISOString(),
+            description: "Office supplies",
+            category: "Office",
+          },
+        ],
+      };
+
+      const createRequest = new NextRequest(
+        "http://localhost:3000/api/expenses",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(expenseData),
+        }
+      );
+
+      const createResponse = await POST(createRequest);
+      const createData = await createResponse.json();
+
+      expect(createResponse.status).toBe(201);
+      expect(createData.state).toBe(EXPENSE_STATES.DRAFT);
+      expect(createData.auditLog).toHaveLength(1);
+      expect(createData.auditLog[0].action).toBe("created");
+
+      testExpenseId = createData.id;
+
+      // Step 2: Employee submits for pre-approval (DRAFT -> PRE_APPROVAL_PENDING)
+      const { PATCH } = await import("../../app/api/expenses/[id]/route");
+
+      const submitRequest = new NextRequest(
+        `http://localhost:3000/api/expenses/${testExpenseId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "submit" }),
+        }
+      );
+
+      const submitResponse = await PATCH(submitRequest, {
+        params: Promise.resolve({ id: testExpenseId }),
+      });
+      const submitData = await submitResponse.json();
+
+      expect(submitResponse.status).toBe(200);
+      expect(submitData.state).toBe(EXPENSE_STATES.PRE_APPROVAL_PENDING);
+      expect(submitData.auditLog).toHaveLength(2);
+      expect(submitData.auditLog[1].action).toBe("submitted");
+      expect(submitData.auditLog[1].previousValues.state).toBe(
+        EXPENSE_STATES.DRAFT
+      );
+      expect(submitData.auditLog[1].updatedValues.state).toBe(
+        EXPENSE_STATES.PRE_APPROVAL_PENDING
+      );
+
+      // Step 3: Manager approves pre-approval (PRE_APPROVAL_PENDING -> PRE_APPROVED)
+      vi.mocked(auth.api.getSession).mockResolvedValue(
+        createMockSession(managerId)
+      );
+
+      const approvePreApprovalRequest = new NextRequest(
+        `http://localhost:3000/api/expenses/${testExpenseId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "approve" }),
+        }
+      );
+
+      const approvePreApprovalResponse = await PATCH(
+        approvePreApprovalRequest,
+        { params: Promise.resolve({ id: testExpenseId }) }
+      );
+      const approvePreApprovalData = await approvePreApprovalResponse.json();
+
+      expect(approvePreApprovalResponse.status).toBe(200);
+      expect(approvePreApprovalData.state).toBe(EXPENSE_STATES.PRE_APPROVED);
+      expect(approvePreApprovalData.auditLog).toHaveLength(3);
+      expect(approvePreApprovalData.auditLog[2].action).toBe("approved");
+      expect(approvePreApprovalData.auditLog[2].previousValues.state).toBe(
+        EXPENSE_STATES.PRE_APPROVAL_PENDING
+      );
+      expect(approvePreApprovalData.auditLog[2].updatedValues.state).toBe(
+        EXPENSE_STATES.PRE_APPROVED
+      );
+
+      // Step 4: Employee submits for final approval (PRE_APPROVED -> APPROVAL_PENDING)
+      vi.mocked(auth.api.getSession).mockResolvedValue(
+        createMockSession(employeeId)
+      );
+
+      const submitFinalRequest = new NextRequest(
+        `http://localhost:3000/api/expenses/${testExpenseId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "submit" }),
+        }
+      );
+
+      const submitFinalResponse = await PATCH(submitFinalRequest, {
+        params: Promise.resolve({ id: testExpenseId }),
+      });
+      const submitFinalData = await submitFinalResponse.json();
+
+      expect(submitFinalResponse.status).toBe(200);
+      expect(submitFinalData.state).toBe(EXPENSE_STATES.APPROVAL_PENDING);
+      expect(submitFinalData.auditLog).toHaveLength(4);
+      expect(submitFinalData.auditLog[3].action).toBe("submitted");
+      expect(submitFinalData.auditLog[3].previousValues.state).toBe(
+        EXPENSE_STATES.PRE_APPROVED
+      );
+      expect(submitFinalData.auditLog[3].updatedValues.state).toBe(
+        EXPENSE_STATES.APPROVAL_PENDING
+      );
+
+      // Step 5: Manager approves for reimbursement (APPROVAL_PENDING -> APPROVED)
+      vi.mocked(auth.api.getSession).mockResolvedValue(
+        createMockSession(managerId)
+      );
+
+      const approveFinalRequest = new NextRequest(
+        `http://localhost:3000/api/expenses/${testExpenseId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "approve" }),
+        }
+      );
+
+      const approveFinalResponse = await PATCH(approveFinalRequest, {
+        params: Promise.resolve({ id: testExpenseId }),
+      });
+      const approveFinalData = await approveFinalResponse.json();
+
+      expect(approveFinalResponse.status).toBe(200);
+      expect(approveFinalData.state).toBe(EXPENSE_STATES.APPROVED);
+      expect(approveFinalData.auditLog).toHaveLength(5);
+      expect(approveFinalData.auditLog[4].action).toBe("approved");
+      expect(approveFinalData.auditLog[4].previousValues.state).toBe(
+        EXPENSE_STATES.APPROVAL_PENDING
+      );
+      expect(approveFinalData.auditLog[4].updatedValues.state).toBe(
+        EXPENSE_STATES.APPROVED
+      );
+
+      // Step 6: Manager reimburses (APPROVED -> REIMBURSED)
+      // Note: Current implementation requires manager role for reimbursement
+      // TODO: Add finance role logic for reimbursement
+      vi.mocked(auth.api.getSession).mockResolvedValue(
+        createMockSession(managerId)
+      );
+
+      const reimburseRequest = new NextRequest(
+        `http://localhost:3000/api/expenses/${testExpenseId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "reimburse" }),
+        }
+      );
+
+      const reimburseResponse = await PATCH(reimburseRequest, {
+        params: Promise.resolve({ id: testExpenseId }),
+      });
+      const reimburseData = await reimburseResponse.json();
+
+      expect(reimburseResponse.status).toBe(200);
+      expect(reimburseData.state).toBe(EXPENSE_STATES.REIMBURSED);
+      expect(reimburseData.auditLog).toHaveLength(6);
+      expect(reimburseData.auditLog[5].action).toBe("reimbursed");
+      expect(reimburseData.auditLog[5].previousValues.state).toBe(
+        EXPENSE_STATES.APPROVED
+      );
+      expect(reimburseData.auditLog[5].updatedValues.state).toBe(
+        EXPENSE_STATES.REIMBURSED
+      );
+
+      // Step 7: Verify final state in database
+      const finalExpense = await Expense.findById(testExpenseId);
+      expect(finalExpense?.state).toBe(EXPENSE_STATES.REIMBURSED);
+      expect(finalExpense?.auditLog).toHaveLength(6);
+      expect(
+        finalExpense?.auditLog.map((entry: AuditEntry) => entry.action)
+      ).toEqual([
+        "created",
+        "submitted",
+        "approved",
+        "submitted",
+        "approved",
+        "reimbursed",
+      ]);
+    });
+
+    it("should handle rejection workflow", async () => {
+      // Step 1: Employee creates and submits expense
+      vi.mocked(auth.api.getSession).mockResolvedValue(
+        createMockSession(employeeId)
+      );
+
+      const { POST } = await import("../../app/api/expenses/route");
+
+      const expenseData = {
+        totalAmount: 50.0,
+        managerIds: [managerId],
+        lineItems: [
+          {
+            amount: 50.0,
+            date: new Date("2024-01-15").toISOString(),
+            description: "Rejected expense",
+            category: "Meals",
+          },
+        ],
+      };
+
+      const createRequest = new NextRequest(
+        "http://localhost:3000/api/expenses",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(expenseData),
+        }
+      );
+
+      const createResponse = await POST(createRequest);
+      const createData = await createResponse.json();
+      testExpenseId = createData.id;
+
+      // Submit for pre-approval
+      const { PATCH } = await import("../../app/api/expenses/[id]/route");
+
+      const submitRequest = new NextRequest(
+        `http://localhost:3000/api/expenses/${testExpenseId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "submit" }),
+        }
+      );
+
+      await PATCH(submitRequest, {
+        params: Promise.resolve({ id: testExpenseId }),
+      });
+
+      // Step 2: Manager rejects the expense
+      vi.mocked(auth.api.getSession).mockResolvedValue(
+        createMockSession(managerId)
+      );
+
+      const rejectRequest = new NextRequest(
+        `http://localhost:3000/api/expenses/${testExpenseId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "reject" }),
+        }
+      );
+
+      const rejectResponse = await PATCH(rejectRequest, {
+        params: Promise.resolve({ id: testExpenseId }),
+      });
+      const rejectData = await rejectResponse.json();
+
+      expect(rejectResponse.status).toBe(200);
+      expect(rejectData.state).toBe(EXPENSE_STATES.REJECTED);
+      expect(rejectData.auditLog).toHaveLength(3);
+      expect(rejectData.auditLog[2].action).toBe("rejected");
+
+      // Verify final state
+      const rejectedExpense = await Expense.findById(testExpenseId);
+      expect(rejectedExpense?.state).toBe(EXPENSE_STATES.REJECTED);
+    });
+
+    it("should prevent unauthorized state transitions", async () => {
+      // Create expense as employee
+      vi.mocked(auth.api.getSession).mockResolvedValue(
+        createMockSession(employeeId)
+      );
+
+      const { POST } = await import("../../app/api/expenses/route");
+
+      const expenseData = {
+        totalAmount: 100.0,
+        managerIds: [managerId],
+        lineItems: [
+          {
+            amount: 100.0,
+            date: new Date("2024-01-15").toISOString(),
+            description: "Test expense",
+            category: "Office",
+          },
+        ],
+      };
+
+      const createRequest = new NextRequest(
+        "http://localhost:3000/api/expenses",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(expenseData),
+        }
+      );
+
+      const createResponse = await POST(createRequest);
+      const createData = await createResponse.json();
+      testExpenseId = createData.id;
+
+      // Try to approve own expense (should fail)
+      const { PATCH } = await import("../../app/api/expenses/[id]/route");
+
+      const selfApproveRequest = new NextRequest(
+        `http://localhost:3000/api/expenses/${testExpenseId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "submit" }),
+        }
+      );
+
+      await PATCH(selfApproveRequest, {
+        params: Promise.resolve({ id: testExpenseId }),
+      });
+
+      // Now try to approve as the same user
+      const invalidApproveRequest = new NextRequest(
+        `http://localhost:3000/api/expenses/${testExpenseId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "approve" }),
+        }
+      );
+
+      const invalidApproveResponse = await PATCH(invalidApproveRequest, {
+        params: Promise.resolve({ id: testExpenseId }),
+      });
+      const invalidApproveData = await invalidApproveResponse.json();
+
+      expect(invalidApproveResponse.status).toBe(403);
+      expect(invalidApproveData.error.message).toContain(
+        "Only managers can approve"
+      );
     });
   });
 });

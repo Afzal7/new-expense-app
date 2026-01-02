@@ -66,7 +66,7 @@ export async function sendEmail({
   from?: string;
 }) {
   if (env.isDevelopment) {
-    console.log("[Email] Attempting to send to:", to, "subject:", subject);
+    // Email sending in development mode
   }
 
   try {
@@ -86,7 +86,7 @@ export async function sendEmail({
     }
 
     if (env.isDevelopment) {
-      console.log("[Email] Sent successfully:", result.data?.id);
+      // Email sent successfully in development
     }
     return { success: true, id: result.data?.id };
   } catch (error) {

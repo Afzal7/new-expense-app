@@ -21,10 +21,7 @@ import type {
   LineItem,
   AuditEntry,
 } from "@/types/expense";
-import {
-  UpdateExpenseSchema,
-  type ExpenseUpdateData,
-} from "@/lib/validations/expense";
+import { UpdateExpenseSchema } from "@/lib/validations/expense";
 
 // Zod schema for action validation
 const ExpenseActionSchema = z.object({
@@ -39,24 +36,6 @@ const ExpenseActionSchema = z.object({
 });
 
 // Zod schemas for validation (reuse from main route)
-const LineItemInputSchema = z.object({
-  amount: z.number().positive("Amount must be greater than 0"),
-  date: z
-    .string()
-    .refine((date) => !isNaN(Date.parse(date)), "Invalid date format")
-    .refine(
-      (date) => new Date(date) <= new Date(),
-      "Date cannot be in the future"
-    ),
-  description: z.string().optional(),
-  category: z.string().optional(),
-});
-
-const ExpenseInputSchema = z.object({
-  totalAmount: z.number().min(0, "Total amount must be non-negative"),
-  managerIds: z.array(z.string()).min(1, "At least one manager ID is required"),
-  lineItems: z.array(LineItemInputSchema).optional().default([]),
-});
 
 // GET /api/expenses/[id] - Get expense by ID
 export async function GET(
@@ -373,10 +352,15 @@ export async function PATCH(
         );
       }
 
-      // Only allow submission from draft state
-      if (expense.state !== EXPENSE_STATES.DRAFT) {
+      // Allow submission from draft or pre-approved states
+      if (
+        expense.state !== EXPENSE_STATES.DRAFT &&
+        expense.state !== EXPENSE_STATES.PRE_APPROVED
+      ) {
         return createErrorResponse(
-          new ForbiddenError("Only draft expenses can be submitted")
+          new ForbiddenError(
+            "Only draft or pre-approved expenses can be submitted"
+          )
         );
       }
 
@@ -392,8 +376,12 @@ export async function PATCH(
         state: expense.state,
       };
 
-      // Update state to pre-approval pending
-      expense.state = EXPENSE_STATES.PRE_APPROVAL_PENDING;
+      // Update state based on current state
+      if (expense.state === EXPENSE_STATES.DRAFT) {
+        expense.state = EXPENSE_STATES.PRE_APPROVAL_PENDING;
+      } else if (expense.state === EXPENSE_STATES.PRE_APPROVED) {
+        expense.state = EXPENSE_STATES.APPROVAL_PENDING;
+      }
 
       // Store updated values for audit log
       const updatedValues = {
@@ -415,11 +403,14 @@ export async function PATCH(
         );
       }
 
-      // Can only approve from pre-approval pending state
-      if (expense.state !== EXPENSE_STATES.PRE_APPROVAL_PENDING) {
+      // Can approve from pre-approval pending or approval pending states
+      if (
+        expense.state !== EXPENSE_STATES.PRE_APPROVAL_PENDING &&
+        expense.state !== EXPENSE_STATES.APPROVAL_PENDING
+      ) {
         return createErrorResponse(
           new ForbiddenError(
-            "Only pre-approval pending expenses can be approved"
+            "Only pre-approval pending or approval pending expenses can be approved"
           )
         );
       }
@@ -429,8 +420,12 @@ export async function PATCH(
         state: expense.state,
       };
 
-      // Update state to pre-approved
-      expense.state = EXPENSE_STATES.PRE_APPROVED;
+      // Update state based on current state
+      if (expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING) {
+        expense.state = EXPENSE_STATES.PRE_APPROVED;
+      } else if (expense.state === EXPENSE_STATES.APPROVAL_PENDING) {
+        expense.state = EXPENSE_STATES.APPROVED;
+      }
 
       // Store updated values for audit log
       const updatedValues = {

@@ -13,8 +13,9 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "@/lib/errors";
-import { CreateExpenseSchema, LineItemSchema } from "@/lib/validations/expense";
-import type { ExpenseInput, DatabaseLineItem } from "@/lib/validations/expense";
+import { CreateExpenseSchema } from "@/lib/validations/expense";
+import { sanitizeSearchQuery } from "@/lib/sanitize";
+import type { DatabaseLineItem } from "@/lib/validations/expense";
 import type { AuditEntry } from "@/types/expense";
 
 // GET /api/expenses - List expenses with pagination and filtering
@@ -60,15 +61,7 @@ export async function GET(request: NextRequest) {
 
     // Search filter with input validation and sanitization
     if (search) {
-      // Validate search input length and content
-      if (search.length > 100) {
-        return createErrorResponse(
-          new ValidationError("Search query too long (max 100 characters)")
-        );
-      }
-
-      // Escape special regex characters to prevent ReDoS
-      const sanitizedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const sanitizedSearch = sanitizeSearchQuery(search);
 
       query.$or = [
         { "lineItems.description": { $regex: sanitizedSearch, $options: "i" } },
@@ -213,11 +206,10 @@ export async function POST(request: NextRequest) {
 
     // Add audit entry
     const action =
-      validatedData.status === EXPENSE_STATES.PRE_APPROVAL_PENDING
-        ? "created_and_submitted"
-        : validatedData.status === EXPENSE_STATES.APPROVAL_PENDING
-          ? "created_and_submitted_for_approval"
-          : "created";
+      validatedData.status === EXPENSE_STATES.PRE_APPROVAL_PENDING ||
+      validatedData.status === EXPENSE_STATES.APPROVAL_PENDING
+        ? "submitted"
+        : "created";
     expense.addAuditEntry(action, session.user.id);
 
     // Save to database

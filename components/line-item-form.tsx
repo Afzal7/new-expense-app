@@ -58,15 +58,10 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
     const currentFileKeyMap = fileKeyMap;
     const currentUploads = uploads;
     return () => {
-      console.log("LineItemForm unmounting, cleaning up files");
-      console.log("Current uploads state:", currentUploads);
-      console.log("Current fileKeyMap:", currentFileKeyMap);
-
       // Clean up any uploaded files that are still in the uploads state
       Object.values(currentUploads).forEach(async (upload) => {
         if (upload.status === "completed" && upload.fileKey) {
           try {
-            console.log("Cleaning up upload file:", upload.fileKey);
             await deleteFile(upload.fileKey);
           } catch (error) {
             console.error("Error cleaning up upload file on unmount:", error);
@@ -78,10 +73,6 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
       // When a line item is removed, we need to delete all its attachments
       Object.values(currentFileKeyMap).forEach(async (fileKey) => {
         try {
-          console.log(
-            "Cleaning up attachment file on line item removal:",
-            fileKey
-          );
           await deleteFile(fileKey);
         } catch (error) {
           console.error(
@@ -95,7 +86,6 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
 
   const handleFileUpload = async (file: File): Promise<void> => {
     try {
-      console.log("Starting file upload for:", file.name);
       // Validate file name
       validateFileName(file.name);
 
@@ -103,28 +93,16 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
       await validateFile(file);
 
       const { publicUrl, fileKey } = await uploadFileWithKey(file);
-      console.log(
-        "Upload successful - publicUrl:",
-        publicUrl,
-        "fileKey:",
-        fileKey
-      );
 
       // Store file key mapping for later deletion
       setFileKeyMap((prev) => ({ ...prev, [publicUrl]: fileKey }));
-      console.log("Updated fileKeyMap:", {
-        ...fileKeyMap,
-        [publicUrl]: fileKey,
-      });
 
       // Update form with new attachment
       const currentAttachments = watch(`lineItems.${index}.attachments`) || [];
-      console.log("Current attachments before adding:", currentAttachments);
       setValue(`lineItems.${index}.attachments`, [
         ...currentAttachments,
         publicUrl,
       ]);
-      console.log("Updated attachments:", [...currentAttachments, publicUrl]);
 
       toast.success("File uploaded successfully");
     } catch (error) {
@@ -135,14 +113,12 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
 
   const deleteFile = async (fileKey: string): Promise<void> => {
     try {
-      console.log("deleteFile called with fileKey:", fileKey);
       const response = await fetch(
         `/api/upload/delete-signed-url?fileKey=${encodeURIComponent(fileKey)}`,
         {
           method: "DELETE",
         }
       );
-      console.log("Delete signed URL response status:", response.status);
 
       if (!response.ok) {
         const error = await response.json();
@@ -151,19 +127,16 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
       }
 
       const { signedUrl } = await response.json();
-      console.log("Got signed URL for deletion:", signedUrl);
 
       // Delete the file
       const deleteResponse = await fetch(signedUrl, {
         method: "DELETE",
       });
-      console.log("File delete response status:", deleteResponse.status);
 
       if (!deleteResponse.ok) {
         console.error("Failed to delete file from storage");
         throw new Error("Failed to delete file");
       }
-      console.log("File successfully deleted from storage");
     } catch (error) {
       console.error("Error deleting file:", error);
       toast.error("Failed to delete file");
@@ -171,10 +144,7 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
   };
 
   const removeAttachment = async (attachmentUrl: string) => {
-    console.log("removeAttachment called with:", attachmentUrl);
-    console.log("Current fileKeyMap:", fileKeyMap);
     const currentAttachments = watch(`lineItems.${index}.attachments`) || [];
-    console.log("Current attachments before removal:", currentAttachments);
     setValue(
       `lineItems.${index}.attachments`,
       currentAttachments.filter((url: string) => url !== attachmentUrl)
@@ -182,16 +152,13 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
 
     // Delete the file from storage
     const fileKey = fileKeyMap[attachmentUrl];
-    console.log("FileKey found for attachment:", fileKey);
     if (fileKey) {
-      console.log("Calling deleteFile with fileKey:", fileKey);
       await deleteFile(fileKey);
       setFileKeyMap((prev) => {
         const newMap = { ...prev };
         delete newMap[attachmentUrl];
         return newMap;
       });
-      console.log("File deleted and fileKeyMap updated");
     } else {
       console.error("No fileKey found for attachment:", attachmentUrl);
     }

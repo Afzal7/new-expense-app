@@ -3,25 +3,14 @@
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Upload,
-  File,
-  X,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  RotateCcw,
-  Pause,
-} from "lucide-react";
+import { Upload, File, X, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useOptimizedUpload } from "@/hooks/use-optimized-upload";
 
-interface OptimizedFileUploadProps {
-  onUploadComplete?: (files: OptimizedUploadedFile[]) => void;
+interface FileUploadProps {
+  onUploadComplete?: (files: UploadedFile[]) => void;
   onUploadError?: (error: string) => void;
   maxFiles?: number;
   maxSize?: number; // in bytes
@@ -29,16 +18,15 @@ interface OptimizedFileUploadProps {
   className?: string;
 }
 
-interface OptimizedUploadedFile {
-  id: string;
+interface UploadedFile {
   file: File;
   publicUrl: string;
-  status: "uploading" | "completed" | "error" | "cancelled" | "pending";
+  status: "uploading" | "completed" | "error";
   progress: { loaded: number; total: number; percentage: number };
   error?: string;
 }
 
-const DEFAULT_MAX_SIZE = 100 * 1024 * 1024; // 100MB (increased for chunked uploads)
+const DEFAULT_MAX_SIZE = 10 * 1024 * 1024; // 10MB
 const DEFAULT_ACCEPTED_TYPES = [
   "image/jpeg",
   "image/jpg",
@@ -58,255 +46,191 @@ export function OptimizedFileUpload({
   maxSize = DEFAULT_MAX_SIZE,
   acceptedFileTypes = DEFAULT_ACCEPTED_TYPES,
   className,
-}: OptimizedFileUploadProps) {
-  const [isUploading, setIsUploading] = useState(false);
-  const [completedUploads, setCompletedUploads] = useState<
-    OptimizedUploadedFile[]
-  >([]);
-
-  const { uploads, uploadFile, cancelUpload, retryUpload } = useOptimizedUpload(
-    {
-      onProgress: (uploadId, progress) => {
-        // Progress updates are handled through the uploads state
-      },
-      onComplete: (uploadId, result) => {
-        const upload = uploads[uploadId];
-        if (upload) {
-          const completedFile: OptimizedUploadedFile = {
-            id: uploadId,
-            file: upload.file,
-            publicUrl: result.publicUrl,
-            status: "completed",
-            progress: upload.progress,
-          };
-
-          setCompletedUploads((prev) => [...prev, completedFile]);
-          toast.success(`Successfully uploaded ${upload.file.name}`);
-        }
-      },
-      onError: (uploadId, error) => {
-        const upload = uploads[uploadId];
-        if (upload) {
-          toast.error(`Failed to upload ${upload.file.name}: ${error}`);
-        }
-      },
-    }
-  );
+}: FileUploadProps) {
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const { uploadFileWithKey, uploads, cancelUpload } = useOptimizedUpload();
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
-      setIsUploading(true);
+      if (acceptedFiles.length + uploadedFiles.length > maxFiles) {
+        toast.error(`Maximum ${maxFiles} files allowed`);
+        return;
+      }
 
-      try {
-        const uploadPromises = acceptedFiles.map((file) => uploadFile(file));
-        await Promise.allSettled(uploadPromises);
-
-        const successfulUploads = Object.values(uploads)
-          .filter((upload) => upload.status === "completed")
-          .map((upload) => ({
-            id: upload.id,
-            file: upload.file,
-            publicUrl: upload.publicUrl!,
-            status: upload.status as "completed",
-            progress: upload.progress,
-          }));
-
-        if (successfulUploads.length > 0) {
-          onUploadComplete?.(successfulUploads);
+      for (const file of acceptedFiles) {
+        if (file.size > maxSize) {
+          toast.error(
+            `File ${file.name} is too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB`
+          );
+          continue;
         }
 
-        const failedUploads = Object.values(uploads).filter(
-          (upload) => upload.status === "error"
-        );
+        try {
+          const { publicUrl, fileKey } = await uploadFileWithKey(file);
 
-        if (failedUploads.length > 0) {
-          const errorMessage = `Failed to upload ${failedUploads.length} file${
-            failedUploads.length > 1 ? "s" : ""
-          }`;
+          const uploadedFile: UploadedFile = {
+            file,
+            publicUrl,
+            status: "completed",
+            progress: { loaded: file.size, total: file.size, percentage: 100 },
+          };
+
+          setUploadedFiles((prev) => [...prev, uploadedFile]);
+          toast.success(`File ${file.name} uploaded successfully`);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Upload failed";
+          const failedFile: UploadedFile = {
+            file,
+            publicUrl: "",
+            status: "error",
+            progress: { loaded: 0, total: file.size, percentage: 0 },
+            error: errorMessage,
+          };
+
+          setUploadedFiles((prev) => [...prev, failedFile]);
           onUploadError?.(errorMessage);
         }
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Upload failed";
-        onUploadError?.(errorMessage);
-        toast.error(errorMessage);
-      } finally {
-        setIsUploading(false);
       }
     },
-    [uploadFile, uploads, onUploadComplete, onUploadError]
+    [maxFiles, maxSize, uploadedFiles.length, uploadFileWithKey, onUploadError]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    maxFiles,
-    maxSize,
     accept: acceptedFileTypes.reduce(
-      (acc, type) => {
-        acc[type] = [];
-        return acc;
-      },
-      {} as Record<string, string[]>
+      (acc, type) => ({ ...acc, [type]: [] }),
+      {}
     ),
-    disabled: isUploading,
+    maxSize,
+    multiple: true,
   });
 
-  const removeFile = (uploadId: string) => {
-    // For completed uploads, just remove from the list
-    setCompletedUploads((prev) => prev.filter((f) => f.id !== uploadId));
-
-    // For active uploads, cancel them
-    if (uploads[uploadId]) {
-      cancelUpload(uploadId);
-    }
-  };
-
-  const retryFileUpload = (uploadId: string) => {
-    retryUpload(uploadId);
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const getUploadStatusBadge = (upload: any) => {
-    switch (upload.status) {
-      case "uploading":
-        return (
-          <Badge variant="secondary">
-            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-            Uploading ({upload.progress.percentage}%)
-          </Badge>
+  const removeFile = useCallback(
+    (index: number) => {
+      const file = uploadedFiles[index];
+      if (file.status === "uploading") {
+        // Find the fileKey in uploads state
+        const fileKey = Object.keys(uploads).find(
+          (key) => uploads[key].status === "uploading"
         );
-      case "completed":
-        return (
-          <Badge variant="default">
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Completed
-          </Badge>
-        );
-      case "error":
-        return (
-          <Badge variant="destructive">
-            <AlertCircle className="h-3 w-3 mr-1" />
-            Error
-          </Badge>
-        );
-      case "cancelled":
-        return (
-          <Badge variant="outline">
-            <Pause className="h-3 w-3 mr-1" />
-            Cancelled
-          </Badge>
-        );
-      default:
-        return <Badge variant="secondary">Pending</Badge>;
-    }
-  };
+        if (fileKey) {
+          cancelUpload(fileKey);
+        }
+      }
+      setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    },
+    [uploadedFiles, uploads, cancelUpload]
+  );
 
-  const allUploads = [
-    ...Object.values(uploads),
-    ...completedUploads.filter(
-      (completed) => !Object.keys(uploads).includes(completed.id)
-    ),
-  ];
+  const completedFiles = uploadedFiles.filter((f) => f.status === "completed");
+  if (completedFiles.length > 0) {
+    onUploadComplete?.(completedFiles);
+  }
 
   return (
     <div className={className}>
-      <Card
+      <div
         {...getRootProps()}
-        className={`border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${
+        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
           isDragActive
             ? "border-primary bg-primary/5"
             : "border-muted-foreground/25 hover:border-primary/50"
-        } ${isUploading ? "pointer-events-none opacity-50" : ""}`}
+        }`}
       >
         <input {...getInputProps()} />
         <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <div className="space-y-2">
-          <p className="text-lg font-medium">
-            {isDragActive
-              ? "Drop files here"
-              : "Drag & drop files here, or click to select"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Supports: {acceptedFileTypes.join(", ")}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Max {maxFiles} files, up to {formatFileSize(maxSize)} each
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Files are uploaded directly for optimal performance
-          </p>
-        </div>
-        {isUploading && (
-          <div className="mt-4">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground mt-2">
-              Uploading files...
-            </p>
-          </div>
-        )}
-      </Card>
+        <p className="text-lg font-medium mb-2">
+          {isDragActive ? "Drop files here..." : "Drag & drop files here"}
+        </p>
+        <p className="text-sm text-muted-foreground mb-4">
+          or click to browse (max {Math.round(maxSize / 1024 / 1024)}MB per
+          file)
+        </p>
+        <Button type="button" variant="outline">
+          Select Files
+        </Button>
+      </div>
 
-      {allUploads.length > 0 && (
-        <div className="mt-6 space-y-4">
-          <h3 className="text-lg font-medium">Upload Progress</h3>
-          {allUploads.map((upload) => (
-            <Card key={upload.id} className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <File className="h-8 w-8 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">{upload.file.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatFileSize(upload.file.size)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {getUploadStatusBadge(upload)}
-                  {upload.status === "error" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => retryFileUpload(upload.id)}
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                    </Button>
+      {uploadedFiles.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {uploadedFiles.map((uploadedFile, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between p-3 border rounded-lg"
+            >
+              <div className="flex items-center space-x-3 flex-1">
+                <div className="flex-shrink-0">
+                  {uploadedFile.status === "completed" && (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFile(upload.id)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  {uploadedFile.status === "error" && (
+                    <AlertCircle className="h-5 w-5 text-red-500" />
+                  )}
+                  {uploadedFile.status === "uploading" && (
+                    <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {uploadedFile.file.name}
+                  </p>
+                  <div className="flex items-center space-x-2 mt-1">
+                    {uploadedFile.status === "uploading" && (
+                      <Progress
+                        value={uploadedFile.progress.percentage}
+                        className="flex-1 h-2"
+                      />
+                    )}
+                    <Badge
+                      variant={
+                        uploadedFile.status === "completed"
+                          ? "default"
+                          : uploadedFile.status === "error"
+                            ? "destructive"
+                            : "secondary"
+                      }
+                      className="text-xs"
+                    >
+                      {uploadedFile.status}
+                    </Badge>
+                  </div>
+                  {uploadedFile.error && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {uploadedFile.error}
+                    </p>
+                  )}
                 </div>
               </div>
-              {upload.status === "uploading" && (
-                <div className="mt-3">
-                  <Progress
-                    value={upload.progress.percentage}
-                    className="h-2"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatFileSize(upload.progress.loaded)} /{" "}
-                    {formatFileSize(upload.progress.total)}
-                  </p>
-                </div>
-              )}
-              {upload.status === "error" && upload.error && (
-                <Alert className="mt-3">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{upload.error}</AlertDescription>
-                </Alert>
-              )}
-            </Card>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeFile(index)}
+                className="flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Show current uploads from the hook */}
+      {Object.keys(uploads).length > 0 && (
+        <div className="mt-4 space-y-2">
+          <h4 className="text-sm font-medium">Current Uploads</h4>
+          {Object.values(uploads).map((upload) => (
+            <div key={upload.fileKey} className="flex items-center space-x-2">
+              <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm">Uploading...</span>
+              <Progress
+                value={upload.progress.percentage}
+                className="flex-1 h-2"
+              />
+            </div>
           ))}
         </div>
       )}

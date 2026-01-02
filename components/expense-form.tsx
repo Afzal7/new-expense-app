@@ -214,15 +214,17 @@ export function ExpenseForm({
   const handleSubmitForFinalApproval = async () => {
     if (isEdit) {
       try {
+        // For existing expenses, submit to pre-approval first, then approve
+        const submitResult = await submitExpense.mutateAsync(expenseId!);
         const result = await approveExpense.mutateAsync(expenseId!);
-        toast.success("Expense approved successfully");
+        toast.success("Expense submitted for final approval successfully");
         onSuccess(result);
       } catch (error) {
-        console.error("Approve error:", error);
-        toast.error("Failed to approve expense");
+        console.error("Submit/Approve error:", error);
+        toast.error("Failed to submit expense for final approval");
       }
     } else {
-      // For new expenses, create the expense first, then approve
+      // For new expenses, create directly with approval-pending status
       try {
         const data = getValues();
         const formattedData: any = {
@@ -246,9 +248,10 @@ export function ExpenseForm({
         });
         if (response.ok) {
           const result = await response.json();
-          toast.success("Expense created and approved successfully");
-          const approveResult = await approveExpense.mutateAsync(result.id);
-          onSuccess(approveResult);
+          toast.success(
+            "Expense created and submitted for final approval successfully"
+          );
+          onSuccess(result);
         } else {
           throw new Error("Failed to create expense");
         }

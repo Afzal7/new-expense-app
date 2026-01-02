@@ -29,6 +29,7 @@ vi.mock("@/hooks/use-organization-members", () => ({
       ],
     },
     isLoading: false,
+    error: null,
   })),
 }));
 
@@ -85,13 +86,13 @@ describe("ExpenseForm", () => {
     render(<ExpenseForm {...defaultProps} />);
 
     expect(screen.getByLabelText(/total amount/i)).toBeInTheDocument();
-    expect(screen.getByText("Managers")).toBeInTheDocument();
+    expect(screen.getByText("Approval Manager *")).toBeInTheDocument();
     expect(screen.getByText(/select managers/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /add line item/i })
+      screen.getByRole("button", { name: /add item/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /save as draft/i })
+      screen.getByRole("button", { name: /save draft/i })
     ).toBeInTheDocument();
     // Main submit button that shows selected option (defaults to "Submit for Pre-approval")
     expect(
@@ -99,7 +100,7 @@ describe("ExpenseForm", () => {
     ).toBeInTheDocument();
     // Dropdown trigger for selecting different approval options
     expect(
-      screen.getByRole("button", { name: /select action/i })
+      screen.getByRole("button", { name: /select submit option/i })
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
   });
@@ -114,7 +115,7 @@ describe("ExpenseForm", () => {
       await user.type(totalAmountInput, "abc");
 
       const submitButton = screen.getByRole("button", {
-        name: /save as draft/i,
+        name: /save draft/i,
       });
       await user.click(submitButton);
 
@@ -125,22 +126,22 @@ describe("ExpenseForm", () => {
       });
     });
 
-    it("shows validation error for zero total amount", async () => {
+    it("shows validation error for negative total amount", async () => {
       const user = userEvent.setup();
       render(<ExpenseForm {...defaultProps} />);
 
       const totalAmountInput = screen.getByLabelText(/total amount/i);
       await user.clear(totalAmountInput);
-      await user.type(totalAmountInput, "0");
+      await user.type(totalAmountInput, "-10");
 
       const submitButton = screen.getByRole("button", {
-        name: /save as draft/i,
+        name: /save draft/i,
       });
       await user.click(submitButton);
 
       await waitFor(() => {
         expect(
-          screen.getByText(/Total amount must be greater than 0/i)
+          screen.getByText(/Total amount must be 0 or greater/i)
         ).toBeInTheDocument();
       });
     });
@@ -155,7 +156,7 @@ describe("ExpenseForm", () => {
       await user.type(totalAmountInput, "100");
 
       const addLineItemButton = screen.getByRole("button", {
-        name: /add line item/i,
+        name: /add item/i,
       });
       await user.click(addLineItemButton);
 
@@ -166,7 +167,7 @@ describe("ExpenseForm", () => {
       await user.type(dateInput, futureDate.toISOString().split("T")[0]);
 
       const submitButton = screen.getByRole("button", {
-        name: /save as draft/i,
+        name: /save draft/i,
       });
       await user.click(submitButton);
 
@@ -203,7 +204,7 @@ describe("ExpenseForm", () => {
 
       // Add line item
       const addLineItemButton = screen.getByRole("button", {
-        name: /add line item/i,
+        name: /add item/i,
       });
       await user.click(addLineItemButton);
 
@@ -224,7 +225,7 @@ describe("ExpenseForm", () => {
 
       // Submit form
       const submitButton = screen.getByRole("button", {
-        name: /save as draft/i,
+        name: /save draft/i,
       });
       await user.click(submitButton);
 
@@ -274,7 +275,7 @@ describe("ExpenseForm", () => {
       await user.click(managerOption);
 
       const submitButton = screen.getByRole("button", {
-        name: /save as draft/i,
+        name: /save draft/i,
       });
       await user.click(submitButton);
 
@@ -310,7 +311,7 @@ describe("ExpenseForm", () => {
 
       // Add line item first
       const addLineItemButton = screen.getByRole("button", {
-        name: /add line item/i,
+        name: /add item/i,
       });
       await user.click(addLineItemButton);
 
@@ -326,7 +327,7 @@ describe("ExpenseForm", () => {
       await user.click(managerOption);
 
       const submitButton = screen.getByRole("button", {
-        name: /save as draft/i,
+        name: /save draft/i,
       });
       await user.click(submitButton);
 
@@ -350,7 +351,7 @@ describe("ExpenseForm", () => {
 
       // Add first line item
       const addLineItemButton = screen.getByRole("button", {
-        name: /add line item/i,
+        name: /add item/i,
       });
       await user.click(addLineItemButton);
 
@@ -386,13 +387,312 @@ describe("ExpenseForm", () => {
       render(<ExpenseForm {...defaultProps} />);
 
       const addLineItemButton = screen.getByRole("button", {
-        name: /add line item/i,
+        name: /add item/i,
       });
       await user.click(addLineItemButton);
 
       const dateInput = screen.getByLabelText(/date/i);
       const today = new Date().toISOString().split("T")[0];
       expect(dateInput).toHaveValue(today);
+    });
+
+    it("calculates and displays total from line items", async () => {
+      const user = userEvent.setup();
+      render(<ExpenseForm {...defaultProps} />);
+
+      // Add line item
+      const addLineItemButton = screen.getByRole("button", {
+        name: /add item/i,
+      });
+      await user.click(addLineItemButton);
+
+      // Fill line item with amount
+      const lineItemAmountInput = screen.getAllByLabelText(/amount/i)[1];
+      await user.clear(lineItemAmountInput);
+      await user.type(lineItemAmountInput, "50.25");
+
+      // Should show calculated total
+      await waitFor(() => {
+        expect(screen.getByText("$50.25")).toBeInTheDocument();
+      });
+      expect(screen.getByText(/based on 1 line item/i)).toBeInTheDocument();
+    });
+
+    it("auto-fills total amount when 'Use This Amount' button is clicked", async () => {
+      const user = userEvent.setup();
+      render(<ExpenseForm {...defaultProps} />);
+
+      // Add line item
+      const addLineItemButton = screen.getByRole("button", {
+        name: /add item/i,
+      });
+      await user.click(addLineItemButton);
+
+      // Fill line item with amount
+      const lineItemAmountInput = screen.getAllByLabelText(/amount/i)[1];
+      await user.clear(lineItemAmountInput);
+      await user.type(lineItemAmountInput, "75.50");
+
+      // Click "Use This Amount" button
+      const useAmountButton = screen.getByRole("button", {
+        name: /use this amount/i,
+      });
+      await user.click(useAmountButton);
+
+      // Total amount should be auto-filled
+      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      expect(totalAmountInput).toHaveValue(75.5);
+    });
+
+    it("shows calculated total summary with multiple line items", async () => {
+      const user = userEvent.setup();
+      render(<ExpenseForm {...defaultProps} />);
+
+      // Add multiple line items
+      const addLineItemButton = screen.getByRole("button", {
+        name: /add item/i,
+      });
+      await user.click(addLineItemButton);
+      await user.click(addLineItemButton);
+
+      // Fill amounts
+      const lineItemInputs = screen.getAllByLabelText(/amount/i);
+      await user.clear(lineItemInputs[1]);
+      await user.type(lineItemInputs[1], "25.00");
+      await user.clear(lineItemInputs[2]);
+      await user.type(lineItemInputs[2], "30.50");
+
+      // Should show total of 55.50
+      await waitFor(() => {
+        expect(screen.getByText("$55.50")).toBeInTheDocument();
+      });
+      expect(screen.getByText(/based on 2 line items/i)).toBeInTheDocument();
+    });
+  });
+
+  describe("edit mode", () => {
+    const editProps = {
+      ...defaultProps,
+      initialData: {
+        id: "existing-expense-id",
+        userId: "test-user-id",
+        organizationId: "test-org-id",
+        totalAmount: 200,
+        managerIds: ["manager-1"],
+        lineItems: [
+          {
+            amount: 100,
+            date: new Date("2023-12-01"),
+            description: "Office supplies",
+            category: "Office",
+            attachments: [],
+          },
+          {
+            amount: 100,
+            date: new Date("2023-12-02"),
+            description: "Travel",
+            category: "Transportation",
+            attachments: [],
+          },
+        ],
+        state: "Draft" as const,
+        auditLog: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      },
+    };
+
+    it("renders with pre-filled data in edit mode", () => {
+      render(<ExpenseForm {...editProps} />);
+
+      expect(screen.getByText("Edit Expense")).toBeInTheDocument();
+      expect(screen.getByLabelText(/total amount/i)).toHaveValue(200);
+      expect(screen.getAllByLabelText(/amount/i)).toHaveLength(3); // total + 2 line items
+    });
+
+    it("submits updated data correctly", async () => {
+      const user = userEvent.setup();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: "existing-expense-id" }),
+      });
+
+      render(<ExpenseForm {...editProps} />);
+
+      // Update total amount
+      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      await user.clear(totalAmountInput);
+      await user.type(totalAmountInput, "250");
+
+      // Submit
+      const submitButton = screen.getByRole("button", {
+        name: /save draft/i,
+      });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          "/api/expenses/existing-expense-id",
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              totalAmount: 250,
+              managerIds: ["manager-1"],
+              lineItems: [
+                {
+                  amount: 100,
+                  date: "2023-12-01T00:00:00.000Z",
+                  description: "Office supplies",
+                  category: "Office",
+                  attachments: [],
+                },
+                {
+                  amount: 100,
+                  date: "2023-12-02T00:00:00.000Z",
+                  description: "Travel",
+                  category: "Transportation",
+                  attachments: [],
+                },
+              ],
+            }),
+          }
+        );
+      });
+    });
+  });
+
+  describe("approval workflows", () => {
+    it("submits expense for pre-approval", async () => {
+      const user = userEvent.setup();
+      render(<ExpenseForm {...defaultProps} />);
+
+      // Fill valid form with line item
+      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      await user.clear(totalAmountInput);
+      await user.type(totalAmountInput, "100");
+
+      // Add line item
+      const addLineItemButton = screen.getByRole("button", {
+        name: /add item/i,
+      });
+      await user.click(addLineItemButton);
+
+      const lineItemAmountInput = screen.getAllByLabelText(/amount/i)[1];
+      await user.clear(lineItemAmountInput);
+      await user.type(lineItemAmountInput, "100");
+
+      // Select manager
+      const managerSelect = screen.getByRole("combobox");
+      await user.click(managerSelect);
+      const managerOption = screen.getByText("Manager One");
+      await user.click(managerOption);
+
+      // Submit for pre-approval
+      const submitButton = screen.getByRole("button", {
+        name: /submit for pre-approval/i,
+      });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith("/api/expenses", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            totalAmount: 100,
+            managerIds: ["manager-1"],
+            lineItems: [
+              {
+                amount: 100,
+                date: new Date().toISOString().split("T")[0] + "T00:00:00.000Z",
+                description: "",
+                category: "",
+                attachments: [],
+              },
+            ],
+            status: "pre-approval",
+          }),
+        });
+      });
+    });
+
+    it("submits expense for final approval", async () => {
+      const user = userEvent.setup();
+      render(<ExpenseForm {...defaultProps} />);
+
+      // Fill valid form with line item
+      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      await user.clear(totalAmountInput);
+      await user.type(totalAmountInput, "150");
+
+      // Add line item
+      const addLineItemButton = screen.getByRole("button", {
+        name: /add item/i,
+      });
+      await user.click(addLineItemButton);
+
+      const lineItemAmountInput = screen.getAllByLabelText(/amount/i)[1];
+      await user.clear(lineItemAmountInput);
+      await user.type(lineItemAmountInput, "150");
+
+      // Select manager
+      const managerSelect = screen.getByRole("combobox");
+      await user.click(managerSelect);
+      const managerOption = screen.getByText("Manager One");
+      await user.click(managerOption);
+
+      // Change to final approval
+      const dropdownTrigger = screen.getByRole("button", {
+        name: /select submit option/i,
+      });
+      await user.click(dropdownTrigger);
+
+      const finalApprovalOption = screen.getByText("Submit for Final Approval");
+      await user.click(finalApprovalOption);
+
+      // Submit for final approval
+      const submitButton = screen.getByRole("button", {
+        name: /submit for final approval/i,
+      });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith("/api/expenses", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            totalAmount: 150,
+            managerIds: ["manager-1"],
+            lineItems: [
+              {
+                amount: 150,
+                date: new Date().toISOString().split("T")[0] + "T00:00:00.000Z",
+                description: "",
+                category: "",
+                attachments: [],
+              },
+            ],
+            status: "approval-pending",
+          }),
+        });
+      });
+    });
+
+    it("disables approval buttons when no line items", () => {
+      render(<ExpenseForm {...defaultProps} />);
+
+      const submitButton = screen.getByRole("button", {
+        name: /submit for pre-approval/i,
+      });
+      expect(submitButton).toBeDisabled();
     });
   });
 });

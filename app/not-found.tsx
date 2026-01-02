@@ -17,7 +17,6 @@ export default function NotFound() {
 
   useEffect(() => {
     // Optional: Track 404 errors for analytics
-    console.log("404 - Page not found:", window.location.pathname);
   }, []);
 
   return (

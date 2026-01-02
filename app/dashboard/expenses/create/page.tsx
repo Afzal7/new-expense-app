@@ -38,15 +38,15 @@ export default function CreateExpensePage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 lg:space-y-8">
       {/* Header */}
       <div className="space-y-2">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.back()}
-            className="h-8 w-8 p-0"
+            className="h-10 w-10 p-0"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -63,7 +63,7 @@ export default function CreateExpensePage() {
 
       {/* Form Container */}
       <div className="max-w-3xl mx-auto">
-        <div className="bg-card rounded-xl border shadow-sm p-8">
+        <div className="bg-card rounded-xl border shadow-sm p-6 lg:p-8">
           <ExpenseForm
             organizationId={organization.id}
             onSuccess={handleSuccess}

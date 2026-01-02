@@ -126,10 +126,10 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 lg:space-y-8">
       {/* Header Section */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="space-y-1">
             <h1 className="text-3xl font-semibold tracking-tight">Expenses</h1>
             <p className="text-muted-foreground">
@@ -145,7 +145,7 @@ export default function ExpensesPage() {
         </div>
 
         {/* Search Bar */}
-        <div className="relative max-w-md">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search expenses..."
@@ -157,8 +157,8 @@ export default function ExpensesPage() {
       </div>
 
       {/* Filters Row */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={type} onValueChange={handleTypeChange}>
@@ -228,7 +228,7 @@ export default function ExpensesPage() {
               key={expense.id}
               className="bg-card rounded-lg border p-6 hover:shadow-sm transition-all duration-200 hover:border-border/80"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-3">
                     <h3
@@ -270,7 +270,7 @@ export default function ExpensesPage() {
                     )}
                   </p>
                 </div>
-                <div className="flex items-center gap-4 ml-6">
+                <div className="flex items-center justify-between lg:justify-end gap-4">
                   <div className="text-right">
                     <p
                       className={`text-lg font-semibold ${expense.deletedAt ? "line-through text-muted-foreground" : ""}`}
@@ -286,7 +286,7 @@ export default function ExpensesPage() {
                       variant="ghost"
                       size="sm"
                       asChild
-                      className="h-8 w-8 p-0"
+                      className="h-10 w-10 p-0"
                     >
                       <Link href={`/dashboard/expenses/${expense.id}`}>
                         <Eye className="h-4 w-4" />
@@ -298,7 +298,7 @@ export default function ExpensesPage() {
                         size="sm"
                         onClick={() => handleRestoreExpense(expense.id)}
                         disabled={restoreExpense.isPending}
-                        className="h-8 w-8 p-0"
+                        className="h-10 w-10 p-0"
                       >
                         <RotateCcw className="h-4 w-4" />
                       </Button>
@@ -308,7 +308,7 @@ export default function ExpensesPage() {
                           variant="ghost"
                           size="sm"
                           asChild
-                          className="h-8 w-8 p-0"
+                          className="h-10 w-10 p-0"
                         >
                           <Link href={`/dashboard/expenses/${expense.id}/edit`}>
                             <Edit className="h-4 w-4" />
@@ -320,7 +320,7 @@ export default function ExpensesPage() {
                               variant="ghost"
                               size="sm"
                               disabled={deleteExpense.isPending}
-                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              className="h-10 w-10 p-0 text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -343,7 +343,7 @@ export default function ExpensesPage() {
 
       {/* Pagination */}
       {expensesData && expensesData.totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <p className="text-sm text-muted-foreground">
             Showing {(expensesData.page - 1) * expensesData.limit + 1} to{" "}
             {Math.min(

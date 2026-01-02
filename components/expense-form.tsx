@@ -271,7 +271,10 @@ export function ExpenseForm({
 
   return (
     <FormProvider {...formMethods}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-6 lg:space-y-8"
+      >
         {/* Header Section */}
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold tracking-tight">
@@ -349,7 +352,7 @@ export function ExpenseForm({
         {/* Summary & Actions */}
         {calculatedTotal > 0 && (
           <div className="bg-muted/30 rounded-lg p-6 border">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="space-y-1">
                 <Label className="text-base font-medium">
                   Calculated Total
@@ -359,7 +362,7 @@ export function ExpenseForm({
                   {fields.length !== 1 ? "s" : ""}
                 </p>
               </div>
-              <div className="text-right space-y-2">
+              <div className="text-left lg:text-right space-y-2">
                 <div className="text-3xl font-bold">
                   ${calculatedTotal.toFixed(2)}
                 </div>

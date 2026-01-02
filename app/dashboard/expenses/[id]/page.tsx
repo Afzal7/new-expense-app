@@ -95,16 +95,16 @@ export default function ExpenseDetailPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 lg:space-y-8">
       {/* Header */}
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => router.back()}
-              className="h-8 w-8 p-0"
+              className="h-10 w-10 p-0"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -156,7 +156,7 @@ export default function ExpenseDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Total Amount Card */}
         <div className="lg:col-span-1">
-          <div className="bg-card rounded-xl border p-6">
+          <div className="bg-card rounded-xl border p-6 lg:p-8">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
@@ -175,7 +175,7 @@ export default function ExpenseDetailPage() {
 
         {/* Details Card */}
         <div className="lg:col-span-2">
-          <div className="bg-card rounded-xl border p-6">
+          <div className="bg-card rounded-xl border p-6 lg:p-8">
             <div className="flex items-center gap-2 mb-4">
               <FileText className="h-5 w-5 text-muted-foreground" />
               <h2 className="text-lg font-semibold">Expense Details</h2>
@@ -209,7 +209,7 @@ export default function ExpenseDetailPage() {
 
       {/* Line Items */}
       <div className="bg-card rounded-xl border overflow-hidden">
-        <div className="p-6 border-b">
+        <div className="p-6 lg:p-8 border-b">
           <h2 className="text-lg font-semibold">Line Items</h2>
           <p className="text-sm text-muted-foreground mt-1">
             {expense.lineItems.length} item
@@ -221,9 +221,9 @@ export default function ExpenseDetailPage() {
           {expense.lineItems.map((item: LineItem, index: number) => (
             <div
               key={index}
-              className="p-6 hover:bg-muted/30 transition-colors"
+              className="p-6 lg:p-8 hover:bg-muted/30 transition-colors"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                 <div className="flex-1 space-y-1">
                   <p className="font-medium">
                     {item.description || "No description"}
@@ -233,7 +233,7 @@ export default function ExpenseDetailPage() {
                     <span>{new Date(item.date).toLocaleDateString()}</span>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <p className="text-xl font-semibold">
                     ${item.amount.toFixed(2)}
                   </p>
@@ -246,7 +246,7 @@ export default function ExpenseDetailPage() {
 
       {/* Audit Log */}
       <div className="bg-card rounded-xl border overflow-hidden">
-        <div className="p-6 border-b">
+        <div className="p-6 lg:p-8 border-b">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-muted-foreground" />
             <h2 className="text-lg font-semibold">Activity</h2>
@@ -259,7 +259,7 @@ export default function ExpenseDetailPage() {
 
         <div className="divide-y">
           {expense.auditLog.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
+            <div className="p-8 lg:p-12 text-center text-muted-foreground">
               No activity recorded yet
             </div>
           ) : (
@@ -271,7 +271,7 @@ export default function ExpenseDetailPage() {
               .map((entry: AuditEntry, index: number) => (
                 <div
                   key={index}
-                  className="p-6 hover:bg-muted/30 transition-colors"
+                  className="p-6 lg:p-8 hover:bg-muted/30 transition-colors"
                 >
                   <div className="flex items-start gap-4">
                     <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
@@ -299,7 +299,7 @@ export default function ExpenseDetailPage() {
                             <p className="text-sm font-medium text-destructive mb-2">
                               Previous Values
                             </p>
-                            <pre className="text-xs bg-background/50 p-2 rounded border overflow-x-auto">
+                            <pre className="text-xs bg-background/50 p-2 rounded border overflow-x-auto break-words">
                               {JSON.stringify(entry.previousValues, null, 2)}
                             </pre>
                           </div>
@@ -310,7 +310,7 @@ export default function ExpenseDetailPage() {
                             <p className="text-sm font-medium text-green-700 mb-2">
                               Updated Values
                             </p>
-                            <pre className="text-xs bg-background/50 p-2 rounded border overflow-x-auto">
+                            <pre className="text-xs bg-background/50 p-2 rounded border overflow-x-auto break-words">
                               {JSON.stringify(entry.updatedValues, null, 2)}
                             </pre>
                           </div>

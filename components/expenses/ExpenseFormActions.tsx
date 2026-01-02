@@ -1,17 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDownIcon } from "lucide-react";
-
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 interface ExpenseActionButtonGroupProps {
   isEdit: boolean;
   isDraft: boolean;
@@ -75,46 +73,77 @@ export function ExpenseActionButtonGroup({
   const isDisabled = !hasLineItems || isPending;
 
   return (
-    <div className="flex items-center justify-end gap-3">
-      {/* Cancel Button */}
-      <Button type="button" variant="ghost" onClick={onCancel}>
-        Cancel
-      </Button>
+    <div className="flex flex-col gap-3 pt-4 border-t lg:flex-row lg:gap-3">
+      <div className="flex gap-3 lg:gap-3">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onCancel}
+          className="flex-1 lg:flex-none"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isSubmitting}
+          onClick={onSubmit}
+          className="flex-1 lg:flex-none shadow-sm"
+        >
+          {isSubmitting ? "Saving..." : "Save Draft"}
+        </Button>
+      </div>
 
-      {/* Save as Draft Button */}
-      <Button
-        type="button"
-        variant="outline"
-        disabled={isSubmitting}
-        onClick={onSubmit}
-        className="shadow-sm"
-      >
-        {isSubmitting ? "Saving..." : "Save Draft"}
-      </Button>
-
-      {/* Submit for Approval */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Submit for:</span>
-        <div className="inline-flex rounded-md shadow-sm">
-          {approvalOptions.map((option) => (
+      <div className="divide-primary-foreground/30 inline-flex w-fit divide-x rounded-md shadow-xs">
+        <Button
+          type="button"
+          variant="default"
+          disabled={isDisabled}
+          onClick={handleSubmitAction}
+          className="rounded-none rounded-l-md focus-visible:z-10"
+        >
+          {isPending
+            ? "Processing..."
+            : approvalOptions.find((o) => o.action === selectedAction)?.label}
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
-              key={option.action}
-              type="button"
-              variant={selectedAction === option.action ? "default" : "outline"}
-              size="sm"
+              size="icon"
               disabled={isDisabled}
-              onClick={() => {
-                setSelectedAction(option.action);
-                handleSubmitAction();
-              }}
-              className="rounded-none first:rounded-l-md last:rounded-r-md border-l-0 first:border-l"
+              className="rounded-none rounded-r-md focus-visible:z-10"
             >
-              {isPending && selectedAction === option.action
-                ? "Processing..."
-                : option.label}
+              <ChevronDown />
+              <span className="sr-only">Select submit option</span>
             </Button>
-          ))}
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="bottom"
+            sideOffset={4}
+            align="end"
+            className="max-w-64 md:max-w-xs"
+          >
+            <DropdownMenuRadioGroup
+              value={selectedAction}
+              onValueChange={setSelectedAction}
+            >
+              {approvalOptions.map((option) => (
+                <DropdownMenuRadioItem
+                  key={option.action}
+                  value={option.action}
+                  className="items-start [&>span]:pt-1.5"
+                >
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium">{option.label}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {option.description}
+                    </span>
+                  </div>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

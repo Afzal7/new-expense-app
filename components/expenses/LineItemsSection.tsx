@@ -18,7 +18,7 @@ export function LineItemsSection({
   return (
     <div className="space-y-6">
       {/* Section Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="space-y-1">
           <h3 className="text-lg font-semibold">Line Items</h3>
           <p className="text-sm text-muted-foreground">

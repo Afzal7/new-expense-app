@@ -10,3 +10,12 @@ export const EXPENSE_STATES = {
 } as const;
 
 export type ExpenseState = (typeof EXPENSE_STATES)[keyof typeof EXPENSE_STATES];
+
+// Submission statuses for API operations
+export const EXPENSE_SUBMISSION_STATUSES = {
+  PRE_APPROVAL: "pre-approval",
+  APPROVAL_PENDING: "approval-pending",
+} as const;
+
+export type ExpenseSubmissionStatus =
+  (typeof EXPENSE_SUBMISSION_STATUSES)[keyof typeof EXPENSE_SUBMISSION_STATUSES];

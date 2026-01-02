@@ -1,13 +1,13 @@
-# Implementation Plan: Expense App MVP (User Story 1)
+# Implementation Plan: [FEATURE]
 
-**Branch**: `001-expense-app-mvp` | **Date**: 2025-12-31 | **Spec**: spec.md
-**Input**: Feature specification from `/specs/001-expense-app-mvp/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
-Implement User Story 1: Employee Expense Capture and Submission. This involves creating a form for expense entry with embedded line items, file uploads to Cloudflare R2 via signed URLs, draft saving, and submission for pre-approval. Technical approach uses Next.js, React, TanStack Query, shadcn components, and MongoDB with embedded documents.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
@@ -17,34 +17,35 @@ Implement User Story 1: Employee Expense Capture and Submission. This involves c
   the iteration process.
 -->
 
-**Language/Version**: TypeScript 5.x, Next.js 14+
-**Primary Dependencies**: TanStack Query, shadcn/ui, Better Auth, Mongoose
-**Storage**: MongoDB (data), Cloudflare R2 (files)
-**Testing**: Jest (unit), Cypress (E2E)
-**Target Platform**: Web browsers (Chrome, Firefox, Safari)
-**Project Type**: Web application
+**Language/Version**: TypeScript 5.x, Next.js 16+
+**Primary Dependencies**: TanStack Query, shadcn/ui, Better Auth, Mongoose, React Dropzone
+**Storage**: MongoDB (data), Cloudflare R2 (files via signed URLs)
+**Testing**: Vitest (unit), Playwright (E2E)
+**Target Platform**: Web browsers (Chrome, Firefox, Safari, Edge)
+**Project Type**: Next.js 16 web application with App Router
 **Performance Goals**: Sub-100ms response times for form submissions and state transitions
-**Constraints**: 5MB file size limit, mobile-first responsive design, no native fetch calls
-**Scale/Scope**: 1-100 users, expense management with attachments
+**Constraints**: 5MB file size limit, mobile-first responsive design, no native fetch calls, REST APIs only
+**Scale/Scope**: 1-100 users, expense management with file attachments
 
 ## Constitution Check
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-- DRY Principle: Ensure no code duplication in components and hooks.
-- Component Completeness: Create self-contained components with full action logic.
-- API Management: Use TanStack Query exclusively for data operations.
-- UI Component Library: Use shadcn components only.
-- State Management: Implement empty/loading/error states.
-- Action Feedback: Provide loading, success/error toasts, and list updates.
-- API Design: Use REST APIs, no server actions.
-- Code Quality: Maintain readable, maintainable code.
-- Development Workflow: Divide tasks into logical blocks with lint/build checks.
-- Type Safety: Use TypeScript with strict mode.
-- Configuration Management: Use environment variables.
-- Error Handling: Implement error boundaries and proper handling.
+- DRY Principle: ✅ Confirmed - Shared expense list component and reusable hooks implemented
+- Component Completeness: ✅ Confirmed - Expense form components contain complete action logic with API calls
+- API Management: ✅ Confirmed - TanStack Query used exclusively for all data operations
+- UI Component Library: ✅ Confirmed - shadcn components used throughout for consistency
+- State Management: ✅ Confirmed - Loading/error states implemented for all pages and components
+- Action Feedback: ✅ Confirmed - Loading states, success/error toasts, and list updates on all actions
+- API Design: ✅ Confirmed - REST APIs with PATCH actions for state transitions implemented
+- Code Quality: ✅ Confirmed - TypeScript strict mode, readable code, and proper structure
+- Development Workflow: ✅ Confirmed - Tasks divided into logical blocks with lint/build checks
+- Type Safety: ✅ Confirmed - TypeScript strict mode enabled throughout
+- Configuration Management: ✅ Confirmed - Environment variables used for all configuration
+- Error Handling: ✅ Confirmed - Error boundaries and user-friendly messages implemented
+- Existing Code: ✅ Confirmed - Existing expense view page and APIs reused for manager/finance pages
 
-All principles are planned to be followed for User Story 1 implementation.
+All principles successfully implemented and verified in the final design.
 
 ## Project Structure
 
@@ -62,51 +63,73 @@ specs/[###-feature]/
 
 ### Source Code (repository root)
 
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
-
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
+app/
+├── api/
+│   ├── auth/[...all]/route.ts      # Better Auth routes
+│   ├── expenses/
+│   │   ├── route.ts                # GET/POST expenses
+│   │   └── [id]/route.ts           # PUT/PATCH individual expenses
+│   └── upload/
+│       ├── signed-url/route.ts     # Generate signed URLs for uploads
+│       └── delete-signed-url/route.ts # Delete signed URLs
+├── dashboard/
+│   ├── expenses/
+│   │   ├── page.tsx                # Expenses list with edit functionality
+│   │   └── create/page.tsx         # Expense creation form
+│   ├── manager/
+│   │   └── approvals/page.tsx      # Ready for Approvals page
+│   └── finance/
+│       └── reimbursements/page.tsx # Ready for Reimbursement page
+├── layout.tsx                      # Root layout with providers
+└── page.tsx                        # Landing page
+
+components/
+├── ui/                             # shadcn/ui components
+├── expense-form.tsx                # Main expense form component
+├── line-item-form.tsx              # Line item sub-form
+├── file-upload.tsx                 # File upload with React Dropzone
+├── shared/
+│   └── expense-list.tsx            # Reusable expense list component
+├── expenses/
+│   ├── ExpenseFormActions.tsx      # Form action buttons
+│   ├── ManagerSelector.tsx         # Manager selection component
+│   └── LineItemsSection.tsx        # Line items management
+└── manager/
+    └── expense-detail-modal.tsx    # Manager expense detail modal
+
+hooks/
+├── use-expense-mutations.ts        # TanStack Query mutations
+├── use-expenses.ts                 # TanStack Query queries
+└── use-optimized-upload.ts         # File upload hook
+
+lib/
+├── auth.ts                         # Better Auth configuration
+├── db.ts                           # MongoDB/Mongoose connection
 ├── models/
-├── services/
-├── cli/
-└── lib/
+│   └── expense.ts                  # Expense Mongoose schema
+├── validations/
+│   └── expense.ts                  # Zod validation schemas
+├── constants/
+│   └── expense-states.ts           # Expense state constants
+├── errors.ts                       # Error handling utilities
+├── env.ts                          # Environment validation
+└── utils.ts                        # Utility functions
+
+types/
+└── expense.ts                      # TypeScript interfaces
 
 tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+├── unit/
+│   ├── models/expense.test.ts      # Schema validation tests
+│   ├── api/expenses.test.ts        # API route tests
+│   ├── components/                 # Component unit tests
+│   └── hooks/                      # Hook unit tests
+└── integration/
+    └── expense-workflow.test.ts    # End-to-end workflow tests
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: Next.js 16 App Router with feature-based component organization. API routes follow REST conventions with PATCH actions for state transitions. Testing covers unit, integration, and component levels. Shared components are placed in dedicated directories for reusability.
 
 ## Complexity Tracking
 

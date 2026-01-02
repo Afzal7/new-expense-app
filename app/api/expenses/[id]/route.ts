@@ -15,13 +15,13 @@ import {
   NotFoundError,
   ForbiddenError,
 } from "@/lib/errors";
-import type {
-  ExpenseInput,
-  LineItemInput,
-  LineItem,
-  AuditEntry,
-} from "@/types/expense";
+import type { ExpenseInput } from "@/types/expense";
 import { UpdateExpenseSchema } from "@/lib/validations/expense";
+import {
+  transformExpenseToApiResponse,
+  transformLineItemsToDatabase,
+  createLineItemsSnapshot,
+} from "@/lib/utils/expense-api-transformers";
 
 // Zod schema for action validation
 const ExpenseActionSchema = z.object({
@@ -73,31 +73,7 @@ export async function GET(
     }
 
     // Return expense
-    return Response.json({
-      id: expense._id.toString(),
-      userId: expense.userId,
-      organizationId: expense.organizationId,
-      managerIds: expense.managerIds,
-      totalAmount: expense.totalAmount,
-      state: expense.state,
-      lineItems: expense.lineItems.map((item: LineItem) => ({
-        amount: item.amount,
-        date: item.date.toISOString(),
-        description: item.description,
-        category: item.category,
-        attachments: item.attachments,
-      })),
-      auditLog: expense.auditLog.map((entry: AuditEntry) => ({
-        action: entry.action,
-        date: entry.date.toISOString(),
-        actorId: entry.actorId,
-        previousValues: entry.previousValues,
-        updatedValues: entry.updatedValues,
-      })),
-      createdAt: expense.createdAt.toISOString(),
-      updatedAt: expense.updatedAt.toISOString(),
-      deletedAt: expense.deletedAt?.toISOString() || null,
-    });
+    return Response.json(transformExpenseToApiResponse(expense));
   } catch (error) {
     console.error("[API] GET /api/expenses/[id] error:", error);
     return createErrorResponse(error);
@@ -193,38 +169,21 @@ export async function PUT(
 
     const validatedData = validationResult.data;
     const expenseInput: ExpenseInput = {
-      totalAmount: validatedData.totalAmount || 0, // Provide default if undefined
-      managerIds: validatedData.managerIds || [], // Provide default if undefined
-      lineItems: (validatedData.lineItems || []).map(
-        (item): LineItemInput => ({
-          amount: item.amount || 0, // Provide default if undefined
-          date: new Date(item.date),
-          description: item.description,
-          category: item.category,
-        })
-      ),
+      totalAmount: validatedData.totalAmount || 0,
+      managerIds: validatedData.managerIds || [],
+      lineItems: transformLineItemsToDatabase(validatedData.lineItems || []),
     };
 
     // Convert line item dates to Date objects
-    const lineItemsWithDates = expenseInput.lineItems.map((item) => ({
-      amount: item.amount,
-      date: new Date(item.date),
-      description: item.description,
-      category: item.category,
-      attachments: [], // Attachments will be added via separate upload
-    }));
+    const lineItemsWithDates = transformLineItemsToDatabase(
+      validatedData.lineItems || []
+    );
 
     // Store previous values for audit log
     const previousValues = {
       totalAmount: expense.totalAmount,
       managerIds: [...expense.managerIds],
-      lineItems: expense.lineItems.map((item: LineItem) => ({
-        amount: item.amount,
-        date: item.date.toISOString(),
-        description: item.description,
-        category: item.category,
-        attachments: [...item.attachments],
-      })),
+      lineItems: createLineItemsSnapshot(expense.lineItems),
     };
 
     // Update expense fields
@@ -236,13 +195,7 @@ export async function PUT(
     const updatedValues = {
       totalAmount: expense.totalAmount,
       managerIds: [...expense.managerIds],
-      lineItems: expense.lineItems.map((item: LineItem) => ({
-        amount: item.amount,
-        date: item.date.toISOString(),
-        description: item.description,
-        category: item.category,
-        attachments: [...item.attachments],
-      })),
+      lineItems: createLineItemsSnapshot(expense.lineItems),
     };
 
     // Add audit entry
@@ -257,31 +210,7 @@ export async function PUT(
     const savedExpense = await expense.save();
 
     // Return updated expense
-    return Response.json({
-      id: savedExpense._id.toString(),
-      userId: savedExpense.userId,
-      organizationId: savedExpense.organizationId,
-      managerIds: savedExpense.managerIds,
-      totalAmount: savedExpense.totalAmount,
-      state: savedExpense.state,
-      lineItems: savedExpense.lineItems.map((item: LineItem) => ({
-        amount: item.amount,
-        date: item.date.toISOString(),
-        description: item.description,
-        category: item.category,
-        attachments: item.attachments,
-      })),
-      auditLog: savedExpense.auditLog.map((entry: AuditEntry) => ({
-        action: entry.action,
-        date: entry.date.toISOString(),
-        actorId: entry.actorId,
-        previousValues: entry.previousValues,
-        updatedValues: entry.updatedValues,
-      })),
-      createdAt: savedExpense.createdAt.toISOString(),
-      updatedAt: savedExpense.updatedAt.toISOString(),
-      deletedAt: savedExpense.deletedAt?.toISOString() || null,
-    });
+    return Response.json(transformExpenseToApiResponse(savedExpense));
   } catch (error) {
     console.error("[API] PUT /api/expenses/[id] error:", error);
     return createErrorResponse(error);
@@ -592,31 +521,7 @@ export async function PATCH(
     const savedExpense = await expense.save();
 
     // Return updated expense
-    return Response.json({
-      id: savedExpense._id.toString(),
-      userId: savedExpense.userId,
-      organizationId: savedExpense.organizationId,
-      managerIds: savedExpense.managerIds,
-      totalAmount: savedExpense.totalAmount,
-      state: savedExpense.state,
-      lineItems: savedExpense.lineItems.map((item: LineItem) => ({
-        amount: item.amount,
-        date: item.date.toISOString(),
-        description: item.description,
-        category: item.category,
-        attachments: item.attachments,
-      })),
-      auditLog: savedExpense.auditLog.map((entry: AuditEntry) => ({
-        action: entry.action,
-        date: entry.date.toISOString(),
-        actorId: entry.actorId,
-        previousValues: entry.previousValues,
-        updatedValues: entry.updatedValues,
-      })),
-      createdAt: savedExpense.createdAt.toISOString(),
-      updatedAt: savedExpense.updatedAt.toISOString(),
-      deletedAt: savedExpense.deletedAt?.toISOString() || null,
-    });
+    return Response.json(transformExpenseToApiResponse(savedExpense));
   } catch (error) {
     console.error("[API] PATCH /api/expenses/[id] error:", error);
     return createErrorResponse(error);

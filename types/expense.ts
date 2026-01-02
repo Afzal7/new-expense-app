@@ -6,29 +6,29 @@
 import type { ExpenseState } from "../lib/models";
 
 /**
- * Line Item interface
+ * Line Item interface (API response format)
  */
 export interface LineItem {
   amount: number;
-  date: Date;
+  date: string; // ISO date string from API
   description?: string;
   category?: string;
   attachments: string[];
 }
 
 /**
- * Audit Entry interface
+ * Audit Entry interface (API response format)
  */
 export interface AuditEntry {
   action: string;
-  date: Date;
+  date: string; // ISO date string from API
   actorId: string;
   previousValues?: Record<string, unknown>;
   updatedValues?: Record<string, unknown>;
 }
 
 /**
- * Expense interface
+ * Expense interface (API response format)
  */
 export interface Expense {
   id: string;
@@ -39,19 +39,20 @@ export interface Expense {
   state: ExpenseState;
   lineItems: LineItem[];
   auditLog: AuditEntry[];
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date | null;
+  createdAt: string; // ISO date string from API
+  updatedAt: string; // ISO date string from API
+  deletedAt: string | null; // ISO date string from API
 }
 
 /**
- * Line Item Input interface for creating/updating (without attachments)
+ * Line Item Input interface for creating/updating
  */
 export interface LineItemInput {
   amount: number;
   date: Date;
   description?: string;
   category?: string;
+  attachments: string[];
 }
 
 /**

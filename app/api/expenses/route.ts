@@ -15,8 +15,11 @@ import {
 } from "@/lib/errors";
 import { CreateExpenseSchema } from "@/lib/validations/expense";
 import { sanitizeSearchQuery } from "@/lib/sanitize";
-import type { DatabaseLineItem } from "@/lib/validations/expense";
-import type { AuditEntry } from "@/types/expense";
+import {
+  transformExpensesToApiResponse,
+  transformExpenseToApiResponse,
+  transformLineItemsToDatabase,
+} from "@/lib/utils/expense-api-transformers";
 
 // GET /api/expenses - List expenses with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -82,31 +85,7 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(total / limit);
 
     return Response.json({
-      expenses: expenses.map((expense) => ({
-        id: expense._id.toString(),
-        userId: expense.userId,
-        organizationId: expense.organizationId,
-        managerIds: expense.managerIds,
-        totalAmount: expense.totalAmount,
-        state: expense.state,
-        lineItems: expense.lineItems.map((item: DatabaseLineItem) => ({
-          amount: item.amount,
-          date: item.date.toISOString(),
-          description: item.description,
-          category: item.category,
-          attachments: item.attachments,
-        })),
-        auditLog: expense.auditLog.map((entry: AuditEntry) => ({
-          action: entry.action,
-          date: entry.date.toISOString(),
-          actorId: entry.actorId,
-          previousValues: entry.previousValues,
-          updatedValues: entry.updatedValues,
-        })),
-        createdAt: expense.createdAt.toISOString(),
-        updatedAt: expense.updatedAt.toISOString(),
-        deletedAt: expense.deletedAt?.toISOString() || null,
-      })),
+      expenses: transformExpensesToApiResponse(expenses),
       total,
       page,
       limit,
@@ -177,20 +156,8 @@ export async function POST(request: NextRequest) {
     const validatedData = validationResult.data;
 
     // Convert line item dates to Date objects
-    const lineItemsWithDates = (validatedData.lineItems || []).map(
-      (item: {
-        amount?: number;
-        date: string;
-        description?: string;
-        category?: string;
-        attachments?: string[];
-      }) => ({
-        amount: item.amount || 0,
-        date: new Date(item.date),
-        description: item.description,
-        category: item.category,
-        attachments: item.attachments || [],
-      })
+    const lineItemsWithDates = transformLineItemsToDatabase(
+      validatedData.lineItems || []
     );
 
     // Create expense
@@ -216,34 +183,9 @@ export async function POST(request: NextRequest) {
     const savedExpense = await expense.save();
 
     // Return created expense
-    return Response.json(
-      {
-        id: savedExpense._id.toString(),
-        userId: savedExpense.userId,
-        organizationId: savedExpense.organizationId,
-        managerIds: savedExpense.managerIds,
-        totalAmount: savedExpense.totalAmount,
-        state: savedExpense.state,
-        lineItems: savedExpense.lineItems.map((item: DatabaseLineItem) => ({
-          amount: item.amount,
-          date: item.date.toISOString(),
-          description: item.description,
-          category: item.category,
-          attachments: item.attachments,
-        })),
-        auditLog: savedExpense.auditLog.map((entry: AuditEntry) => ({
-          action: entry.action,
-          date: entry.date.toISOString(),
-          actorId: entry.actorId,
-          previousValues: entry.previousValues,
-          updatedValues: entry.updatedValues,
-        })),
-        createdAt: savedExpense.createdAt.toISOString(),
-        updatedAt: savedExpense.updatedAt.toISOString(),
-        deletedAt: savedExpense.deletedAt?.toISOString() || null,
-      },
-      { status: 201 }
-    );
+    return Response.json(transformExpenseToApiResponse(savedExpense), {
+      status: 201,
+    });
   } catch (error) {
     console.error("[API] POST /api/expenses error:", error);
     return createErrorResponse(error);

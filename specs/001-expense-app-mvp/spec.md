@@ -1,11 +1,26 @@
 # Feature Specification: Expense App MVP
 
-**Feature Branch**: `001-expense-app-mvp`  
-**Created**: 2025-12-31  
-**Status**: Draft  
+**Feature Branch**: `001-expense-app-mvp`
+**Created**: 2025-12-31
+**Status**: Draft
 **Input**: User description: "use @docs/prd.md"
 
+## Summary
+
+Implement complete expense management system with three user stories:
+
+- **US1**: Employee Expense Capture and Submission (MVP core)
+- **US2**: Manager Approval Workflow
+- **US3**: Finance Reimbursement Processing
+
+This involves creating a comprehensive expense management platform with forms for expense entry, embedded line items, file uploads to Cloudflare R2 via signed URLs, multi-level approval workflows, and financial processing. Technical approach uses Next.js 16, React, TanStack Query, shadcn components, and MongoDB with embedded documents.
+
 ## Clarifications
+
+### Session 2025-01-01
+
+- Q: What pages should managers and accountants/finance users have for reviewing expenses? → A: Create two pages - "Ready for Approvals" (shows non-deleted expenses in approval_pending state) and "Ready for Reimbursement" (shows non-deleted expenses in approved state). Both pages will have search field, filter by employee dropdown, option to view expense details, and actions to approve/reject (approvals page) or reimburse (reimbursement page). Use same underlying list component with different API filters.
+- Q: How should these pages integrate with existing APIs and authorization? → A: Use existing GET /api/expenses and PATCH /api/expenses/[id] APIs. Update validations: only assigned managers can approve expenses, any admin can mark as reimbursed. Use existing expense view page for details.
 
 ### Session 2025-12-31
 
@@ -21,7 +36,7 @@
 - Q: How should the approval process work for expenses with multiple managers? → A: Any one manager can approve the expense.
 - Q: What happens when editing a pre-approved expense? → A: Allow editing without changing state; expense has totalAmount at root, filled by employee and sent for pre-approval; totalAmount gets frozen on approval; if adding line items where sum exceeds total, manager sees message that expense has crossed pre-approved limit.
 - Q: What are the file size limits and supported formats for attachments? → A: Max 5MB, JPG/PNG/PDF.
-- Q: What storage solution will be used for attachments? → A: Cloudflare R2.
+- Q: What storage solution will be used for attachments? → A: Cloudflare R2 via signed URLs (exempt from no-native-fetch rule per constitution).
 - Q: What UI library will be used for file uploads? → A: React Dropzone.
 - Q: Should User Story 4 be removed? → A: Yes, completely remove User Story 4 as the flow is not needed.
 - Q: What are the Better Auth org roles for the system? → A: Owner can do everything, Admin can do manager and accountant jobs, Member is employee.
@@ -64,8 +79,10 @@ As a manager, I want to review and approve/reject expense submissions from my te
 
 **Acceptance Scenarios**:
 
-1. **Given** an expense submitted to me, **When** I review it, **Then** I can approve or reject with optional comments.
-2. **Given** a pre-approval request, **When** I approve it, **Then** the user can proceed with spending and get final approval faster.
+1. **Given** a "Ready for Approvals" page, **When** I access it, **Then** I see all non-deleted expenses in approval_pending state with search and employee filter options.
+2. **Given** an expense in the approval list, **When** I click to view it, **Then** I am taken to the existing expense detail view page.
+3. **Given** an expense I'm reviewing, **When** I choose to approve or reject, **Then** I can add optional comments and the expense state updates accordingly.
+4. **Given** a pre-approval request, **When** I approve it, **Then** the user can proceed with spending and get final approval faster.
 
 ---
 
@@ -79,8 +96,10 @@ As a finance user, I want to process approved expenses for reimbursement and exp
 
 **Acceptance Scenarios**:
 
-1. **Given** approved expenses, **When** I mark them as reimbursed, **Then** they are locked and users are notified.
-2. **Given** expense data, **When** I export to CSV or PDF, **Then** it generates within 5 seconds for up to 1000 records.
+1. **Given** a "Ready for Reimbursement" page, **When** I access it, **Then** I see all non-deleted expenses in approved state with search and employee filter options.
+2. **Given** an expense in the reimbursement list, **When** I click to view it, **Then** I am taken to the existing expense detail view page.
+3. **Given** an approved expense, **When** I mark it as reimbursed, **Then** it is locked and users are notified of reimbursement completion.
+4. **Given** expense data, **When** I export to CSV or PDF, **Then** it generates within 5 seconds for up to 1000 records.
 
 ---
 
@@ -122,7 +141,7 @@ As a finance user, I want to process approved expenses for reimbursement and exp
 - **FR-021**: System MUST provide admin users view-all access to approved expenses.
 - **FR-022**: System MUST allow admin to mark expenses as reimbursed.
 - **FR-023**: System MUST support exporting filtered expense lists as CSV or PDF.
-- **FR-024**: System MUST provide dopamine-driven micro-feedback for state transitions.
+- **FR-024**: System MUST provide immediate visual feedback for state transitions including success toasts with checkmark icons, loading spinners during transitions, and smooth 200ms ease-in-out animations.
 - **FR-025**: System MUST use fluid, minimalist transitions for progress indication.
 - **FR-026**: System MUST delete attached files immediately when the expense modal is closed without saving the draft.
 - **FR-027**: Required fields for each line item are only amount and date.
@@ -134,6 +153,24 @@ As a finance user, I want to process approved expenses for reimbursement and exp
 - **FR-033**: Expense MUST have a totalAmount field at the root, set by employee and frozen on pre-approval.
 - **FR-034**: System MUST validate that the sum of line item amounts does not exceed totalAmount; notify manager if exceeded.
 - **FR-035**: Attachments MUST be in JPG/PNG/PDF formats and limited to 5MB max size per file.
+- **FR-036**: System MUST prevent users from approving their own expense submissions.
+- **FR-037**: System MUST enforce state transitions and prevent invalid operations (e.g., reimbursing unapproved expenses).
+- **FR-038**: System MUST allow manual review flags for duplicate receipts or unusual spending patterns.
+- **FR-039**: System MUST immediately delete attached files when expense modal is closed without saving draft.
+- **FR-040**: System MUST prevent deletion of expenses or line items in approved state.
+- **FR-041**: System MUST validate manager email existence for non-organization users and block submission with clear error message.
+- **FR-042**: System MUST allow conversion of private expenses to organizational by attaching a manager.
+- **FR-043**: System MUST notify managers when line item amounts exceed pre-approved totalAmount with clear warning message.
+- **FR-044**: System MUST provide a "Ready for Approvals" page for managers showing all non-deleted expenses in approval_pending state.
+- **FR-045**: System MUST provide a "Ready for Reimbursement" page for finance users showing all non-deleted expenses in approved state.
+- **FR-046**: Both approval and reimbursement pages MUST include search field and employee filter dropdown.
+- **FR-047**: System MUST allow managers to view expense details and approve/reject expenses from the approvals page.
+- **FR-048**: System MUST allow finance users to view expense details and mark expenses as reimbursed from the reimbursement page.
+- **FR-049**: System MUST use reusable expense list components across all pages with different API filters.
+- **FR-050**: System MUST use existing GET /api/expenses and PATCH /api/expenses/[id] APIs for manager and finance pages.
+- **FR-051**: System MUST only allow assigned managers to approve expenses via PATCH approval action.
+- **FR-052**: System MUST allow any admin user to mark expenses as reimbursed via PATCH reimbursement action.
+- **FR-053**: System MUST use existing expense detail view page for viewing expense details from manager/finance pages.
 
 ### Key Entities _(include if feature involves data)_
 
@@ -148,7 +185,7 @@ As a finance user, I want to process approved expenses for reimbursement and exp
 ### Measurable Outcomes
 
 - **SC-001**: Users can sign up and capture first expense in under 2 minutes.
-- **SC-002**: 90%+ of users utilize pre-approval flow due to UI design.
+- **SC-002**: Pre-approval submission button is prominently displayed and used in 80% of expense submissions after 30 days of user data collection.
 - **SC-003**: System provides sub-100ms response times for state transitions.
 
 - **SC-004**: Admin exports generate in under 5 seconds for up to 1000 records.

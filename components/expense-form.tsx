@@ -1,41 +1,36 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo } from "react";
 import { useForm, useFieldArray, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useOrganizationMembers } from "@/hooks/use-organization-members";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { toast } from "sonner";
-import type { Expense, ExpenseInput } from "@/types/expense";
-import { useExpenseMutations } from "@/hooks/use-expense-mutations";
+import { useExpenseFormSubmission } from "@/hooks/use-expense-form-submission";
 import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 import { ManagerSelector } from "./expenses/ManagerSelector";
 import { LineItemsSection } from "./expenses/LineItemsSection";
 import { ExpenseActionButtonGroup } from "./expenses/ExpenseFormActions";
 import { ExpenseFormSchema } from "@/lib/validations/expense";
-
-// Local type for the form that matches the ExpenseFormSchema (flexible for drafts)
-type ExpenseFormData = {
-  totalAmount?: number;
-  managerIds?: string[];
-  lineItems?: {
-    amount?: number;
-    date: string;
-    description?: string;
-    category?: string;
-    attachments?: string[];
-  }[];
-};
+import {
+  calculateLineItemsTotal,
+  createDefaultLineItem,
+  hasLineItems,
+  isDraftExpense as checkIsDraftExpense,
+  totalsMatch,
+  formatCurrency,
+} from "@/lib/utils/expense-form";
+import { ExpenseBusinessRules } from "@/lib/utils/expense-business-logic";
+import type { Expense } from "@/types/expense";
+import type { ExpenseFormData, FormLineItem } from "@/lib/utils/expense-form";
 
 interface ExpenseFormProps {
   initialData?: Expense;
   organizationId?: string;
-  onSuccess: (data: Expense | ExpenseInput) => void;
+  onSuccess: (data: Expense) => void;
   onCancel: () => void;
 }
 
@@ -50,12 +45,18 @@ export function ExpenseForm({
     isLoading: orgLoading,
     error: orgError,
   } = useOrganizationMembers(organizationId || "");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [managerPopoverOpen, setManagerPopoverOpen] = useState(false);
-  const { submitExpense, approveExpense } = useExpenseMutations();
+
+  const {
+    submitDraft,
+    submitForPreApproval,
+    submitForFinalApproval,
+    isSubmitting,
+  } = useExpenseFormSubmission({
+    expenseId: initialData?.id,
+    onSuccess,
+  });
 
   const isEdit = !!initialData;
-  const expenseId = initialData?.id;
 
   const formMethods = useForm<ExpenseFormData>({
     resolver: zodResolver(ExpenseFormSchema),
@@ -67,7 +68,7 @@ export function ExpenseForm({
         date: new Date(item.date).toISOString().split("T")[0],
         description: item.description || "",
         category: item.category || "",
-        attachments: item.attachments || [],
+        attachments: item.attachments,
       })),
     },
   });
@@ -79,7 +80,6 @@ export function ExpenseForm({
     formState: { errors },
     setValue,
     watch,
-    getValues,
   } = formMethods;
 
   const { fields, append, remove } = useFieldArray({
@@ -87,22 +87,34 @@ export function ExpenseForm({
     name: "lineItems",
   });
 
-  const watchedManagerIds = watch("managerIds") || [];
-  const watchedLineItems = watch("lineItems") || [];
-  const watchedTotalAmount = watch("totalAmount") || 0;
-  const isDraft = initialData?.state === EXPENSE_STATES.DRAFT;
-  const hasLineItems = watchedLineItems.length > 0;
+  // Use memoized values for better performance
+  const formData = watch();
+  const managerIds = formData.managerIds || [];
+  const lineItems = formData.lineItems || [];
+  const totalAmount = formData.totalAmount || 0;
+  const isDraft = checkIsDraftExpense(initialData);
+  const hasAnyLineItems = hasLineItems(formData);
 
-  // Calculate total amount from line items
-  const calculatedTotal = watchedLineItems.reduce(
-    (sum: number, item: any) => sum + (item.amount || 0),
-    0
+  // Memoized calculations
+  const calculatedTotal = useMemo(
+    () => calculateLineItemsTotal(lineItems),
+    [lineItems]
+  );
+
+  const totalsAreMatching = useMemo(
+    () => totalsMatch(totalAmount, calculatedTotal),
+    [totalAmount, calculatedTotal]
   );
 
   // Auto-fill function for total amount
   const handleAutoFill = React.useCallback(() => {
     setValue("totalAmount", calculatedTotal);
   }, [calculatedTotal, setValue]);
+
+  // Business rule checks
+  const canModifyTotal = ExpenseBusinessRules.canModifyTotalAmount(initialData);
+  const canModifyLineItems =
+    ExpenseBusinessRules.canModifyLineItems(initialData);
 
   if (orgLoading) {
     return <LoadingSkeleton type="form" count={1} />;
@@ -119,157 +131,19 @@ export function ExpenseForm({
   }
 
   const onSubmit = async (data: ExpenseFormData): Promise<void> => {
-    setIsSubmitting(true);
-    try {
-      const method = isEdit ? "PUT" : "POST";
-      const url = isEdit ? `/api/expenses/${expenseId}` : "/api/expenses";
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          totalAmount: data.totalAmount || 0,
-          managerIds: data.managerIds || [],
-          lineItems: (data.lineItems || []).map((item) => ({
-            amount: item.amount || 0,
-            date: new Date(item.date).toISOString(),
-            description: item.description,
-            category: item.category,
-            attachments: item.attachments || [],
-          })),
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        toast.success(
-          isEdit
-            ? "Expense updated successfully"
-            : "Expense created successfully"
-        );
-        onSuccess(result);
-      } else {
-        throw new Error(`Failed to ${isEdit ? "update" : "create"} expense`);
-      }
-    } catch (error) {
-      console.error("Submission error:", error);
-      toast.error(`Failed to ${isEdit ? "update" : "create"} expense`);
-    } finally {
-      setIsSubmitting(false);
-    }
+    await submitDraft(data);
   };
 
-  const handleSubmitForApproval = async () => {
-    if (isEdit) {
-      try {
-        const result = await submitExpense.mutateAsync(expenseId!);
-        toast.success("Expense submitted for pre-approval successfully");
-        onSuccess(result);
-      } catch (error) {
-        console.error("Submit error:", error);
-        toast.error("Failed to submit expense for pre-approval");
-      }
-    } else {
-      // For new expenses, create with pre-approval status directly
-      try {
-        const data = getValues();
-        const formattedData: any = {
-          totalAmount: data.totalAmount || 0,
-          managerIds: data.managerIds || [],
-          lineItems: (data.lineItems || []).map((item) => ({
-            amount: item.amount || 0,
-            date: new Date(item.date).toISOString(),
-            description: item.description || "",
-            category: item.category || "",
-            attachments: item.attachments || [],
-          })),
-          status: "pre-approval",
-        };
-        const response = await fetch("/api/expenses", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formattedData),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          toast.success(
-            "Expense created and submitted for pre-approval successfully"
-          );
-          onSuccess(result);
-        } else {
-          throw new Error("Failed to create expense");
-        }
-      } catch (error) {
-        console.error("Submit error:", error);
-        toast.error("Failed to create and submit expense for pre-approval");
-      }
-    }
+  const handleSubmitForApproval = async (): Promise<void> => {
+    await submitForPreApproval(formData);
   };
 
-  const handleSubmitForFinalApproval = async () => {
-    if (isEdit) {
-      try {
-        // For existing expenses, submit to pre-approval first, then approve
-        const submitResult = await submitExpense.mutateAsync(expenseId!);
-        const result = await approveExpense.mutateAsync(expenseId!);
-        toast.success("Expense submitted for final approval successfully");
-        onSuccess(result);
-      } catch (error) {
-        console.error("Submit/Approve error:", error);
-        toast.error("Failed to submit expense for final approval");
-      }
-    } else {
-      // For new expenses, create directly with approval-pending status
-      try {
-        const data = getValues();
-        const formattedData: any = {
-          totalAmount: data.totalAmount || 0,
-          managerIds: data.managerIds || [],
-          lineItems: (data.lineItems || []).map((item) => ({
-            amount: item.amount || 0,
-            date: new Date(item.date).toISOString(),
-            description: item.description || "",
-            category: item.category || "",
-            attachments: item.attachments || [],
-          })),
-          status: "approval-pending",
-        };
-        const response = await fetch("/api/expenses", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formattedData),
-        });
-        if (response.ok) {
-          const result = await response.json();
-          toast.success(
-            "Expense created and submitted for final approval successfully"
-          );
-          onSuccess(result);
-        } else {
-          throw new Error("Failed to create expense");
-        }
-      } catch (error) {
-        console.error("Approve error:", error);
-        toast.error("Failed to create and approve expense");
-      }
-    }
+  const handleSubmitForFinalApproval = async (): Promise<void> => {
+    await submitForFinalApproval(formData);
   };
 
   const addLineItem = () => {
-    append({
-      amount: undefined,
-      date: new Date().toISOString().split("T")[0],
-      description: "",
-      category: "",
-      attachments: [],
-    });
+    append(createDefaultLineItem());
   };
 
   return (
@@ -302,14 +176,22 @@ export function ExpenseForm({
                 Total expense amount (required for approval)
               </p>
             </div>
-            {initialData?.state === EXPENSE_STATES.PRE_APPROVED ||
-            initialData?.state === EXPENSE_STATES.APPROVED ? (
+            {canModifyTotal ? (
+              <Input
+                id="totalAmount"
+                type="number"
+                step="0.01"
+                {...register("totalAmount", { valueAsNumber: true })}
+                className="h-11"
+                placeholder=""
+              />
+            ) : (
               <div className="relative">
                 <Input
                   id="totalAmount"
                   type="number"
                   step="0.01"
-                  value={watchedTotalAmount.toFixed(2)}
+                  value={formatCurrency(totalAmount)}
                   readOnly
                   className="bg-muted/50 h-11"
                 />
@@ -319,15 +201,6 @@ export function ExpenseForm({
                   </span>
                 </div>
               </div>
-            ) : (
-              <Input
-                id="totalAmount"
-                type="number"
-                step="0.01"
-                {...register("totalAmount", { valueAsNumber: true })}
-                className="h-11"
-                placeholder=""
-              />
             )}
             {errors?.totalAmount && (
               <p className="text-sm text-destructive">
@@ -339,7 +212,7 @@ export function ExpenseForm({
           {/* Manager Selection */}
           <ManagerSelector
             organization={organization}
-            watchedManagerIds={watchedManagerIds}
+            watchedManagerIds={managerIds}
             onSelectionChange={(ids: string[]) => setValue("managerIds", ids)}
             errors={errors}
           />
@@ -367,9 +240,9 @@ export function ExpenseForm({
               </div>
               <div className="text-left lg:text-right space-y-2">
                 <div className="text-3xl font-bold">
-                  ${calculatedTotal.toFixed(2)}
+                  {formatCurrency(calculatedTotal)}
                 </div>
-                {calculatedTotal !== watchedTotalAmount && (
+                {canModifyTotal && !totalsAreMatching && (
                   <Button
                     type="button"
                     variant="outline"
@@ -390,10 +263,10 @@ export function ExpenseForm({
           <ExpenseActionButtonGroup
             isEdit={isEdit}
             isDraft={isDraft}
-            hasLineItems={hasLineItems}
+            hasLineItems={hasAnyLineItems}
             isSubmitting={isSubmitting}
-            submitExpensePending={submitExpense.isPending}
-            approveExpensePending={approveExpense.isPending}
+            submitExpensePending={isEdit ? isSubmitting : isSubmitting}
+            approveExpensePending={isEdit ? isSubmitting : isSubmitting}
             onSubmit={handleSubmit(onSubmit)}
             onSubmitForApproval={handleSubmitForApproval}
             onSubmitForFinalApproval={handleSubmitForFinalApproval}

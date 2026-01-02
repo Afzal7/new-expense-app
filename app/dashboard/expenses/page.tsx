@@ -11,6 +11,9 @@ import {
   Eye,
   Trash2,
   RotateCcw,
+  Building2,
+  Shield,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -124,255 +127,239 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="space-y-6 lg:space-y-8">
-      {/* Header Section */}
-      <div className="space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-semibold tracking-tight">Expenses</h1>
-            <p className="text-muted-foreground">
-              Manage and track your expense reports
-            </p>
-          </div>
-          <Button asChild size="default" className="shadow-sm">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
+      <div className="container mx-auto px-4 py-6 max-w-md lg:max-w-2xl xl:max-w-4xl">
+        {/* Header - Clean and minimal */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-light text-slate-900 dark:text-white tracking-tight">
+                Expenses
+              </h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
+                Your spending at a glance
+              </p>
+            </div>
             <Link href="/dashboard/expenses/create">
-              <Plus className="mr-2 h-4 w-4" />
-              New Expense
+              <button className="rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-sm h-11 w-11 p-0 flex items-center justify-center">
+                <Plus className="h-4 w-4" />
+              </button>
             </Link>
-          </Button>
-        </div>
+          </div>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search expenses..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-10 h-11 bg-background/50 border-0 shadow-sm focus-visible:ring-1"
-          />
-        </div>
-      </div>
+          {/* Search - Subtle and clean */}
+          <div className="relative mb-6">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-slate-400" />
+            </div>
+            <Input
+              placeholder="Search expenses..."
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full h-11 pl-11 pr-4 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm focus:shadow-lg focus:ring-1 focus:ring-slate-300 dark:focus:ring-slate-600 transition-all duration-200 text-sm placeholder:text-slate-400"
+            />
+          </div>
 
-      {/* Filters Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
+          {/* Filters - Minimal */}
+          <div className="flex items-center justify-between">
             <Select value={type} onValueChange={handleTypeChange}>
-              <SelectTrigger className="w-[140px] h-9 bg-background/50 border-0 shadow-sm">
+              <SelectTrigger className="h-8 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl shadow-sm px-3 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Expenses</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="private">Private</SelectItem>
                 <SelectItem value="org">Organization</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              id="include-deleted"
-              checked={includeDeleted}
-              onCheckedChange={handleIncludeDeletedChange}
-            />
-            <Label
-              htmlFor="include-deleted"
-              className="text-sm text-muted-foreground"
-            >
-              Include deleted
-            </Label>
-          </div>
-        </div>
-      </div>
-
-      {/* Expenses List */}
-      {isLoading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-card rounded-lg border p-6">
-              <LoadingSkeleton type="list" count={1} />
+            <div className="flex items-center gap-2">
+              <Switch
+                id="include-deleted"
+                checked={includeDeleted}
+                onCheckedChange={handleIncludeDeletedChange}
+                className="data-[state=checked]:bg-slate-900 dark:data-[state=checked]:bg-white scale-75"
+              />
+              <Label
+                htmlFor="include-deleted"
+                className="text-xs text-slate-600 dark:text-slate-400"
+              >
+                Deleted
+              </Label>
             </div>
-          ))}
+          </div>
         </div>
-      ) : error ? (
-        <div className="bg-card rounded-lg border p-8">
-          <ErrorState
-            message="Failed to load expenses. Please try again."
-            type="inline"
-            onRetry={() => refetch()}
-          />
-        </div>
-      ) : !expensesData?.expenses || expensesData.expenses.length === 0 ? (
-        <div className="bg-card rounded-lg border p-12 text-center">
-          <EmptyState
-            icon={Receipt}
-            title="No expenses yet"
-            description={
-              search
-                ? "Try adjusting your search criteria."
-                : "Create your first expense to get started."
-            }
-            action={{
-              label: "Create Expense",
-              onClick: () => router.push("/dashboard/expenses/create"),
-            }}
-          />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {expensesData.expenses.map((expense) => (
-            <div
-              key={expense.id}
-              className="bg-card rounded-lg border p-6 hover:shadow-sm transition-all duration-200 hover:border-border/80"
-            >
-              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-3">
-                    <h3
-                      className={`font-semibold truncate text-base ${expense.deletedAt ? "line-through text-muted-foreground" : ""}`}
-                    >
-                      {getExpenseTitle(expense)}
-                    </h3>
-                    <Badge
-                      variant={
-                        expense.state === "Approved"
-                          ? "default"
-                          : expense.state === "Rejected"
-                            ? "destructive"
-                            : "secondary"
-                      }
-                      className="text-xs"
-                    >
-                      {expense.state}
-                    </Badge>
-                    {expense.deletedAt && (
-                      <Badge
-                        variant="outline"
-                        className="text-muted-foreground text-xs"
-                      >
-                        Deleted
-                      </Badge>
-                    )}
+
+        {/* Expenses List - Feed style */}
+        {isLoading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-6 animate-pulse"
+              >
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
+                    <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-16"></div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {expense.lineItems.length} item
-                    {expense.lineItems.length !== 1 ? "s" : ""} • Created{" "}
-                    {new Date(expense.createdAt).toLocaleDateString()}
-                    {expense.deletedAt && (
-                      <>
-                        {" "}
-                        • Deleted{" "}
-                        {new Date(expense.deletedAt).toLocaleDateString()}
-                      </>
-                    )}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between lg:justify-end gap-4">
-                  <div className="text-right">
-                    <p
-                      className={`text-lg font-semibold ${expense.deletedAt ? "line-through text-muted-foreground" : ""}`}
-                    >
-                      ${expense.totalAmount.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {expense.organizationId ? "Organization" : "Private"}
-                    </p>
+                  <div className="flex items-center gap-4">
+                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div>
+                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      asChild
-                      className="h-10 w-10 p-0"
-                    >
-                      <Link href={`/dashboard/expenses/${expense.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    {expense.deletedAt ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRestoreExpense(expense.id)}
-                        disabled={restoreExpense.isPending}
-                        className="h-10 w-10 p-0"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          asChild
-                          className="h-10 w-10 p-0"
-                        >
-                          <Link href={`/dashboard/expenses/${expense.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <ConfirmationDialog
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={deleteExpense.isPending}
-                              className="h-10 w-10 p-0 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          }
-                          title="Delete Expense"
-                          description="Are you sure you want to delete this expense? This action cannot be undone."
-                          confirmText="Delete"
-                          variant="destructive"
-                          onConfirm={() => handleDeleteExpense(expense.id)}
-                        />
-                      </>
-                    )}
+                  <div className="flex justify-between items-center">
+                    <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-20"></div>
+                    <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
                   </div>
                 </div>
               </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-8 text-center">
+            <ErrorState
+              message="Failed to load expenses. Please try again."
+              type="inline"
+              onRetry={() => refetch()}
+            />
+          </div>
+        ) : !expensesData?.expenses || expensesData.expenses.length === 0 ? (
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-12 text-center">
+            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Receipt className="w-8 h-8 text-slate-400" />
             </div>
-          ))}
-        </div>
-      )}
+            <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+              No expenses yet
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              {search
+                ? "Try adjusting your search criteria."
+                : "Create your first expense to get started."}
+            </p>
+            <Button
+              asChild
+              className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 rounded-2xl px-6"
+            >
+              <Link href="/dashboard/expenses/create">
+                <Plus className="w-4 h-4 mr-2" />
+                New Expense
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {expensesData.expenses.map((expense) => (
+              <Link key={expense.id} href={`/dashboard/expenses/${expense.id}`}>
+                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.01] active:scale-[0.98] p-6 cursor-pointer">
+                  {/* Top row - Title and amount */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-medium text-slate-900 dark:text-white truncate mb-1">
+                        {getExpenseTitle(expense)}
+                      </h3>
+                      <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-1">
+                          <Receipt className="w-3.5 h-3.5" />
+                          <span>
+                            {expense.lineItems.length} item
+                            {expense.lineItems.length !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                        <span>•</span>
+                        <span>
+                          {new Date(expense.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right ml-4">
+                      <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+                        ${expense.totalAmount.toFixed(2)}
+                      </div>
+                      {expense.organizationId ? (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/30 rounded-full">
+                          <Building2 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                            Org
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/30 rounded-full">
+                          <Shield className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                          <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                            Private
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-      {/* Pagination */}
-      {expensesData && expensesData.totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            Showing {(expensesData.page - 1) * expensesData.limit + 1} to{" "}
-            {Math.min(
-              expensesData.page * expensesData.limit,
-              expensesData.total
-            )}{" "}
-            of {expensesData.total} expenses
-          </p>
-          <div className="flex items-center gap-2">
+                  {/* Status badge and actions */}
+                  <div className="flex items-center gap-2">
+                    {expense.state === "Approved" && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 dark:bg-green-950/30 rounded-full">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                          Approved
+                        </span>
+                      </div>
+                    )}
+                    {expense.state === "Rejected" && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 dark:bg-red-950/30 rounded-full">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <span className="text-xs font-medium text-red-700 dark:text-red-300">
+                          Rejected
+                        </span>
+                      </div>
+                    )}
+                    {expense.state === "Pre-Approval Pending" && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/30 rounded-full">
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                        <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                          Pending
+                        </span>
+                      </div>
+                    )}
+                    {expense.deletedAt && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 dark:bg-red-950/30 rounded-full">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <span className="text-xs font-medium text-red-700 dark:text-red-300">
+                          Deleted
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination - Minimal */}
+        {expensesData && expensesData.totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-8">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPage(page - 1)}
               disabled={page === 1}
+              className="h-9 px-3 rounded-xl border-slate-200 dark:border-slate-700"
             >
               Previous
             </Button>
-            <span className="text-sm">
-              Page {page} of {expensesData.totalPages}
+            <span className="text-sm text-slate-600 dark:text-slate-400 px-2">
+              {page} of {expensesData.totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPage(page + 1)}
               disabled={page === expensesData.totalPages}
+              className="h-9 px-3 rounded-xl border-slate-200 dark:border-slate-700"
             >
               Next
             </Button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

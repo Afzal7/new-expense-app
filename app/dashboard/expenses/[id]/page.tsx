@@ -3,6 +3,7 @@
 import ApprovalButtonGroup from "@/components/approval-button-group";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { AuditTrail } from "@/components/shared/audit-trail";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -20,7 +21,7 @@ import Link from "next/link";
 import { useExpenseMutations } from "@/hooks/use-expense-mutations";
 import { useExpense } from "@/hooks/use-expenses";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
-import type { AuditEntry, Expense, LineItem } from "@/types/expense";
+import type { Expense, LineItem } from "@/types/expense";
 
 export default function ExpenseDetailPage() {
   const params = useParams();
@@ -378,92 +379,8 @@ export default function ExpenseDetailPage() {
           </div>
         </div>
 
-        {/* Activity Log - Clean timeline */}
-        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-700">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center">
-                <Clock className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-medium text-slate-900 dark:text-white">
-                  Activity
-                </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  {expense.auditLog.length} event
-                  {expense.auditLog.length !== 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="divide-y divide-slate-100 dark:divide-slate-700">
-            {expense.auditLog.length === 0 ? (
-              <div className="p-12 text-center">
-                <p className="text-slate-500 dark:text-slate-400">
-                  No activity recorded yet
-                </p>
-              </div>
-            ) : (
-              expense.auditLog
-                .sort(
-                  (a: AuditEntry, b: AuditEntry) =>
-                    new Date(b.date).getTime() - new Date(a.date).getTime()
-                )
-                .map((entry: AuditEntry, index: number) => (
-                  <div
-                    key={index}
-                    className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="h-10 w-10 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Clock className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                      </div>
-                      <div className="flex-1 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-slate-900 dark:text-white">
-                            {entry.action}
-                          </span>
-                          <span className="text-sm text-slate-500 dark:text-slate-400">
-                            {new Date(entry.date).toLocaleDateString()} at{" "}
-                            {new Date(entry.date).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                          Actor: {entry.actorId}
-                        </p>
-                        {entry.previousValues &&
-                          Object.keys(entry.previousValues).length > 0 && (
-                            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
-                              <p className="text-sm font-semibold text-red-700 dark:text-red-300 mb-2">
-                                Previous Values
-                              </p>
-                              <pre className="text-xs bg-white dark:bg-slate-800 p-3 rounded-lg border overflow-x-auto break-words text-slate-800 dark:text-slate-200">
-                                {JSON.stringify(entry.previousValues, null, 2)}
-                              </pre>
-                            </div>
-                          )}
-                        {entry.updatedValues &&
-                          Object.keys(entry.updatedValues).length > 0 && (
-                            <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
-                              <p className="text-sm font-semibold text-green-700 dark:text-green-300 mb-2">
-                                Updated Values
-                              </p>
-                              <pre className="text-xs bg-white dark:bg-slate-800 p-3 rounded-lg border overflow-x-auto break-words text-slate-800 dark:text-slate-200">
-                                {JSON.stringify(entry.updatedValues, null, 2)}
-                              </pre>
-                            </div>
-                          )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-            )}
-          </div>
-        </div>
+        {/* Audit Trail */}
+        <AuditTrail expense={expense} />
       </div>
     </div>
   );

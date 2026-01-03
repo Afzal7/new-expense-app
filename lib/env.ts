@@ -24,6 +24,7 @@ function getOptionalEnvVar(key: string): string | undefined {
 export const env = {
   // MongoDB
   MONGODB_URI: getEnvVar("MONGODB_URI"),
+  DATABASE_NAME: getEnvVar("DATABASE_NAME", "saas_db"),
 
   // Better Auth
   BETTER_AUTH_SECRET: getEnvVar("BETTER_AUTH_SECRET"),

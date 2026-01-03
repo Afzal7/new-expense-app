@@ -30,7 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Users, Crown } from "lucide-react";
+import { Users, Crown, DollarSign } from "lucide-react";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { toast } from "@/lib/toast";
@@ -217,6 +217,52 @@ export default function OrganizationMembersPage() {
         <Badge variant="outline">{members.length} members</Badge>
       </div>
 
+      <Card className="border-blue-200 dark:border-blue-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-900 dark:text-blue-100">
+            <DollarSign className="h-5 w-5" />
+            Finance Roles
+          </CardTitle>
+          <CardDescription>
+            Members with finance permissions can process reimbursements and
+            handle financial operations
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Crown className="h-4 w-4 text-yellow-600" />
+                <span className="font-medium">Owner</span>
+              </div>
+              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                Finance Manager
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-blue-600" />
+                <span className="font-medium">Admin</span>
+              </div>
+              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                Finance Manager
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-gray-600" />
+                <span className="font-medium">Member</span>
+              </div>
+              <Badge variant="secondary">Standard Access</Badge>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mt-4">
+            Owners and Admins have full finance permissions including processing
+            reimbursements and financial reporting.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -253,13 +299,21 @@ export default function OrganizationMembersPage() {
                 </div>
                 <div className="flex items-center space-x-3">
                   {member.id === currentMember?.id ? (
-                    <Badge
-                      variant="default"
-                      className="flex items-center gap-1"
-                    >
-                      <Crown className="h-3 w-3" />
-                      {member.role}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="default"
+                        className="flex items-center gap-1"
+                      >
+                        <Crown className="h-3 w-3" />
+                        {member.role}
+                      </Badge>
+                      {(member.role === "owner" || member.role === "admin") && (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" />
+                          Finance
+                        </Badge>
+                      )}
+                    </div>
                   ) : canModifyMember(member) ? (
                     <>
                       <Label htmlFor={`role-${member.id}`} className="sr-only">
@@ -325,7 +379,15 @@ export default function OrganizationMembersPage() {
                       )}
                     </>
                   ) : (
-                    <Badge variant="secondary">{member.role}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{member.role}</Badge>
+                      {(member.role === "owner" || member.role === "admin") && (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" />
+                          Finance
+                        </Badge>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

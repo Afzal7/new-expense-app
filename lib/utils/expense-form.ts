@@ -5,6 +5,7 @@
 
 import type { Expense, ExpenseInput, LineItemInput } from "@/types/expense";
 import type { ExpenseSubmissionStatus } from "@/lib/constants/expense-states";
+import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 
 // Types for form operations
 export type ExpenseFormMode = "create" | "edit";
@@ -25,18 +26,44 @@ export interface ExpenseFormData {
 }
 
 /**
+ * Converts submission status to proper expense state
+ */
+export function submissionStatusToExpenseState(
+  status: ExpenseSubmissionStatus
+): string {
+  switch (status) {
+    case "pre-approval":
+      return EXPENSE_STATES.PRE_APPROVAL_PENDING;
+    case "approval-pending":
+      return EXPENSE_STATES.APPROVAL_PENDING;
+    default:
+      return EXPENSE_STATES.DRAFT;
+  }
+}
+
+/**
  * Transforms form data to ExpenseInput for API submission
  */
 export function transformFormDataToExpenseInput(
   formData: ExpenseFormData,
   status?: ExpenseSubmissionStatus
 ): ExpenseInput {
-  return {
+  const baseInput = {
     totalAmount: formData.totalAmount || 0,
     managerIds: formData.managerIds || [],
     lineItems: (formData.lineItems || []).map(transformLineItem),
-    ...(status && { status }),
   };
+
+  if (!status) {
+    // Return draft input (no status)
+    return baseInput as ExpenseInput;
+  }
+
+  // Return submission input with proper status
+  return {
+    ...baseInput,
+    status: submissionStatusToExpenseState(status),
+  } as ExpenseInput;
 }
 
 /**

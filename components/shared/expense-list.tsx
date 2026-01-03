@@ -14,6 +14,8 @@ import {
   XCircle,
   AlertCircle,
   User,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -48,8 +50,8 @@ interface ExpenseListProps {
   routePrefix?: string;
   /** Additional filters specific to the context */
   additionalFilters?: {
-    /** Filter by expense state */
-    state?: Expense["state"];
+    /** Filter by expense state (single state or array of states) */
+    state?: Expense["state"] | Expense["state"][];
     /** Filter by organization vs private */
     type?: "all" | "private" | "org";
     /** Include deleted expenses */
@@ -63,6 +65,15 @@ interface ExpenseListProps {
   };
   /** Custom actions for each expense row */
   renderActions?: (expense: Expense) => React.ReactNode;
+  /** Selection functionality */
+  selection?: {
+    /** Currently selected expense IDs */
+    selectedIds: Set<string>;
+    /** Callback when an expense is selected/deselected */
+    onSelectExpense: (expenseId: string, selected: boolean) => void;
+    /** Callback when select all is toggled */
+    onSelectAll: (expenses: Expense[]) => void;
+  };
 }
 
 export function ExpenseList({
@@ -74,6 +85,7 @@ export function ExpenseList({
     actions: true,
   },
   renderActions,
+  selection,
 }: ExpenseListProps) {
   const router = useRouter();
   const { data: organization } = useOrganization();
@@ -104,9 +116,10 @@ export function ExpenseList({
 
     // Filter by state if specified
     if (additionalFilters.state) {
-      filtered = filtered.filter(
-        (expense) => expense.state === additionalFilters.state
-      );
+      const states = Array.isArray(additionalFilters.state)
+        ? additionalFilters.state
+        : [additionalFilters.state];
+      filtered = filtered.filter((expense) => states.includes(expense.state));
     }
 
     // Filter by employee if specified
@@ -293,21 +306,53 @@ export function ExpenseList({
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Description</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date</TableHead>
-              {showColumns.employee && <TableHead>Employee</TableHead>}
-              {showColumns.organization && <TableHead>Type</TableHead>}
-              {showColumns.actions && (
-                <TableHead className="w-24">Actions</TableHead>
-              )}
-            </TableRow>
+            {selection && (
+              <TableHead className="w-12">
+                <button
+                  onClick={() => selection.onSelectAll(filteredExpenses)}
+                  className="flex items-center justify-center w-5 h-5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                >
+                  {selection.selectedIds.size === filteredExpenses.length &&
+                  filteredExpenses.length > 0 ? (
+                    <CheckSquare className="w-4 h-4 text-blue-600" />
+                  ) : (
+                    <Square className="w-4 h-4 text-gray-400" />
+                  )}
+                </button>
+              </TableHead>
+            )}
+            <TableHead>Description</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Date</TableHead>
+            {showColumns.employee && <TableHead>Employee</TableHead>}
+            {showColumns.organization && <TableHead>Type</TableHead>}
+            {showColumns.actions && (
+              <TableHead className="w-24">Actions</TableHead>
+            )}
           </TableHeader>
           <TableBody>
             {filteredExpenses.map((expense) => (
               <TableRow key={expense.id}>
+                {selection && (
+                  <TableCell>
+                    <button
+                      onClick={() =>
+                        selection.onSelectExpense(
+                          expense.id,
+                          !selection.selectedIds.has(expense.id)
+                        )
+                      }
+                      className="flex items-center justify-center w-5 h-5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                    >
+                      {selection.selectedIds.has(expense.id) ? (
+                        <CheckSquare className="w-4 h-4 text-blue-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-gray-400" />
+                      )}
+                    </button>
+                  </TableCell>
+                )}
                 <TableCell>
                   <Link
                     href={`${routePrefix}/${expense.id}`}

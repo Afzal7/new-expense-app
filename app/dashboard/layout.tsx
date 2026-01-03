@@ -35,6 +35,7 @@ import { SubscriptionStatus } from "@/components/shared/subscription-status";
 import { useOrganizationContext } from "@/hooks/use-organization-context";
 import { useOrganization } from "@/hooks/use-organization";
 import { useIsManager } from "@/hooks/use-is-manager";
+import { useIsFinanceManager } from "@/hooks/use-is-finance-manager";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { DashboardErrorBoundary } from "@/components/error-boundary";
@@ -51,6 +52,7 @@ export default function DashboardLayout({
   const { data: session, isPending } = useSession();
   const { data: userOrg } = useOrganization();
   const { data: isManager } = useIsManager();
+  const { data: isFinanceManager } = useIsFinanceManager();
 
   // Move auth check to useEffect to avoid render path side effects
   useEffect(() => {
@@ -156,16 +158,27 @@ export default function DashboardLayout({
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              )}
+
+              {/* Finance navigation - only show to finance managers */}
+              {isFinanceManager && (
+                <SidebarGroup>
+                  <SidebarGroupLabel>Finance</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
                       <SidebarMenuItem>
                         <SidebarMenuButton
                           asChild
                           isActive={
-                            pathname === "/dashboard/manager/reimbursement"
+                            pathname === "/dashboard/finance/reimbursements"
                           }
                         >
-                          <Link href="/dashboard/manager/reimbursement">
+                          <Link href="/dashboard/finance/reimbursements">
                             <DollarSign className="h-4 w-4" />
-                            <span>Reimbursement</span>
+                            <span>Reimbursements</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -173,6 +186,7 @@ export default function DashboardLayout({
                   </SidebarGroupContent>
                 </SidebarGroup>
               )}
+
               {userOrg && (
                 <SidebarGroup>
                   <SidebarGroupLabel>Organization</SidebarGroupLabel>

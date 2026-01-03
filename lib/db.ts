@@ -4,9 +4,8 @@
  * Uses globalThis to prevent connection leaks during Next.js hot reloads
  */
 
-import { MongoClient, Db } from "mongodb";
+import { Db, MongoClient } from "mongodb";
 import { env } from "./env";
-import { DATABASE_NAME } from "./constants";
 
 import mongoose from "mongoose";
 
@@ -76,7 +75,7 @@ export async function getDb(): Promise<Db> {
         console.log("[MongoDB] Connected successfully");
       }
 
-      dbInstance = mongoClient.db(DATABASE_NAME);
+      dbInstance = mongoClient.db(env.DATABASE_NAME);
       globalThis._mongoDbInstance = dbInstance;
     } catch (error) {
       console.error("[MongoDB] Failed to connect:", error);
@@ -114,6 +113,7 @@ export async function closeDb(): Promise<void> {
 /**
  * Establishes a Mongoose connection for application data (Models)
  * Uses the cached promise pattern for Next.js
+ * Ensures connection to the correct database specified by DATABASE_NAME
  */
 export async function connectMongoose() {
   if (cached!.conn) {
@@ -123,11 +123,13 @@ export async function connectMongoose() {
   if (!cached!.promise) {
     const opts = {
       bufferCommands: false,
+      dbName: env.DATABASE_NAME, // Explicitly specify database name
     };
 
     cached!.promise = mongoose
       .connect(env.MONGODB_URI, opts)
       .then((mongoose) => {
+        console.log(`[Mongoose] Connected to database: ${env.DATABASE_NAME}`);
         return mongoose;
       });
   }
@@ -148,5 +150,5 @@ export async function connectMongoose() {
  */
 export const db = (() => {
   const mongoClient = getClient();
-  return mongoClient.db(DATABASE_NAME);
+  return mongoClient.db(env.DATABASE_NAME);
 })();

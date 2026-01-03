@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Settings, BarChart3 } from "lucide-react";
+import { Plus, Settings, BarChart3, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,9 +12,11 @@ import {
 import { useRouter } from "next/navigation";
 import { CreateOrganizationModal } from "./create-organization-modal";
 import { UpgradeModal } from "./upgrade-modal";
+import { useIsFinanceManager } from "@/hooks/use-is-finance-manager";
 
 export function QuickActionsCard() {
   const router = useRouter();
+  const { data: isFinanceManager } = useIsFinanceManager();
 
   return (
     <Card>
@@ -86,6 +88,36 @@ export function QuickActionsCard() {
               </Button>
             }
           />
+          {isFinanceManager && (
+            <>
+              <Button
+                variant="outline"
+                className="justify-start h-auto p-3"
+                onClick={() => router.push("/dashboard/finance/reimbursements")}
+              >
+                <DollarSign className="h-4 w-4 mr-3" />
+                <div className="text-left">
+                  <div className="font-medium">Process Reimbursements</div>
+                  <div className="text-xs text-muted-foreground">
+                    Handle pending reimbursements
+                  </div>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start h-auto p-3"
+                onClick={() => router.push("/dashboard/expenses")}
+              >
+                <BarChart3 className="h-4 w-4 mr-3" />
+                <div className="text-left">
+                  <div className="font-medium">Finance Reports</div>
+                  <div className="text-xs text-muted-foreground">
+                    View expense analytics
+                  </div>
+                </div>
+              </Button>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

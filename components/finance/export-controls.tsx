@@ -132,14 +132,16 @@ export function ExportControls({ onExport }: ExportControlsProps) {
           <div className="space-y-2">
             <Label htmlFor="employee">Employee</Label>
             <Select
-              value={filters.userId}
-              onValueChange={(value) => handleFilterChange("userId", value)}
+              value={filters.userId || "all"}
+              onValueChange={(value) =>
+                handleFilterChange("userId", value === "all" ? "" : value)
+              }
             >
               <SelectTrigger id="employee">
                 <SelectValue placeholder="All employees" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All employees</SelectItem>
+                <SelectItem value="all">All employees</SelectItem>
                 {orgData?.members?.map((member) => (
                   <SelectItem key={member.id} value={member.user.id}>
                     {member.user.name} ({member.user.email})

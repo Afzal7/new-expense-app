@@ -64,7 +64,10 @@ export function ManagerApprovalsClient() {
       <ExpenseList
         routePrefix="/dashboard/manager/approvals"
         additionalFilters={{
-          state: EXPENSE_STATES.APPROVAL_PENDING,
+          state: [
+            EXPENSE_STATES.PRE_APPROVAL_PENDING,
+            EXPENSE_STATES.APPROVAL_PENDING,
+          ],
         }}
         showColumns={{
           employee: true,

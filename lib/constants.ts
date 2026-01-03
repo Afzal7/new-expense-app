@@ -38,8 +38,3 @@ export const SUBSCRIPTION_PRICING = {
     name: "Pro Annual",
   },
 } as const;
-
-/**
- * Database name
- */
-export const DATABASE_NAME = "saas_db";

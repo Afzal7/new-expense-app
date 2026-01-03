@@ -185,6 +185,37 @@ export function useExpenseMutations() {
     },
   });
 
+  const bulkReimburseExpenses = useMutation({
+    mutationFn: async (ids: string[]): Promise<Expense[]> => {
+      const promises = ids.map((id) =>
+        fetch(`/api/expenses/${id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "reimburse" }),
+        }).then((response) => {
+          if (!response.ok) {
+            throw new Error(`Failed to reimburse expense ${id}`);
+          }
+          return response.json();
+        })
+      );
+
+      return Promise.all(promises);
+    },
+    onSuccess: (_data, ids) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success(
+        `${ids.length} expense${ids.length > 1 ? "s" : ""} reimbursed successfully`
+      );
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to reimburse some expenses");
+    },
+  });
+
   const deleteExpense = useMutation({
     mutationFn: async (id: string): Promise<Expense> => {
       const response = await fetch(`/api/expenses/${id}`, {
@@ -250,6 +281,7 @@ export function useExpenseMutations() {
     approveExpense,
     rejectExpense,
     reimburseExpense,
+    bulkReimburseExpenses,
     deleteExpense,
     restoreExpense,
   };

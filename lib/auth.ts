@@ -3,19 +3,43 @@
  * Only enables features when required environment variables are present
  */
 
-import { betterAuth } from "better-auth";
-import { APIError } from "better-auth/api";
-import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { stripe as stripePlugin } from "@better-auth/stripe";
-import { organization } from "better-auth/plugins/organization";
+import { betterAuth } from "better-auth";
+import { mongodbAdapter } from "better-auth/adapters/mongodb";
+import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
+import { organization } from "better-auth/plugins/organization";
 
 import type { User } from "better-auth/types";
-import { db } from "./db";
-import { stripe } from "./stripe";
-import { env } from "./env";
-import { sendEmail, generateEmailHTML, EMAIL_TEMPLATES } from "./email";
+import { ObjectId } from "mongodb";
 import { APP_CONFIG } from "./config";
+import { db } from "./db";
+import { EMAIL_TEMPLATES, generateEmailHTML, sendEmail } from "./email";
+import { env } from "./env";
+import { stripe } from "./stripe";
+
+/**
+ * Get the initial organization for a user (first organization they belong to)
+ * Used to automatically set active organization on login
+ */
+async function getOrgMembership(userId: string) {
+  try {
+    // Find the first organization where the user is a member
+    const member = await db.collection("member").findOne(
+      { userId: new ObjectId(userId) },
+      { sort: { createdAt: 1 } } // Get the earliest membership (first org they joined)
+    );
+
+    if (!member) {
+      return null; // User has no organizations
+    }
+
+    return member;
+  } catch (error) {
+    console.error("Error getting initial organization:", error);
+    return null;
+  }
+}
 
 // Build social providers conditionally
 const socialProviders: Record<
@@ -40,9 +64,36 @@ if (env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET) {
 export const auth = betterAuth({
   database: mongodbAdapter(db),
 
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          // Automatically set the first organization as active when session is created
+          const membership = await getOrgMembership(session.userId);
+          console.log("membership", membership);
+
+          if (!membership) {
+            // User has no organization membership yet
+            console.log("No membership found for user", session.userId);
+            return {
+              data: session, // Return session unchanged
+            };
+          }
+
+          console.log("Setting active org:", membership.organizationId);
+          return {
+            data: {
+              activeOrganizationId: membership.organizationId,
+            },
+          };
+        },
+      },
+    },
+  },
+
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: false,
     sendEmailVerification: async ({
       user,
       token,

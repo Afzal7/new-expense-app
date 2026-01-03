@@ -3,23 +3,23 @@
  * Handles CRUD operations for expenses
  */
 
-import { NextRequest } from "next/server";
-import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { connectMongoose } from "@/lib/db";
-import { Expense, EXPENSE_STATES } from "@/lib/models/expense";
 import {
   createErrorResponse,
   UnauthorizedError,
   ValidationError,
 } from "@/lib/errors";
-import { CreateExpenseSchema } from "@/lib/validations/expense";
+import { Expense, EXPENSE_STATES } from "@/lib/models/expense";
 import { sanitizeSearchQuery } from "@/lib/sanitize";
 import {
   transformExpensesToApiResponse,
   transformExpenseToApiResponse,
   transformLineItemsToDatabase,
 } from "@/lib/utils/expense-api-transformers";
+import { CreateExpenseSchema } from "@/lib/validations/expense";
+import { NextRequest } from "next/server";
+import { z } from "zod";
 
 // GET /api/expenses - List expenses with pagination and filtering
 export async function GET(request: NextRequest) {
@@ -54,9 +54,10 @@ export async function GET(request: NextRequest) {
 
     // Filter by type
     if (type === "private") {
-      query.organizationId = null;
+      // query.organizationId = null;
+      query["managerIds.0"] = { $exists: false };
     } else if (type === "org") {
-      query.organizationId = { $ne: null };
+      query["managerIds.0"] = { $exists: true };
     }
 
     // Exclude soft-deleted expenses by default unless explicitly requested

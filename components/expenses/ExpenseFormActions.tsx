@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { ExpenseBusinessRules } from "@/lib/utils/expense-business-logic";
+import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 interface ExpenseActionButtonGroupProps {
   isEdit: boolean;
   isDraft: boolean;
@@ -17,6 +19,7 @@ interface ExpenseActionButtonGroupProps {
   isSubmitting: boolean;
   submitExpensePending: boolean;
   approveExpensePending: boolean;
+  expense?: any; // The expense object for business rule checks
   onSubmit: () => void;
   onSubmitForApproval: () => void;
   onSubmitForFinalApproval: () => void;
@@ -43,12 +46,27 @@ export function ExpenseActionButtonGroup({
   isSubmitting,
   submitExpensePending,
   approveExpensePending,
+  expense,
   onSubmit,
   onSubmitForApproval,
   onSubmitForFinalApproval,
   onCancel,
 }: ExpenseActionButtonGroupProps) {
-  const [selectedAction, setSelectedAction] = useState("pre-approval");
+  // Determine available approval options based on business rules
+  const canSubmitForPreApproval =
+    ExpenseBusinessRules.canSubmitForPreApproval(expense);
+  const canSubmitForFinalApproval =
+    ExpenseBusinessRules.canSubmitForFinalApproval(expense);
+
+  const availableOptions = approvalOptions.filter((option) => {
+    if (option.action === "pre-approval") return canSubmitForPreApproval;
+    if (option.action === "final-approval") return canSubmitForFinalApproval;
+    return true;
+  });
+
+  const [selectedAction, setSelectedAction] = useState(
+    availableOptions.length > 0 ? availableOptions[0].action : "pre-approval"
+  );
 
   const selectedOption = approvalOptions.find(
     (option) => option.action === selectedAction
@@ -72,6 +90,75 @@ export function ExpenseActionButtonGroup({
 
   const isDisabled = !hasLineItems || isPending;
 
+  // If no approval options are available, only show save draft
+  if (availableOptions.length === 0) {
+    return (
+      <div className="flex flex-col gap-3 pt-4 border-t lg:flex-row lg:gap-3">
+        <div className="flex gap-3 lg:gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onCancel}
+            className="flex-1 lg:flex-none"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSubmitting}
+            onClick={onSubmit}
+            className="flex-1 lg:flex-none shadow-sm"
+          >
+            {isSubmitting ? "Saving..." : "Save Draft"}
+          </Button>
+        </div>
+        <div className="text-sm text-muted-foreground flex items-center">
+          No approval options available for current expense state
+        </div>
+      </div>
+    );
+  }
+
+  // If only one option is available, show a single button
+  if (availableOptions.length === 1) {
+    const option = availableOptions[0];
+    return (
+      <div className="flex flex-col gap-3 pt-4 border-t lg:flex-row lg:gap-3">
+        <div className="flex gap-3 lg:gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onCancel}
+            className="flex-1 lg:flex-none"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSubmitting}
+            onClick={onSubmit}
+            className="flex-1 lg:flex-none shadow-sm"
+          >
+            {isSubmitting ? "Saving..." : "Save Draft"}
+          </Button>
+        </div>
+
+        <Button
+          type="button"
+          variant="default"
+          disabled={isDisabled}
+          onClick={handleSubmitAction}
+          className="flex-1 lg:flex-none shadow-sm"
+        >
+          {isPending ? "Processing..." : option.label}
+        </Button>
+      </div>
+    );
+  }
+
+  // Multiple options available - show dropdown
   return (
     <div className="flex flex-col gap-3 pt-4 border-t lg:flex-row lg:gap-3">
       <div className="flex gap-3 lg:gap-3">
@@ -127,7 +214,7 @@ export function ExpenseActionButtonGroup({
               value={selectedAction}
               onValueChange={setSelectedAction}
             >
-              {approvalOptions.map((option) => (
+              {availableOptions.map((option) => (
                 <DropdownMenuRadioItem
                   key={option.action}
                   value={option.action}

@@ -4,15 +4,14 @@ import ApprovalButtonGroup from "@/components/approval-button-group";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { AuditTrail } from "@/components/shared/audit-trail";
+import { ExpenseWorkflow } from "@/components/shared/expense-workflow";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   DollarSign,
   FileText,
-  Building2,
   Shield,
   Receipt,
-  Clock,
   Edit,
   Trash2,
 } from "lucide-react";
@@ -20,13 +19,16 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useExpenseMutations } from "@/hooks/use-expense-mutations";
 import { useExpense } from "@/hooks/use-expenses";
+import { useSession } from "@/lib/auth-client";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 import type { Expense, LineItem } from "@/types/expense";
 
 export default function ExpenseDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { data: session } = useSession();
 
   const { data: expense, isLoading, error } = useExpense(id);
   const { approveExpense, rejectExpense, reimburseExpense, deleteExpense } =
@@ -100,18 +102,32 @@ export default function ExpenseDetailPage() {
     );
   }
 
-  const canApprove = expense.state === "Pre-Approval Pending";
-  const canReject = ["Pre-Approval Pending", "Pre-Approved"].includes(
-    expense.state
-  );
-  const canReimburse = expense.state === "Approved";
+  // Check if current user is assigned as a manager for this expense
+  const isAssignedManager =
+    session?.user?.id && expense.managerIds?.includes(session.user.id);
+
+  // Determine available manager actions based on expense state and manager assignment
+  const canApproveAsManager =
+    isAssignedManager &&
+    (expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING ||
+      expense.state === EXPENSE_STATES.APPROVAL_PENDING);
+
+  const canRejectAsManager =
+    isAssignedManager &&
+    (expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING ||
+      expense.state === EXPENSE_STATES.PRE_APPROVED ||
+      expense.state === EXPENSE_STATES.APPROVAL_PENDING);
+
+  // Reimbursement is typically a finance/admin function, not manager
+  // For now, we'll allow it for approved expenses but this could be restricted further
+  const canReimburse = expense.state === EXPENSE_STATES.APPROVED;
 
   const availableOptions = approvalOptions.filter((option) => {
     switch (option.action) {
       case "approve":
-        return canApprove;
+        return canApproveAsManager;
       case "reject":
-        return canReject;
+        return canRejectAsManager;
       case "reimburse":
         return canReimburse;
     }
@@ -234,13 +250,62 @@ export default function ExpenseDetailPage() {
               <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/30 rounded-full">
                 <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
                 <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                  Pending
+                  Awaiting Pre-Approval
+                </span>
+              </div>
+            )}
+            {expense.state === "Pre-Approved" && (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 dark:bg-blue-950/30 rounded-full">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  Pre-Approved
+                </span>
+              </div>
+            )}
+            {expense.state === "Approval Pending" && (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-purple-50 dark:bg-purple-950/30 rounded-full">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                  Awaiting Final Approval
+                </span>
+              </div>
+            )}
+            {expense.state === "Reimbursed" && (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/30 rounded-full">
+                <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                  Reimbursed
                 </span>
               </div>
             )}
             <span className="text-sm text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
               {expense.id.slice(-8)}
             </span>
+          </div>
+
+          {/* Status Description */}
+          <div className="mt-4 mb-6">
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              {expense.state === EXPENSE_STATES.DRAFT &&
+                "This expense is in draft mode. You can edit it and submit for approval when ready."}
+              {expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING &&
+                "This expense is waiting for initial pre-approval from your assigned manager."}
+              {expense.state === EXPENSE_STATES.PRE_APPROVED &&
+                "This expense has been pre-approved. You can now submit it for final approval."}
+              {expense.state === EXPENSE_STATES.APPROVAL_PENDING &&
+                "This expense is waiting for final approval from your assigned manager."}
+              {expense.state === EXPENSE_STATES.APPROVED &&
+                "This expense has been approved and is ready for reimbursement."}
+              {expense.state === EXPENSE_STATES.REIMBURSED &&
+                "This expense has been processed and reimbursed."}
+              {expense.state === EXPENSE_STATES.REJECTED &&
+                "This expense was rejected. You can edit and resubmit it."}
+            </div>
+          </div>
+
+          {/* Expense Workflow Progress */}
+          <div className="mt-6">
+            <ExpenseWorkflow currentState={expense.state} />
           </div>
 
           {/* Privacy Notice for Private Expenses */}

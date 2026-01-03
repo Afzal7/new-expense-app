@@ -98,6 +98,39 @@ export function useExpenseMutations() {
     },
   });
 
+  const submitExpenseForFinalApproval = useMutation({
+    mutationFn: async (id: string): Promise<Expense> => {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "submit-for-final-approval" }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({
+          message: "Failed to submit expense for final approval",
+        }));
+        throw new Error(
+          error.message || "Failed to submit expense for final approval"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense submitted for final approval successfully");
+    },
+    onError: (error) => {
+      toast.error(
+        error.message || "Failed to submit expense for final approval"
+      );
+    },
+  });
+
   const approveExpense = useMutation({
     mutationFn: async (id: string): Promise<Expense> => {
       const response = await fetch(`/api/expenses/${id}`, {
@@ -278,6 +311,7 @@ export function useExpenseMutations() {
     createExpense,
     updateExpense,
     submitExpense,
+    submitExpenseForFinalApproval,
     approveExpense,
     rejectExpense,
     reimburseExpense,

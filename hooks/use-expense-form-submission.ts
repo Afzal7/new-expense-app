@@ -19,8 +19,12 @@ export function useExpenseFormSubmission({
   expenseId,
   onSuccess,
 }: UseExpenseFormSubmissionOptions) {
-  const { createExpense, updateExpense, submitExpense, approveExpense } =
-    useExpenseMutations();
+  const {
+    createExpense,
+    updateExpense,
+    submitExpense,
+    submitExpenseForFinalApproval,
+  } = useExpenseMutations();
 
   const isEdit = !!expenseId;
 
@@ -67,7 +71,7 @@ export function useExpenseFormSubmission({
   );
 
   /**
-   * Submits expense for final approval
+   * Submits expense for final approval (requires manager approval)
    */
   const submitForFinalApproval = useCallback(
     async (formData: ExpenseFormData): Promise<void> => {
@@ -75,9 +79,13 @@ export function useExpenseFormSubmission({
       const expenseInput = transformFormDataToExpenseInput(formData, status);
 
       if (isEdit) {
-        // For existing expenses, submit for pre-approval then approve
-        await submitExpense.mutateAsync(expenseId);
-        const result = await approveExpense.mutateAsync(expenseId);
+        // For existing expenses, update first, then submit for final approval
+        await updateExpense.mutateAsync({
+          id: expenseId,
+          expenseInput,
+        });
+        const result =
+          await submitExpenseForFinalApproval.mutateAsync(expenseId);
         onSuccess(result);
       } else {
         // For new expenses, create with approval-pending status
@@ -85,7 +93,15 @@ export function useExpenseFormSubmission({
         onSuccess(result);
       }
     },
-    [createExpense, submitExpense, approveExpense, isEdit, expenseId, onSuccess]
+    [
+      createExpense,
+      updateExpense,
+      submitExpense,
+      submitExpenseForFinalApproval,
+      isEdit,
+      expenseId,
+      onSuccess,
+    ]
   );
 
   return {
@@ -96,6 +112,6 @@ export function useExpenseFormSubmission({
       createExpense.isPending ||
       updateExpense.isPending ||
       submitExpense.isPending ||
-      approveExpense.isPending,
+      submitExpenseForFinalApproval.isPending,
   };
 }

@@ -48,6 +48,8 @@ import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 interface ExpenseListProps {
   /** Route prefix for navigation (e.g., "/dashboard/expenses") */
   routePrefix?: string;
+  /** Display variant - 'table' for traditional table layout, 'cards' for card-based feed layout */
+  variant?: "table" | "cards";
   /** Additional filters specific to the context */
   additionalFilters?: {
     /** Filter by expense state (single state or array of states) */
@@ -57,13 +59,13 @@ interface ExpenseListProps {
     /** Include deleted expenses */
     includeDeleted?: boolean;
   };
-  /** Show/hide certain columns */
+  /** Show/hide certain columns (table variant only) */
   showColumns?: {
     employee?: boolean;
     organization?: boolean;
     actions?: boolean;
   };
-  /** Custom actions for each expense row */
+  /** Custom actions for each expense row/card */
   renderActions?: (expense: Expense) => React.ReactNode;
   /** Selection functionality */
   selection?: {
@@ -78,6 +80,7 @@ interface ExpenseListProps {
 
 export function ExpenseList({
   routePrefix = "/dashboard/expenses",
+  variant = "table",
   additionalFilters = {},
   showColumns = {
     employee: true,
@@ -263,6 +266,215 @@ export function ExpenseList({
     );
   }
 
+  // Cards variant rendering
+  if (variant === "cards") {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
+        <div className="container mx-auto px-4 py-6 max-w-md lg:max-w-2xl xl:max-w-4xl">
+          {/* Filters */}
+          <div className="mb-6">
+            {/* Search - Subtle and clean */}
+            <div className="relative mb-4">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-slate-400" />
+              </div>
+              <Input
+                placeholder="Search expenses..."
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full h-11 pl-11 pr-4 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm focus:shadow-lg focus:ring-1 focus:ring-slate-300 dark:focus:ring-slate-600 transition-all duration-200 text-sm placeholder:text-slate-400"
+              />
+            </div>
+
+            {/* Employee Filter */}
+            {showColumns.employee &&
+              membersData?.members &&
+              membersData.members.length > 0 && (
+                <Select
+                  value={employeeFilter}
+                  onValueChange={handleEmployeeFilterChange}
+                >
+                  <SelectTrigger className="h-8 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl px-3 text-sm">
+                    <User className="w-4 h-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Employees</SelectItem>
+                    {membersData.members.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.user.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+          </div>
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-6 animate-pulse"
+                >
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
+                      <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-16"></div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div>
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-20"></div>
+                      <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !isLoading && (
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-8 text-center">
+              <ErrorState
+                message="Failed to load expenses. Please try again."
+                type="inline"
+                onRetry={() => refetch()}
+              />
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !error && filteredExpenses.length === 0 && (
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-12 text-center">
+              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Receipt className="w-8 h-8 text-slate-400" />
+              </div>
+              <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+                No expenses found
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                {search || employeeFilter !== "all"
+                  ? "Try adjusting your search or filters."
+                  : "No expenses match the current criteria."}
+              </p>
+            </div>
+          )}
+
+          {/* Expense Cards */}
+          {!isLoading && !error && filteredExpenses.length > 0 && (
+            <div className="space-y-4">
+              {filteredExpenses.map((expense) => (
+                <Link
+                  key={expense.id}
+                  href={`${routePrefix}/${expense.id}`}
+                  className="block"
+                >
+                  <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.01] active:scale-[0.98] p-6">
+                    {/* Top row - Title and amount */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-medium text-slate-900 dark:text-white truncate mb-1 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer">
+                          {getExpenseTitle(expense)}
+                        </h3>
+                        <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+                          {showColumns.employee && (
+                            <>
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium">
+                                  {getEmployeeName(expense.userId)}
+                                </span>
+                              </div>
+                              <span>•</span>
+                            </>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Receipt className="w-3.5 h-3.5" />
+                            <span>
+                              {expense.lineItems.length} item
+                              {expense.lineItems.length !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                          <span>•</span>
+                          <span>
+                            {new Date(expense.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
+                          ${expense.totalAmount.toFixed(2)}
+                        </div>
+                        {showColumns.organization && expense.organizationId ? (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/30 rounded-full">
+                            <Building2 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                            <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                              Org
+                            </span>
+                          </div>
+                        ) : showColumns.organization ? (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/30 rounded-full">
+                            <Shield className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                              Private
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Status and actions */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(expense.state)}
+                      </div>
+                      {renderActions && showColumns.actions && (
+                        <div
+                          className="flex gap-2"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          {renderActions(expense)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* Load More */}
+          {expensesData &&
+            expensesData.totalPages > page &&
+            filteredExpenses.length > 0 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  onClick={() => setPage(page + 1)}
+                  className="h-9 px-6 rounded-2xl border-slate-200 dark:border-slate-700"
+                >
+                  Load More Expenses
+                </Button>
+              </div>
+            )}
+
+          {/* Results Summary */}
+          {filteredExpenses.length > 0 && (
+            <div className="text-center text-sm text-slate-600 dark:text-slate-400 mt-6">
+              Showing {filteredExpenses.length} of {expensesData?.total || 0}{" "}
+              expenses
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Table variant rendering (original implementation)
   return (
     <div className="space-y-4">
       {/* Filters */}

@@ -24,7 +24,9 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useExpense } from "@/hooks/use-expenses";
 import { useExpenseMutations } from "@/hooks/use-expense-mutations";
+import { useSession } from "@/lib/auth-client";
 import { EXPENSE_STATES } from "@/lib/constants/expense-states";
+import { ExpenseBusinessRules } from "@/lib/utils/expense-business-logic";
 import type { Expense } from "@/types/expense";
 
 interface ExpenseDetailModalProps {
@@ -38,6 +40,7 @@ export function ExpenseDetailModal({
   open,
   onOpenChange,
 }: ExpenseDetailModalProps) {
+  const { data: session } = useSession();
   const { data: expense, isLoading, error } = useExpense(expenseId);
   const { approveExpense, rejectExpense } = useExpenseMutations();
   const [confirmAction, setConfirmAction] = useState<
@@ -59,7 +62,31 @@ export function ExpenseDetailModal({
     }
   };
 
-  const canApproveReject = expense?.state === EXPENSE_STATES.APPROVAL_PENDING;
+  const isAssignedManager =
+    session?.user?.id && expense?.managerIds?.includes(session.user.id);
+
+  // Check valid transitions for approval and rejection
+  const canApprove = expense
+    ? ExpenseBusinessRules.canTransitionToState(
+        expense.state,
+        expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING
+          ? EXPENSE_STATES.PRE_APPROVED
+          : EXPENSE_STATES.APPROVED,
+        session?.user?.id,
+        expense.managerIds
+      )
+    : false;
+
+  const canReject = expense
+    ? ExpenseBusinessRules.canTransitionToState(
+        expense.state,
+        EXPENSE_STATES.REJECTED,
+        session?.user?.id,
+        expense.managerIds
+      )
+    : false;
+
+  const canApproveReject = (canApprove || canReject) && isAssignedManager;
 
   if (isLoading) {
     return (
@@ -273,24 +300,32 @@ export function ExpenseDetailModal({
             </Card>
 
             {/* Action Buttons */}
-            {canApproveReject && (
+            {expense?.state === EXPENSE_STATES.APPROVAL_PENDING && (
               <>
                 <Separator />
-                <div className="flex justify-end gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => setConfirmAction("reject")}
-                    disabled={rejectExpense.isPending}
-                  >
-                    {rejectExpense.isPending ? "Rejecting..." : "Reject"}
-                  </Button>
-                  <Button
-                    onClick={() => setConfirmAction("approve")}
-                    disabled={approveExpense.isPending}
-                  >
-                    {approveExpense.isPending ? "Approving..." : "Approve"}
-                  </Button>
-                </div>
+                {isAssignedManager ? (
+                  <div className="flex justify-end gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setConfirmAction("reject")}
+                      disabled={rejectExpense.isPending}
+                    >
+                      {rejectExpense.isPending ? "Rejecting..." : "Reject"}
+                    </Button>
+                    <Button
+                      onClick={() => setConfirmAction("approve")}
+                      disabled={approveExpense.isPending}
+                    >
+                      {approveExpense.isPending ? "Approving..." : "Approve"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex justify-center">
+                    <p className="text-sm text-muted-foreground">
+                      You are not assigned as a manager for this expense
+                    </p>
+                  </div>
+                )}
               </>
             )}
           </motion.div>

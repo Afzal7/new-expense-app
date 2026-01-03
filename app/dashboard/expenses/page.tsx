@@ -1,365 +1,217 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Plus,
-  Edit,
-  Search,
-  Filter,
-  Receipt,
-  Eye,
-  Trash2,
-  RotateCcw,
-  Building2,
-  Shield,
-  Clock,
-} from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { useExpenses } from "@/hooks/use-expenses";
-import { useExpenseMutations } from "@/hooks/use-expense-mutations";
-import { useOrganization } from "@/hooks/use-organization";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
-import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { ExpenseCard } from "@/components/shared/expense-card";
+import { ExpenseCardSkeleton } from "@/components/shared/expense-card-skeleton";
+import { ExpenseEmptyState } from "@/components/shared/expense-empty-state";
+import { ExpenseTabControls } from "@/components/shared/expense-tab-controls";
+import { useExpenses } from "@/hooks/use-expenses";
+import { useOrganization } from "@/hooks/use-organization";
 import type { Expense } from "@/types/expense";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+// --- Icons ---
+const IconPlus = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+const IconSearch = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+  </svg>
+);
 
 export default function ExpensesPage() {
-  const router = useRouter();
-  const {
-    data: organization,
-    isLoading: orgLoading,
-    error: orgError,
-  } = useOrganization();
+  const { data: organization, isLoading: orgLoading } = useOrganization();
 
+  const [activeTab, setActiveTab] = useState("work");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [type, setType] = useState<"all" | "private" | "org">("all");
-  const [includeDeleted, setIncludeDeleted] = useState(false);
+
+  // Set default tab based on organization availability
+  useEffect(() => {
+    if (!orgLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab(organization ? "work" : "personal");
+    }
+  }, [orgLoading, organization]);
 
   const {
     data: expensesData,
-    isLoading,
+    isFetching: isLoading,
     error,
     refetch,
   } = useExpenses({
     page,
-    limit: 10,
+    limit: 20,
     search: search || undefined,
-    type,
-    includeDeleted,
+    type: activeTab === "work" ? "org" : "private",
   });
 
-  const { deleteExpense, restoreExpense } = useExpenseMutations();
+  // if (orgLoading) {
+  //   return <LoadingSkeleton type="list" count={5} />;
+  // }
 
-  if (orgLoading) {
-    return <LoadingSkeleton type="list" count={5} />;
-  }
+  // if (orgError || !organization) {
+  //   return (
+  //     <ErrorState
+  //       message="Unable to load organization. Please ensure you have an organization set up."
+  //       type="page"
+  //       onRetry={() => window.location.reload()}
+  //     />
+  //   );
+  // }
 
-  if (orgError || !organization) {
-    return (
-      <ErrorState
-        message="Unable to load organization. Please ensure you have an organization set up."
-        type="page"
-        onRetry={() => window.location.reload()}
-      />
-    );
-  }
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setPage(1); // Reset to first page when changing tabs
+  };
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
     setPage(1); // Reset to first page when searching
   };
 
-  const handleTypeChange = (value: "all" | "private" | "org") => {
-    setType(value);
-    setPage(1); // Reset to first page when changing filter
-  };
-
-  const handleIncludeDeletedChange = (checked: boolean) => {
-    setIncludeDeleted(checked);
-    setPage(1); // Reset to first page when changing filter
-  };
-
-  const handleDeleteExpense = async (expenseId: string) => {
-    await deleteExpense.mutateAsync(expenseId);
-  };
-
-  const handleRestoreExpense = async (expenseId: string) => {
-    await restoreExpense.mutateAsync(expenseId);
-  };
-
-  const getExpenseTitle = (expense: Expense) => {
-    // Try to get a meaningful title from the first line item
-    const firstItem = expense.lineItems[0];
-    if (firstItem?.description) {
-      return firstItem.description.length > 50
-        ? `${firstItem.description.substring(0, 50)}...`
-        : firstItem.description;
-    }
-
-    // Fall back to categories if available
-    const categories = expense.lineItems
-      .map((item) => item.category)
-      .filter(Boolean)
-      .filter((value, index, self) => self.indexOf(value) === index); // unique
-
-    if (categories.length > 0) {
-      return categories.join(", ");
-    }
-
-    // Final fallback
-    return `Expense #${expense.id.slice(-8)}`;
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
-      <div className="container mx-auto px-4 py-6 max-w-md lg:max-w-2xl xl:max-w-4xl">
-        {/* Header - Clean and minimal */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-light text-slate-900 dark:text-white tracking-tight">
-                Expenses
-              </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
-                Your spending at a glance
-              </p>
-            </div>
-            <Link href="/dashboard/expenses/create">
-              <button className="rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-sm h-11 w-11 p-0 flex items-center justify-center">
-                <Plus className="h-4 w-4" />
-              </button>
-            </Link>
-          </div>
+    <div className="min-h-screen bg-[#FDF8F5] text-[#121110] font-sans pb-24">
+      {/* Mobile Tab Controls */}
+      <div className="sticky top-0 z-30 bg-[#FDF8F5]/80 backdrop-blur-md border-b border-zinc-100/50 px-6 pt-6 pb-4 md:hidden">
+        <ExpenseTabControls
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          variant="mobile"
+          hasOrganization={!!organization}
+        />
+      </div>
 
-          {/* Search - Subtle and clean */}
-          <div className="relative mb-6">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-slate-400" />
+      <div className="max-w-5xl mx-auto px-6 md:px-12 md:py-12">
+        {/* Desktop Header (Hidden on Mobile) */}
+        <div className="hidden md:flex flex-row justify-between items-center mb-12 gap-6">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight mb-2">Expenses</h1>
+            <p className="text-zinc-500">
+              Manage your spend across two worlds.
+            </p>
+          </div>
+          <Link href="/dashboard/expenses/create">
+            <button className="bg-[#121110] text-white pl-4 pr-6 py-3 rounded-full font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2">
+              <div className="bg-[#FF8A65] p-1 rounded-full text-white">
+                <IconPlus className="w-4 h-4" />
+              </div>
+              New Expense
+            </button>
+          </Link>
+        </div>
+
+        {/* Desktop Controls (Hidden on Mobile) */}
+        <div className="hidden md:flex flex-row gap-6 mb-8">
+          <ExpenseTabControls
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            variant="desktop"
+            hasOrganization={!!organization}
+          />
+          <div className="flex-1 relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400">
+              <IconSearch className="w-5 h-5" />
             </div>
-            <Input
-              placeholder="Search expenses..."
+            <input
+              type="text"
+              placeholder="Search..."
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full h-11 pl-11 pr-4 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm focus:shadow-lg focus:ring-1 focus:ring-slate-300 dark:focus:ring-slate-600 transition-all duration-200 text-sm placeholder:text-slate-400"
+              className="w-full bg-white border border-zinc-200 rounded-full py-3 pl-12 pr-6 focus:outline-none focus:ring-2 focus:ring-[#FF8A65]/20 focus:border-[#FF8A65] transition-all font-medium placeholder:text-zinc-300"
             />
-          </div>
-
-          {/* Filters - Minimal */}
-          <div className="flex items-center justify-between">
-            <Select value={type} onValueChange={handleTypeChange}>
-              <SelectTrigger className="h-8 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl shadow-sm px-3 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="private">Private</SelectItem>
-                <SelectItem value="org">Organization</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="include-deleted"
-                checked={includeDeleted}
-                onCheckedChange={handleIncludeDeletedChange}
-                className="data-[state=checked]:bg-slate-900 dark:data-[state=checked]:bg-white scale-75"
-              />
-              <Label
-                htmlFor="include-deleted"
-                className="text-xs text-slate-600 dark:text-slate-400"
-              >
-                Deleted
-              </Label>
-            </div>
           </div>
         </div>
 
-        {/* Expenses List - Feed style */}
-        {isLoading ? (
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-6 animate-pulse"
-              >
-                <div className="space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
-                    <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-16"></div>
+        {/* Mobile Search Input */}
+        <div className="relative mb-6 md:hidden mt-4">
+          <div className="absolute left-4 top-1/2 -translate-x-0 -translate-y-1/2 text-zinc-400">
+            <IconSearch className="w-4 h-4" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search expenses..."
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full bg-white border border-zinc-200 rounded-2xl py-3 pl-10 pr-4 text-sm focus:outline-none shadow-sm"
+          />
+        </div>
+
+        {/* Content Area */}
+        <div className="space-y-3 md:space-y-4">
+          {isLoading ? (
+            <>
+              {/* Varied skeleton heights for more realistic loading */}
+              <ExpenseCardSkeleton />
+              <div className="bg-white p-4 md:p-5 rounded-[1.5rem] border border-zinc-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
+                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent animate-shimmer" />
+                <div className="flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 md:w-16 md:h-16 bg-zinc-100 rounded-2xl">
+                  <div className="h-3 bg-zinc-200 rounded w-5 mb-1" />
+                  <div className="h-4 bg-zinc-200 rounded w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 mb-1">
+                    <div className="h-5 bg-zinc-100 rounded w-56 md:w-72" />
+                    <div className="hidden md:block h-6 bg-zinc-100 rounded-full w-20" />
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div>
-                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 bg-zinc-50 rounded w-16" />
+                    <div className="h-3 bg-zinc-50 rounded w-24" />
+                    <div className="md:hidden h-5 bg-zinc-100 rounded-full w-16" />
                   </div>
-                  <div className="flex justify-between items-center">
-                    <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-20"></div>
-                    <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
-                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="h-6 bg-zinc-100 rounded w-24 mb-1" />
+                  <div className="hidden md:flex h-3 bg-zinc-50 rounded w-8" />
                 </div>
               </div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-8 text-center">
-            <ErrorState
-              message="Failed to load expenses. Please try again."
-              type="inline"
-              onRetry={() => refetch()}
-            />
-          </div>
-        ) : !expensesData?.expenses || expensesData.expenses.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-12 text-center">
-            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Receipt className="w-8 h-8 text-slate-400" />
+              <ExpenseCardSkeleton />
+            </>
+          ) : error ? (
+            <div className="bg-white p-8 text-center rounded-[1.5rem] border border-zinc-100 shadow-sm">
+              <ErrorState
+                message="Failed to load expenses. Please try again."
+                type="inline"
+                onRetry={() => refetch()}
+              />
             </div>
-            <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-              No expenses yet
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-              {search
-                ? "Try adjusting your search criteria."
-                : "Create your first expense to get started."}
-            </p>
-            <Button
-              asChild
-              className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 rounded-2xl px-6"
-            >
-              <Link href="/dashboard/expenses/create">
-                <Plus className="w-4 h-4 mr-2" />
-                New Expense
-              </Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {expensesData.expenses.map((expense) => (
-              <Link key={expense.id} href={`/dashboard/expenses/${expense.id}`}>
-                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.01] active:scale-[0.98] p-6 cursor-pointer">
-                  {/* Top row - Title and amount */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-medium text-slate-900 dark:text-white truncate mb-1">
-                        {getExpenseTitle(expense)}
-                      </h3>
-                      <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-                        <div className="flex items-center gap-1">
-                          <Receipt className="w-3.5 h-3.5" />
-                          <span>
-                            {expense.lineItems.length} item
-                            {expense.lineItems.length !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                        <span>•</span>
-                        <span>
-                          {new Date(expense.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right ml-4">
-                      <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
-                        ${expense.totalAmount.toFixed(2)}
-                      </div>
-                      {expense.organizationId ? (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/30 rounded-full">
-                          <Building2 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                            Org
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/30 rounded-full">
-                          <Shield className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                          <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                            Private
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Status badge and actions */}
-                  <div className="flex items-center gap-2">
-                    {expense.state === "Approved" && (
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 dark:bg-green-950/30 rounded-full">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-xs font-medium text-green-700 dark:text-green-300">
-                          Approved
-                        </span>
-                      </div>
-                    )}
-                    {expense.state === "Rejected" && (
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 dark:bg-red-950/30 rounded-full">
-                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                        <span className="text-xs font-medium text-red-700 dark:text-red-300">
-                          Rejected
-                        </span>
-                      </div>
-                    )}
-                    {expense.state === "Pre-Approval Pending" && (
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/30 rounded-full">
-                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                        <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                          Pending
-                        </span>
-                      </div>
-                    )}
-                    {expense.deletedAt && (
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 dark:bg-red-950/30 rounded-full">
-                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                        <span className="text-xs font-medium text-red-700 dark:text-red-300">
-                          Deleted
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-
-        {/* Pagination - Minimal */}
-        {expensesData && expensesData.totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-8">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(page - 1)}
-              disabled={page === 1}
-              className="h-9 px-3 rounded-xl border-slate-200 dark:border-slate-700"
-            >
-              Previous
-            </Button>
-            <span className="text-sm text-slate-600 dark:text-slate-400 px-2">
-              {page} of {expensesData.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(page + 1)}
-              disabled={page === expensesData.totalPages}
-              className="h-9 px-3 rounded-xl border-slate-200 dark:border-slate-700"
-            >
-              Next
-            </Button>
-          </div>
-        )}
+          ) : !expensesData?.expenses || expensesData.expenses.length === 0 ? (
+            <ExpenseEmptyState tab={activeTab} onRefresh={() => refetch()} />
+          ) : (
+            expensesData.expenses.map((expense: Expense) => (
+              <ExpenseCard key={expense.id} expense={expense} />
+            ))
+          )}
+        </div>
       </div>
+
+      {/* Mobile Floating Action Button (FAB) */}
+      <Link href="/dashboard/expenses/create">
+        <button className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-[#121110] text-white rounded-full shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] flex items-center justify-center active:scale-90 transition-transform z-50">
+          <IconPlus className="w-6 h-6" />
+        </button>
+      </Link>
     </div>
   );
 }

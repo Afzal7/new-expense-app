@@ -267,6 +267,7 @@ export function ExpenseForm({
             isSubmitting={isSubmitting}
             submitExpensePending={isEdit ? isSubmitting : isSubmitting}
             approveExpensePending={isEdit ? isSubmitting : isSubmitting}
+            expense={initialData}
             onSubmit={handleSubmit(onSubmit)}
             onSubmitForApproval={handleSubmitForApproval}
             onSubmitForFinalApproval={handleSubmitForFinalApproval}

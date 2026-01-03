@@ -121,6 +121,78 @@ export const ExpenseBusinessRules = {
   },
 
   /**
+   * Validates if a state transition is allowed
+   */
+  canTransitionToState: (
+    currentState: string,
+    targetState: string,
+    userId?: string,
+    managerIds?: string[]
+  ): boolean => {
+    // Check if user is authorized for the transition
+    const isAssignedManager = !!(userId && managerIds?.includes(userId));
+
+    switch (targetState) {
+      case EXPENSE_STATES.PRE_APPROVAL_PENDING:
+        return (
+          currentState === EXPENSE_STATES.DRAFT ||
+          currentState === EXPENSE_STATES.REJECTED
+        );
+
+      case EXPENSE_STATES.PRE_APPROVED:
+        return (
+          currentState === EXPENSE_STATES.PRE_APPROVAL_PENDING &&
+          isAssignedManager
+        );
+
+      case EXPENSE_STATES.APPROVAL_PENDING:
+        return (
+          currentState === EXPENSE_STATES.DRAFT ||
+          currentState === EXPENSE_STATES.PRE_APPROVED ||
+          currentState === EXPENSE_STATES.REJECTED
+        );
+
+      case EXPENSE_STATES.APPROVED:
+        return (
+          currentState === EXPENSE_STATES.APPROVAL_PENDING && isAssignedManager
+        );
+
+      case EXPENSE_STATES.REIMBURSED:
+        return currentState === EXPENSE_STATES.APPROVED;
+
+      case EXPENSE_STATES.REJECTED:
+        return (
+          (currentState === EXPENSE_STATES.PRE_APPROVAL_PENDING ||
+            currentState === EXPENSE_STATES.PRE_APPROVED ||
+            currentState === EXPENSE_STATES.APPROVAL_PENDING) &&
+          isAssignedManager
+        );
+
+      default:
+        return false;
+    }
+  },
+
+  /**
+   * Gets valid next states for a given current state and user
+   */
+  getValidNextStates: (
+    currentState: string,
+    userId?: string,
+    managerIds?: string[]
+  ): string[] => {
+    const allStates = Object.values(EXPENSE_STATES);
+    return allStates.filter((state) =>
+      ExpenseBusinessRules.canTransitionToState(
+        currentState,
+        state,
+        userId,
+        managerIds
+      )
+    );
+  },
+
+  /**
    * Gets the appropriate badge variant for expense state
    */
   getExpenseStateBadgeVariant: (

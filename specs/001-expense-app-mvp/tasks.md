@@ -141,15 +141,15 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 2 - Manager Approval ⚠️
 
-- [ ] T035 [P] [US2] Unit test for manager approval workflow in tests/unit/components/manager/approval-workflow.test.tsx
+- [x] T035 [P] [US2] Unit test for manager approval workflow in tests/unit/components/manager/approval-workflow.test.tsx
 
 ### Implementation for User Story 2 - Manager Approval
 
-- [ ] T036 [US2] Create reusable expense list component with search and employee filter in components/shared/expense-list.tsx
-- [ ] T037 [US2] Create "Ready for Approvals" page showing approval_pending expenses in app/dashboard/manager/approvals/page.tsx
-- [ ] T038 [US2] Create expense detail modal for managers in components/manager/expense-detail-modal.tsx
-- [ ] T039 [US2] Update PATCH /api/expenses/[id] validation to only allow assigned managers to approve in app/api/expenses/[id]/route.ts
-- [ ] T040 [US2] Add manager-specific navigation in app/dashboard/layout.tsx
+- [x] T036 [US2] Create reusable expense list component with search and employee filter in components/shared/expense-list.tsx
+- [x] T037 [US2] Create "Ready for Approvals" page showing approval_pending expenses in app/dashboard/manager/approvals/page.tsx
+- [x] T038 [US2] Create expense detail modal for managers in components/manager/expense-detail-modal.tsx
+- [x] T039 [US2] Update PATCH /api/expenses/[id] validation to only allow assigned managers to approve in app/api/expenses/[id]/route.ts
+- [x] T040 [US2] Add manager-specific navigation in app/dashboard/layout.tsx
 
 **Checkpoint**: Manager approval workflow ready for testing
 
@@ -163,15 +163,15 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 3 - Finance Processing ⚠️
 
-- [ ] T041 [P] [US3] Unit test for finance reimbursement workflow in tests/unit/components/finance/reimbursement-workflow.test.tsx
+- [x] T041 [P] [US3] Unit test for finance reimbursement workflow in tests/unit/components/finance/reimbursement-workflow.test.tsx
 
 ### Implementation for User Story 3 - Finance Processing
 
-- [ ] T042 [US3] Create "Ready for Reimbursement" page showing approved expenses in app/dashboard/finance/reimbursements/page.tsx
-- [ ] T043 [US3] Update PATCH /api/expenses/[id] validation to allow any admin to mark as reimbursed in app/api/expenses/[id]/route.ts
-- [ ] T044 [US3] Add expense export functionality (CSV/PDF) in app/api/exports/route.ts
-- [ ] T045 [US3] Create export UI components in components/finance/export-controls.tsx
-- [ ] T046 [US3] Add reimbursement notification system in lib/notifications.ts
+- [x] T042 [US3] Create "Ready for Reimbursement" page showing approved expenses in app/dashboard/finance/reimbursements/page.tsx
+- [x] T043 [US3] Update PATCH /api/expenses/[id] validation to allow any admin to mark as reimbursed in app/api/expenses/[id]/route.ts
+- [x] T044 [US3] Add expense export functionality (CSV/PDF) in app/api/exports/route.ts
+- [x] T045 [US3] Create export UI components in components/finance/export-controls.tsx
+- [x] T046 [US3] Add reimbursement notification system in lib/notifications.ts
 
 **Checkpoint**: Finance reimbursement workflow ready for testing
 

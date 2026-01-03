@@ -20,7 +20,7 @@ import Link from "next/link";
 import { useExpenseMutations } from "@/hooks/use-expense-mutations";
 import { useExpense } from "@/hooks/use-expenses";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
-import type { AuditEntry, LineItem } from "@/types/expense";
+import type { AuditEntry, Expense, LineItem } from "@/types/expense";
 
 export default function ExpenseDetailPage() {
   const params = useParams();
@@ -117,7 +117,7 @@ export default function ExpenseDetailPage() {
     return false;
   });
 
-  const getExpenseTitle = (expense: any) => {
+  const getExpenseTitle = (expense: Expense) => {
     // Try to get a meaningful title from the first line item
     const firstItem = expense.lineItems[0];
     if (firstItem?.description) {
@@ -128,8 +128,8 @@ export default function ExpenseDetailPage() {
 
     // Fall back to categories if available
     const categories = expense.lineItems
-      .map((item: any) => item.category)
-      .filter(Boolean)
+      .map((item: LineItem) => item.category)
+      .filter((category): category is string => Boolean(category))
       .filter(
         (value: string, index: number, self: string[]) =>
           self.indexOf(value) === index

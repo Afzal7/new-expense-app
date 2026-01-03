@@ -6,7 +6,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { connectMongoose } from "@/lib/db";
+import { connectMongoose, db } from "@/lib/db";
 import { Expense, EXPENSE_STATES } from "@/lib/models/expense";
 import {
   createErrorResponse,
@@ -332,6 +332,22 @@ export async function PATCH(
         );
       }
 
+      // For organization expenses, validate that the manager is an organization member
+      if (expense.organizationId) {
+        const member = await db.collection("member").findOne({
+          organizationId: expense.organizationId,
+          userId: session.user.id,
+        });
+
+        if (!member) {
+          return createErrorResponse(
+            new ForbiddenError(
+              "Only organization members assigned as managers can approve expenses"
+            )
+          );
+        }
+      }
+
       // Can approve from pre-approval pending or approval pending states
       if (
         expense.state !== EXPENSE_STATES.PRE_APPROVAL_PENDING &&
@@ -376,6 +392,22 @@ export async function PATCH(
         );
       }
 
+      // For organization expenses, validate that the manager is an organization member
+      if (expense.organizationId) {
+        const member = await db.collection("member").findOne({
+          organizationId: expense.organizationId,
+          userId: session.user.id,
+        });
+
+        if (!member) {
+          return createErrorResponse(
+            new ForbiddenError(
+              "Only organization members assigned as managers can reject expenses"
+            )
+          );
+        }
+      }
+
       // Can reject from various states
       if (
         ![
@@ -411,11 +443,41 @@ export async function PATCH(
         updatedValues
       );
     } else if (action === "reimburse") {
-      // Only managers can reimburse expenses
-      if (!isManager) {
+      // Determine if user can reimburse: managers or organization admins/owners
+      let canReimburse = isManager;
+      if (expense.organizationId) {
+        const member = await db.collection("member").findOne({
+          organizationId: expense.organizationId,
+          userId: session.user.id,
+        });
+
+        if (member && (member.role === "admin" || member.role === "owner")) {
+          canReimburse = true;
+        }
+      }
+
+      if (!canReimburse) {
         return createErrorResponse(
-          new ForbiddenError("Only managers can reimburse expenses")
+          new ForbiddenError(
+            "Only managers or organization admins/owners can reimburse expenses"
+          )
         );
+      }
+
+      // For organization expenses, validate that the user is an organization member (for managers)
+      if (expense.organizationId) {
+        const member = await db.collection("member").findOne({
+          organizationId: expense.organizationId,
+          userId: session.user.id,
+        });
+
+        if (!member) {
+          return createErrorResponse(
+            new ForbiddenError(
+              "Only organization members can reimburse expenses"
+            )
+          );
+        }
       }
 
       // Can only reimburse approved expenses

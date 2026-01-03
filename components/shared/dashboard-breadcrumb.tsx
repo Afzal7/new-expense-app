@@ -75,6 +75,22 @@ function generateBreadcrumbs(
           isCurrent: true,
         });
       }
+    } else if (segments[1] === "manager") {
+      // Manager routes
+      breadcrumbs.push({
+        label: "Manager",
+        href: "/dashboard/manager/approvals",
+      });
+
+      if (segments[2] === "approvals") {
+        breadcrumbs.push({ label: "Approvals", isCurrent: true });
+      } else if (segments[2] === "reimbursement") {
+        breadcrumbs.push({ label: "Reimbursement", isCurrent: true });
+      } else {
+        // Manager overview is current page
+        breadcrumbs[breadcrumbs.length - 1].isCurrent = true;
+        breadcrumbs[breadcrumbs.length - 1].href = undefined;
+      }
     } else if (segments[1] === "organizations" && orgContext) {
       // Organization routes
       const orgName = userOrg?.name || "Organization";

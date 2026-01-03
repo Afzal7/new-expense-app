@@ -47,8 +47,10 @@ export async function GET(request: NextRequest) {
     );
     const includeDeleted = url.searchParams.get("includeDeleted") === "true";
 
-    // Build query
-    const query: Record<string, unknown> = { userId: session.user.id };
+    // Build query - include expenses where user is owner or manager
+    const query: Record<string, unknown> = {
+      $or: [{ userId: session.user.id }, { managerIds: session.user.id }],
+    };
 
     // Filter by type
     if (type === "private") {

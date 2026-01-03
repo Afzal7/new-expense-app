@@ -8,6 +8,7 @@ import {
   Users,
   Mail,
   DollarSign,
+  CheckCircle,
 } from "lucide-react";
 import { APP_CONFIG } from "@/lib/config";
 
@@ -33,6 +34,7 @@ import { DashboardBreadcrumb } from "@/components/shared/dashboard-breadcrumb";
 import { SubscriptionStatus } from "@/components/shared/subscription-status";
 import { useOrganizationContext } from "@/hooks/use-organization-context";
 import { useOrganization } from "@/hooks/use-organization";
+import { useIsManager } from "@/hooks/use-is-manager";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { DashboardErrorBoundary } from "@/components/error-boundary";
@@ -48,6 +50,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { data: session, isPending } = useSession();
   const { data: userOrg } = useOrganization();
+  const { data: isManager } = useIsManager();
 
   // Move auth check to useEffect to avoid render path side effects
   useEffect(() => {
@@ -135,6 +138,41 @@ export default function DashboardLayout({
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
+
+              {/* Manager navigation - only show to managers */}
+              {isManager && (
+                <SidebarGroup>
+                  <SidebarGroupLabel>Manager</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname === "/dashboard/manager/approvals"}
+                        >
+                          <Link href="/dashboard/manager/approvals">
+                            <CheckCircle className="h-4 w-4" />
+                            <span>Approvals</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={
+                            pathname === "/dashboard/manager/reimbursement"
+                          }
+                        >
+                          <Link href="/dashboard/manager/reimbursement">
+                            <DollarSign className="h-4 w-4" />
+                            <span>Reimbursement</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              )}
               {userOrg && (
                 <SidebarGroup>
                   <SidebarGroupLabel>Organization</SidebarGroupLabel>

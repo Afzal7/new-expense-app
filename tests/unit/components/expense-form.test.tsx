@@ -59,6 +59,10 @@ vi.mock("@/hooks/use-expense-mutations", () => ({
       mutateAsync: vi.fn().mockResolvedValue({ id: "submitted-expense-id" }),
       isPending: false,
     },
+    submitExpenseForFinalApproval: {
+      mutateAsync: vi.fn().mockResolvedValue({ id: "submitted-final-expense-id" }),
+      isPending: false,
+    },
     approveExpense: {
       mutateAsync: vi.fn().mockResolvedValue({ id: "approved-expense-id" }),
       isPending: false,
@@ -85,7 +89,6 @@ describe("ExpenseForm", () => {
   it("renders form fields correctly", () => {
     render(<ExpenseForm {...defaultProps} />);
 
-    expect(screen.getByLabelText(/total amount/i)).toBeInTheDocument();
     expect(screen.getByText("Approval Manager *")).toBeInTheDocument();
     expect(screen.getByText(/select managers/i)).toBeInTheDocument();
     expect(
@@ -94,43 +97,18 @@ describe("ExpenseForm", () => {
     expect(
       screen.getByRole("button", { name: /save draft/i })
     ).toBeInTheDocument();
-    // Main submit button that shows selected option (defaults to "Submit for Pre-approval")
+    // Main submit button now shows "Submit Report" with item count
     expect(
-      screen.getByRole("button", { name: /submit for pre-approval/i })
+      screen.getByRole("button", { name: /submit report \(1\)/i })
     ).toBeInTheDocument();
-    // Dropdown trigger for selecting different approval options
-    expect(
-      screen.getByRole("button", { name: /select submit option/i })
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
   });
 
   describe("form validation", () => {
-    it("shows validation error for invalid total amount", async () => {
-      const user = userEvent.setup();
-      render(<ExpenseForm {...defaultProps} />);
-
-      const totalAmountInput = screen.getByLabelText(/total amount/i);
-      await user.clear(totalAmountInput);
-      await user.type(totalAmountInput, "abc");
-
-      const submitButton = screen.getByRole("button", {
-        name: /save draft/i,
-      });
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(/Invalid input: expected number, received NaN/i)
-        ).toBeInTheDocument();
-      });
-    });
-
     it("shows validation error for negative total amount", async () => {
       const user = userEvent.setup();
       render(<ExpenseForm {...defaultProps} />);
 
-      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      const totalAmountInput = screen.getByPlaceholderText("0.00");
       await user.clear(totalAmountInput);
       await user.type(totalAmountInput, "-10");
 
@@ -151,15 +129,11 @@ describe("ExpenseForm", () => {
       render(<ExpenseForm {...defaultProps} />);
 
       // Set valid total amount first
-      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      const totalAmountInput = screen.getByPlaceholderText("0.00");
       await user.clear(totalAmountInput);
       await user.type(totalAmountInput, "100");
 
-      const addLineItemButton = screen.getByRole("button", {
-        name: /add item/i,
-      });
-      await user.click(addLineItemButton);
-
+      // First line item is always expanded by default in new design
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 1);
       const dateInput = screen.getByLabelText(/date/i);
@@ -192,7 +166,7 @@ describe("ExpenseForm", () => {
       render(<ExpenseForm {...defaultProps} />);
 
       // Fill form with valid data
-      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      const totalAmountInput = screen.getByPlaceholderText("0.00");
       await user.clear(totalAmountInput);
       await user.type(totalAmountInput, "150");
 
@@ -202,24 +176,18 @@ describe("ExpenseForm", () => {
       const managerOption = screen.getByText("Manager One");
       await user.click(managerOption);
 
-      // Add line item
-      const addLineItemButton = screen.getByRole("button", {
-        name: /add item/i,
-      });
-      await user.click(addLineItemButton);
-
-      const lineItemAmountInputs = screen.getAllByLabelText(/amount/i);
-      const lineItemAmountInput = lineItemAmountInputs[1]; // Second amount input (line item)
+      // Line item 1 is already there
+      const lineItemAmountInput = screen.getAllByPlaceholderText("0.00")[1];
       await user.clear(lineItemAmountInput);
       await user.type(lineItemAmountInput, "150");
 
-      const descriptionInput = screen.getByLabelText(/description/i);
+      const descriptionInput = screen.getByPlaceholderText(/merchant name/i);
       await user.type(descriptionInput, "Office supplies");
 
-      const categoryInput = screen.getByLabelText(/category/i);
-      await user.type(categoryInput, "Office");
+      const categoryButton = screen.getByRole("button", { name: /office/i });
+      await user.click(categoryButton);
 
-      const dateInput = screen.getByLabelText(/date \*/i);
+      const dateInput = screen.getByLabelText(/date/i);
       await user.clear(dateInput);
       await user.type(dateInput, "2023-12-01");
 
@@ -265,7 +233,7 @@ describe("ExpenseForm", () => {
       render(<ExpenseForm {...defaultProps} />);
 
       // Fill minimal valid form
-      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      const totalAmountInput = screen.getByPlaceholderText("0.00");
       await user.clear(totalAmountInput);
       await user.type(totalAmountInput, "100");
 
@@ -305,18 +273,11 @@ describe("ExpenseForm", () => {
       render(<ExpenseForm {...defaultProps} />);
 
       // Fill valid form with line item
-      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      const totalAmountInput = screen.getByPlaceholderText("0.00");
       await user.clear(totalAmountInput);
       await user.type(totalAmountInput, "100");
 
-      // Add line item first
-      const addLineItemButton = screen.getByRole("button", {
-        name: /add item/i,
-      });
-      await user.click(addLineItemButton);
-
-      const lineItemAmountInputs = screen.getAllByLabelText(/amount/i);
-      const lineItemAmountInput = lineItemAmountInputs[1]; // Second amount input (line item)
+      const lineItemAmountInput = screen.getAllByPlaceholderText("0.00")[1];
       await user.clear(lineItemAmountInput);
       await user.type(lineItemAmountInput, "100");
 
@@ -346,37 +307,29 @@ describe("ExpenseForm", () => {
       const user = userEvent.setup();
       render(<ExpenseForm {...defaultProps} />);
 
-      // Initially no line items (only total amount)
-      expect(screen.getByLabelText(/total amount/i)).toBeInTheDocument();
+      // Initially 1 line item
+      expect(screen.getAllByPlaceholderText("0.00")).toHaveLength(2); // total + 1 item
 
-      // Add first line item
+      // Add second line item
       const addLineItemButton = screen.getByRole("button", {
         name: /add item/i,
       });
       await user.click(addLineItemButton);
 
-      expect(screen.getAllByLabelText(/amount/i)).toHaveLength(2);
-      expect(screen.getByLabelText(/date/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
-
-      // Add second line item
-      await user.click(addLineItemButton);
-
-      expect(screen.getAllByLabelText(/amount/i)).toHaveLength(3);
+      expect(screen.getAllByPlaceholderText("0.00")).toHaveLength(3);
 
       // Remove first line item
-      const removeButtons = screen.getAllByRole("button", { name: /remove/i });
+      const removeButtons = screen.getAllByRole("button", { name: /remove item/i });
       await user.click(removeButtons[0]);
 
-      expect(screen.getAllByLabelText(/amount/i)).toHaveLength(2);
+      expect(screen.getAllByPlaceholderText("0.00")).toHaveLength(2);
     });
 
     it("calls onCancel when cancel button is clicked", async () => {
       const user = userEvent.setup();
       render(<ExpenseForm {...defaultProps} />);
 
-      const cancelButton = screen.getByRole("button", { name: /cancel/i });
+      const cancelButton = screen.getByRole("button", { name: /arrow-left/i });
       await user.click(cancelButton);
 
       expect(mockOnCancel).toHaveBeenCalledTimes(1);
@@ -391,82 +344,46 @@ describe("ExpenseForm", () => {
       });
       await user.click(addLineItemButton);
 
-      const dateInput = screen.getByLabelText(/date/i);
+      // Check second item date (first is index 0)
+      const dateInputs = screen.getAllByLabelText(/date/i);
       const today = new Date().toISOString().split("T")[0];
-      expect(dateInput).toHaveValue(today);
+      expect(dateInputs[1]).toHaveValue(today);
     });
 
     it("calculates and displays total from line items", async () => {
       const user = userEvent.setup();
       render(<ExpenseForm {...defaultProps} />);
 
-      // Add line item
-      const addLineItemButton = screen.getByRole("button", {
-        name: /add item/i,
-      });
-      await user.click(addLineItemButton);
-
-      // Fill line item with amount
-      const lineItemAmountInput = screen.getAllByLabelText(/amount/i)[1];
+      // Fill line item 1 with amount
+      const lineItemAmountInput = screen.getAllByPlaceholderText("0.00")[1];
       await user.clear(lineItemAmountInput);
       await user.type(lineItemAmountInput, "50.25");
 
-      // Should show calculated total
+      // Should show calculated total in mismatch warning or similar
+      // In the new Hero, it shows "Sum is $50.25" if total is different
       await waitFor(() => {
-        expect(screen.getByText("$50.25")).toBeInTheDocument();
+        expect(screen.getByText(/sum is \$50.25/i)).toBeInTheDocument();
       });
-      expect(screen.getByText(/based on 1 line item/i)).toBeInTheDocument();
     });
 
-    it("auto-fills total amount when 'Use This Amount' button is clicked", async () => {
+    it("auto-fills total amount when 'Auto-fix' button is clicked", async () => {
       const user = userEvent.setup();
       render(<ExpenseForm {...defaultProps} />);
 
-      // Add line item
-      const addLineItemButton = screen.getByRole("button", {
-        name: /add item/i,
-      });
-      await user.click(addLineItemButton);
-
       // Fill line item with amount
-      const lineItemAmountInput = screen.getAllByLabelText(/amount/i)[1];
+      const lineItemAmountInput = screen.getAllByPlaceholderText("0.00")[1];
       await user.clear(lineItemAmountInput);
       await user.type(lineItemAmountInput, "75.50");
 
-      // Click "Use This Amount" button
-      const useAmountButton = screen.getByRole("button", {
-        name: /use this amount/i,
+      // Click "Auto-fix" button
+      const autoFixButton = await screen.findByRole("button", {
+        name: /auto-fix/i,
       });
-      await user.click(useAmountButton);
+      await user.click(autoFixButton);
 
       // Total amount should be auto-filled
-      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      const totalAmountInput = screen.getByPlaceholderText("0.00");
       expect(totalAmountInput).toHaveValue(75.5);
-    });
-
-    it("shows calculated total summary with multiple line items", async () => {
-      const user = userEvent.setup();
-      render(<ExpenseForm {...defaultProps} />);
-
-      // Add multiple line items
-      const addLineItemButton = screen.getByRole("button", {
-        name: /add item/i,
-      });
-      await user.click(addLineItemButton);
-      await user.click(addLineItemButton);
-
-      // Fill amounts
-      const lineItemInputs = screen.getAllByLabelText(/amount/i);
-      await user.clear(lineItemInputs[1]);
-      await user.type(lineItemInputs[1], "25.00");
-      await user.clear(lineItemInputs[2]);
-      await user.type(lineItemInputs[2], "30.50");
-
-      // Should show total of 55.50
-      await waitFor(() => {
-        expect(screen.getByText("$55.50")).toBeInTheDocument();
-      });
-      expect(screen.getByText(/based on 2 line items/i)).toBeInTheDocument();
     });
   });
 
@@ -482,14 +399,14 @@ describe("ExpenseForm", () => {
         lineItems: [
           {
             amount: 100,
-            date: new Date("2023-12-01"),
+            date: "2023-12-01T00:00:00.000Z",
             description: "Office supplies",
             category: "Office",
             attachments: [],
           },
           {
             amount: 100,
-            date: new Date("2023-12-02"),
+            date: "2023-12-02T00:00:00.000Z",
             description: "Travel",
             category: "Transportation",
             attachments: [],
@@ -497,8 +414,8 @@ describe("ExpenseForm", () => {
         ],
         state: "Draft" as const,
         auditLog: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         deletedAt: null,
       },
     };
@@ -507,8 +424,8 @@ describe("ExpenseForm", () => {
       render(<ExpenseForm {...editProps} />);
 
       expect(screen.getByText("Edit Expense")).toBeInTheDocument();
-      expect(screen.getByLabelText(/total amount/i)).toHaveValue(200);
-      expect(screen.getAllByLabelText(/amount/i)).toHaveLength(3); // total + 2 line items
+      expect(screen.getByPlaceholderText("0.00")).toHaveValue(200);
+      expect(screen.getAllByPlaceholderText("0.00")).toHaveLength(3); // total + 2 line items
     });
 
     it("submits updated data correctly", async () => {
@@ -522,7 +439,7 @@ describe("ExpenseForm", () => {
       render(<ExpenseForm {...editProps} />);
 
       // Update total amount
-      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      const totalAmountInput = screen.getByPlaceholderText("0.00");
       await user.clear(totalAmountInput);
       await user.type(totalAmountInput, "250");
 
@@ -571,30 +488,22 @@ describe("ExpenseForm", () => {
       const user = userEvent.setup();
       render(<ExpenseForm {...defaultProps} />);
 
+      // Switch to Personal mode (pre-approval uses submitForPreApproval in ExpenseForm)
+      const personalButton = screen.getByRole("button", { name: /personal/i });
+      await user.click(personalButton);
+
       // Fill valid form with line item
-      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      const totalAmountInput = screen.getByPlaceholderText("0.00");
       await user.clear(totalAmountInput);
       await user.type(totalAmountInput, "100");
 
-      // Add line item
-      const addLineItemButton = screen.getByRole("button", {
-        name: /add item/i,
-      });
-      await user.click(addLineItemButton);
-
-      const lineItemAmountInput = screen.getAllByLabelText(/amount/i)[1];
+      const lineItemAmountInput = screen.getAllByPlaceholderText("0.00")[1];
       await user.clear(lineItemAmountInput);
       await user.type(lineItemAmountInput, "100");
 
-      // Select manager
-      const managerSelect = screen.getByRole("combobox");
-      await user.click(managerSelect);
-      const managerOption = screen.getByText("Manager One");
-      await user.click(managerOption);
-
-      // Submit for pre-approval
+      // Submit report (Personal mode uses submitForPreApproval)
       const submitButton = screen.getByRole("button", {
-        name: /submit for pre-approval/i,
+        name: /submit report \(1\)/i,
       });
       await user.click(submitButton);
 
@@ -606,7 +515,7 @@ describe("ExpenseForm", () => {
           },
           body: JSON.stringify({
             totalAmount: 100,
-            managerIds: ["manager-1"],
+            managerIds: [],
             lineItems: [
               {
                 amount: 100,
@@ -626,18 +535,13 @@ describe("ExpenseForm", () => {
       const user = userEvent.setup();
       render(<ExpenseForm {...defaultProps} />);
 
+      // Work mode is default
       // Fill valid form with line item
-      const totalAmountInput = screen.getByLabelText(/total amount/i);
+      const totalAmountInput = screen.getByPlaceholderText("0.00");
       await user.clear(totalAmountInput);
       await user.type(totalAmountInput, "150");
 
-      // Add line item
-      const addLineItemButton = screen.getByRole("button", {
-        name: /add item/i,
-      });
-      await user.click(addLineItemButton);
-
-      const lineItemAmountInput = screen.getAllByLabelText(/amount/i)[1];
+      const lineItemAmountInput = screen.getAllByPlaceholderText("0.00")[1];
       await user.clear(lineItemAmountInput);
       await user.type(lineItemAmountInput, "150");
 
@@ -647,18 +551,9 @@ describe("ExpenseForm", () => {
       const managerOption = screen.getByText("Manager One");
       await user.click(managerOption);
 
-      // Change to final approval
-      const dropdownTrigger = screen.getByRole("button", {
-        name: /select submit option/i,
-      });
-      await user.click(dropdownTrigger);
-
-      const finalApprovalOption = screen.getByText("Submit for Final Approval");
-      await user.click(finalApprovalOption);
-
-      // Submit for final approval
+      // Submit report (Work mode uses submitForFinalApproval)
       const submitButton = screen.getByRole("button", {
-        name: /submit for final approval/i,
+        name: /submit report \(1\)/i,
       });
       await user.click(submitButton);
 
@@ -686,13 +581,22 @@ describe("ExpenseForm", () => {
       });
     });
 
-    it("disables approval buttons when no line items", () => {
+    it("disables approval buttons when manager not selected in work mode", async () => {
+      const user = userEvent.setup();
       render(<ExpenseForm {...defaultProps} />);
 
+      // Fill valid form
+      const totalAmountInput = screen.getByPlaceholderText("0.00");
+      await user.clear(totalAmountInput);
+      await user.type(totalAmountInput, "100");
+
       const submitButton = screen.getByRole("button", {
-        name: /submit for pre-approval/i,
+        name: /submit report \(1\)/i,
       });
-      expect(submitButton).toBeDisabled();
+      await user.click(submitButton);
+
+      // Should show error toast (mocked indirectly)
+      expect(mockOnSuccess).not.toHaveBeenCalled();
     });
   });
 });

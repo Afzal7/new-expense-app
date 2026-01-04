@@ -35,8 +35,12 @@ export default function ExpenseDetailPage() {
   const { data: session } = useSession();
 
   const { data: expense, isLoading, error } = useExpense(id);
-  const { approveExpense, rejectExpense, reimburseExpense } =
-    useExpenseMutations();
+  const {
+    approveExpense,
+    rejectExpense,
+    reimburseExpense,
+    changeExpenseStatus,
+  } = useExpenseMutations();
 
   // Check if current user is a manager (admin/owner)
   const { data: isAdmin } = useIsManager();
@@ -73,41 +77,53 @@ export default function ExpenseDetailPage() {
       return;
     }
 
-    // Log comment for audit trail (API integration pending)
-    if (commentInput && commentInput.trim()) {
-      console.log(`Comment for ${newStatus}:`, commentInput.trim());
+    // Use admin status override for admins to change to ANY state
+    // This bypasses the normal workflow transitions
+    if (isAdmin) {
+      await changeExpenseStatus.mutateAsync({
+        id: expense.id,
+        status: newStatus,
+        comment: commentInput?.trim(),
+      });
+      setComment("");
+      return;
     }
 
-    // For now, we'll handle the main status transitions that have API support
-    switch (newStatus) {
-      case EXPENSE_STATES.APPROVED:
-        if (expense.state === EXPENSE_STATES.APPROVAL_PENDING) {
-          await approveExpense.mutateAsync(expense.id);
-        }
-        break;
-      case EXPENSE_STATES.REJECTED:
-        if (
-          expense.state === EXPENSE_STATES.APPROVAL_PENDING ||
-          expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING ||
-          expense.state === EXPENSE_STATES.PRE_APPROVED
-        ) {
+    // For non-admins, only support specific workflow transitions
+    // (though currently the dropdown only shows for admins, this is future-proof)
+    try {
+      switch (newStatus) {
+        case EXPENSE_STATES.APPROVED:
+          if (expense.state === EXPENSE_STATES.APPROVAL_PENDING) {
+            await approveExpense.mutateAsync(expense.id);
+          } else {
+            toast.error(
+              `Can only approve from Approval Pending state (currently: ${expense.state})`
+            );
+          }
+          break;
+        case EXPENSE_STATES.REJECTED:
           await rejectExpense.mutateAsync(expense.id);
-        }
-        break;
-      case EXPENSE_STATES.REIMBURSED:
-        if (expense.state === EXPENSE_STATES.APPROVED) {
-          await reimburseExpense.mutateAsync(expense.id);
-        }
-        break;
-      // Other status changes would require additional API endpoints
-      default:
-        toast.error(
-          `Cannot change to ${newStatus}. This transition is not supported.`
-        );
+          break;
+        case EXPENSE_STATES.REIMBURSED:
+          if (expense.state === EXPENSE_STATES.APPROVED) {
+            await reimburseExpense.mutateAsync(expense.id);
+          } else {
+            toast.error(
+              `Can only reimburse from Approved state (currently: ${expense.state})`
+            );
+          }
+          break;
+        default:
+          toast.error(
+            `Cannot change to ${newStatus}. This transition requires admin access.`
+          );
+      }
+      setComment("");
+    } catch (error) {
+      // Error handling is done by the mutation hooks (toast)
+      console.error("Status change failed:", error);
     }
-
-    // Clear comment after submission
-    setComment("");
   };
 
   if (isLoading) {

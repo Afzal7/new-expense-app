@@ -44,8 +44,7 @@ export const CreateExpenseSchema = z.union([
   z.object({
     totalAmount: z.number().positive("Total amount must be greater than 0"),
     managerIds: z
-      .array(z.string())
-      .min(1, "At least one manager must be selected"),
+      .array(z.string()),
     lineItems: z.array(LineItemSchema).optional().default([]),
     status: z.enum([
       EXPENSE_STATES.PRE_APPROVAL_PENDING,
@@ -87,8 +86,7 @@ export const ExpenseSubmissionSchema = z.union([
   z.object({
     totalAmount: z.number().positive("Total amount must be greater than 0"),
     managerIds: z
-      .array(z.string())
-      .min(1, "At least one manager must be selected"),
+      .array(z.string()),
     lineItems: z.array(LineItemSchema).optional().default([]),
     status: z.enum([
       EXPENSE_STATES.PRE_APPROVAL_PENDING,

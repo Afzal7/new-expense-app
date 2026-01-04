@@ -307,6 +307,43 @@ export function useExpenseMutations() {
     },
   });
 
+  const changeExpenseStatus = useMutation({
+    mutationFn: async ({
+      id,
+      status,
+      comment,
+    }: {
+      id: string;
+      status: string;
+      comment?: string;
+    }): Promise<Expense> => {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "change-status", status, comment }),
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Failed to change expense status" }));
+        throw new Error(error.message || "Failed to change expense status");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_data) => {
+      // Invalidate and refetch expenses
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Expense status changed successfully");
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to change expense status");
+    },
+  });
+
   return {
     createExpense,
     updateExpense,
@@ -318,5 +355,6 @@ export function useExpenseMutations() {
     bulkReimburseExpenses,
     deleteExpense,
     restoreExpense,
+    changeExpenseStatus,
   };
 }

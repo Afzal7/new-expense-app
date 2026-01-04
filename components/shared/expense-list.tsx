@@ -343,6 +343,7 @@ export function ExpenseList({
               <ErrorState
                 message="Failed to load expenses. Please try again."
                 type="inline"
+                // @ts-expect-error - refetch is callable
                 onRetry={() => refetch()}
               />
             </div>

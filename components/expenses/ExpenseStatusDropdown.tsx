@@ -111,9 +111,29 @@ export function ExpenseStatusDropdown({
                             : "bg-gray-400"
                     }`}
                   />
-                  {status
-                    .replace(/-/g, " ")
-                    .replace(/\b\w/g, (l) => l.toUpperCase())}
+                  <div className="flex flex-col">
+                    <span
+                      className={`text-sm ${
+                        status === EXPENSE_STATES.DRAFT
+                          ? "text-zinc-400 italic"
+                          : ""
+                      }`}
+                    >
+                      {status
+                        .replace(/-/g, " ")
+                        .replace(/\b\w/g, (l) => l.toUpperCase())}
+                    </span>
+                    {/* Show admin-only badge for non-workflow states */}
+                    {[
+                      EXPENSE_STATES.DRAFT,
+                      EXPENSE_STATES.PRE_APPROVAL_PENDING,
+                      EXPENSE_STATES.PRE_APPROVED,
+                    ].includes(status as any) && (
+                      <span className="text-[10px] text-zinc-400 font-normal">
+                        Admin override
+                      </span>
+                    )}
+                  </div>
                 </span>
               </DropdownMenuItem>
             ))}

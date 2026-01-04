@@ -45,19 +45,20 @@ describe("useExpenseMutations", () => {
     organizationId: "org-1",
     managerIds: ["manager-1"],
     totalAmount: 100,
-    state: "draft",
+    state: "Draft",
     lineItems: [
       {
         amount: 100,
-        date: new Date("2023-12-01"),
+        date: "2023-12-01T00:00:00.000Z",
         description: "Test expense",
         category: "Office",
         attachments: [],
       },
     ],
     auditLog: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    deletedAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
   const mockExpenseInput: ExpenseInput = {
@@ -66,9 +67,10 @@ describe("useExpenseMutations", () => {
     lineItems: [
       {
         amount: 100,
-        date: new Date("2023-12-01"),
+        date: new Date("2023-12-01T00:00:00.000Z"),
         description: "Test expense",
         category: "Office",
+        attachments: [],
       },
     ],
   };

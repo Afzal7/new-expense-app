@@ -3,24 +3,24 @@
  * DELETE /api/upload/delete-signed-url?fileKey=key-to-delete
  */
 
-import { NextRequest } from "next/server";
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { env } from "@/lib/env";
 import { auth } from "@/lib/auth";
+import { env } from "@/lib/env";
 import {
   createErrorResponse,
   UnauthorizedError,
   ValidationError,
 } from "@/lib/errors";
-import { uploadRateLimiter, checkRateLimit } from "@/lib/rate-limiter";
+import { checkRateLimit, uploadRateLimiter } from "@/lib/rate-limiter";
+import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { NextRequest } from "next/server";
 
 const s3Client = new S3Client({
   region: "auto",
-  endpoint: env.AWS_ENDPOINT_URL_S3,
+  endpoint: env.ENDPOINT_URL_S3,
   credentials: {
-    accessKeyId: env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: env.ACCESS_KEY_ID,
+    secretAccessKey: env.SECRET_ACCESS_KEY,
   },
 });
 

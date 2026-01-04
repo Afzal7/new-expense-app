@@ -50,9 +50,9 @@ export const env = {
     getOptionalEnvVar("RESEND_FROM_EMAIL") || "onboarding@resend.dev",
 
   // Cloudflare R2
-  AWS_ACCESS_KEY_ID: getEnvVar("AWS_ACCESS_KEY_ID"),
-  AWS_SECRET_ACCESS_KEY: getEnvVar("AWS_SECRET_ACCESS_KEY"),
-  AWS_ENDPOINT_URL_S3: getEnvVar("AWS_ENDPOINT_URL_S3"),
+  ACCESS_KEY_ID: getEnvVar("ACCESS_KEY_ID"),
+  SECRET_ACCESS_KEY: getEnvVar("SECRET_ACCESS_KEY"),
+  ENDPOINT_URL_S3: getEnvVar("ENDPOINT_URL_S3"),
   S3_BUCKET: getEnvVar("S3_BUCKET"),
 
   // Node environment

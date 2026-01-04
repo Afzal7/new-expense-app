@@ -1,16 +1,16 @@
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  beforeAll,
-  afterEach,
-} from "vitest";
 import mongoose from "mongoose";
 import { NextRequest } from "next/server";
-import { Expense, EXPENSE_STATES } from "../../lib/models/expense";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { auth } from "../../lib/auth";
+import { Expense, EXPENSE_STATES } from "../../lib/models/expense";
 import type { AuditEntry } from "../../types/expense";
 
 // Mock external services and environment
@@ -27,7 +27,7 @@ vi.mock("@/lib/env", () => ({
     CLOUDFLARE_R2_SECRET_ACCESS_KEY: "test-secret",
     CLOUDFLARE_R2_ACCOUNT_ID: "test-account",
     CLOUDFLARE_R2_BUCKET_NAME: "test-bucket",
-    AWS_ENDPOINT_URL_S3: "https://test-account.r2.cloudflarestorage.com",
+    ENDPOINT_URL_S3: "https://test-account.r2.cloudflarestorage.com",
     NODE_ENV: "test",
     isDevelopment: true,
     isProduction: false,

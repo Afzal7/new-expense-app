@@ -1,19 +1,17 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { X, Upload, File } from "lucide-react";
+import { X, Upload, File, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   validateFile,
   validateFileName,
-  sanitizeFileName,
 } from "@/lib/file-validation";
-import { useOptimizedUpload } from "@/hooks/use-optimized-upload";
+import { useFileUpload } from "@/hooks/use-file-upload";
 
 interface LineItemFormProps {
   index: number;
@@ -27,20 +25,21 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
     setValue,
     formState: { errors },
   } = useFormContext<any>();
-  const { uploadFileWithKey, uploads, cancelUpload } = useOptimizedUpload();
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize fileKeyMap with existing attachments
+  // Maps publicUrl -> fileKey for deletion
   const [fileKeyMap, setFileKeyMap] = useState<Record<string, string>>(() => {
     const initialAttachments = watch(`lineItems.${index}.attachments`) || [];
     const initialMap: Record<string, string> = {};
 
-    // For existing attachments, extract fileKey from publicUrl
-    // publicUrl format: https://bucket.t3.storage.dev/uploads/userId/timestamp-filename
     initialAttachments.forEach((url: string) => {
       try {
         const urlObj = new URL(url);
-        const fileKey = urlObj.pathname.substring(1); // Remove leading slash
+        // Extract fileKey from URL path (remove leading slash)
+        // URL format: https://bucket.../uploads/userId/timestamp-filename
+        const fileKey = urlObj.pathname.substring(1); 
         initialMap[url] = fileKey;
       } catch (error) {
         console.warn(
@@ -53,51 +52,17 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
     return initialMap;
   });
 
-  // Cleanup uploaded files when component unmounts
-  useEffect(() => {
-    const currentFileKeyMap = fileKeyMap;
-    const currentUploads = uploads;
-    return () => {
-      // Clean up any uploaded files that are still in the uploads state
-      Object.values(currentUploads).forEach(async (upload) => {
-        if (upload.status === "completed" && upload.fileKey) {
-          try {
-            await deleteFile(upload.fileKey);
-          } catch (error) {
-            console.error("Error cleaning up upload file on unmount:", error);
-          }
-        }
-      });
-
-      // Clean up any attachments that were added to the form
-      // When a line item is removed, we need to delete all its attachments
-      Object.values(currentFileKeyMap).forEach(async (fileKey) => {
-        try {
-          await deleteFile(fileKey);
-        } catch (error) {
-          console.error(
-            "Error cleaning up attachment file on line item removal:",
-            error
-          );
-        }
-      });
-    };
-  }, []);
+  const { uploadFile, deleteFile, isUploading, isDeleting } = useFileUpload();
 
   const handleFileUpload = async (file: File): Promise<void> => {
     try {
-      // Validate file name
       validateFileName(file.name);
-
-      // Validate file content and size
       await validateFile(file);
 
-      const { publicUrl, fileKey } = await uploadFileWithKey(file);
+      const { publicUrl, fileKey } = await uploadFile(file);
 
-      // Store file key mapping for later deletion
       setFileKeyMap((prev) => ({ ...prev, [publicUrl]: fileKey }));
 
-      // Update form with new attachment
       const currentAttachments = watch(`lineItems.${index}.attachments`) || [];
       setValue(`lineItems.${index}.attachments`, [
         ...currentAttachments,
@@ -107,58 +72,35 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
       toast.success("File uploaded successfully");
     } catch (error) {
       console.error("Upload error:", error);
-      toast.error("Failed to upload file");
-    }
-  };
-
-  const deleteFile = async (fileKey: string): Promise<void> => {
-    try {
-      const response = await fetch(
-        `/api/upload/delete-signed-url?fileKey=${encodeURIComponent(fileKey)}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        console.error("Failed to get delete signed URL:", error);
-        throw new Error(error.error || "Failed to get delete signed URL");
-      }
-
-      const { signedUrl } = await response.json();
-
-      // Delete the file
-      const deleteResponse = await fetch(signedUrl, {
-        method: "DELETE",
-      });
-
-      if (!deleteResponse.ok) {
-        console.error("Failed to delete file from storage");
-        throw new Error("Failed to delete file");
-      }
-    } catch (error) {
-      console.error("Error deleting file:", error);
-      toast.error("Failed to delete file");
+      // Toast handled by hook
     }
   };
 
   const removeAttachment = async (attachmentUrl: string) => {
+    const fileKey = fileKeyMap[attachmentUrl];
+    
+    // Remove from UI immediately
     const currentAttachments = watch(`lineItems.${index}.attachments`) || [];
     setValue(
       `lineItems.${index}.attachments`,
       currentAttachments.filter((url: string) => url !== attachmentUrl)
     );
 
-    // Delete the file from storage
-    const fileKey = fileKeyMap[attachmentUrl];
     if (fileKey) {
-      await deleteFile(fileKey);
-      setFileKeyMap((prev) => {
-        const newMap = { ...prev };
-        delete newMap[attachmentUrl];
-        return newMap;
-      });
+      try {
+        await deleteFile(fileKey);
+        setFileKeyMap((prev) => {
+          const newMap = { ...prev };
+          delete newMap[attachmentUrl];
+          return newMap;
+        });
+        toast.success("File deleted successfully");
+      } catch (error) {
+        console.error("Error deleting file:", error);
+        // Toast handled by hook
+        // Ideally we might want to revert the UI change if deletion fails, 
+        // but for now we prioritize UI responsiveness.
+      }
     } else {
       console.error("No fileKey found for attachment:", attachmentUrl);
     }
@@ -241,7 +183,6 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
             onChange={async (e) => {
               const files = Array.from(e.target.files || []);
 
-              // Limit number of files
               if (files.length > 5) {
                 toast.error("Maximum 5 files allowed at once");
                 if (fileInputRef.current) {
@@ -251,11 +192,7 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
               }
 
               for (const file of files) {
-                try {
-                  await handleFileUpload(file);
-                } catch (error) {
-                  // Error handled in handleFileUpload
-                }
+                await handleFileUpload(file);
               }
               if (fileInputRef.current) {
                 fileInputRef.current.value = "";
@@ -267,16 +204,19 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
             variant="outline"
             size="sm"
             onClick={() => fileInputRef.current?.click()}
-            disabled={Object.values(uploads).some(
-              (upload) => upload.status === "uploading"
-            )}
+            disabled={isUploading}
           >
-            <Upload className="h-4 w-4 mr-2" />
-            {Object.values(uploads).some(
-              (upload) => upload.status === "uploading"
-            )
-              ? "Uploading..."
-              : "Upload Files"}
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Files
+              </>
+            )}
           </Button>
           {watch(`lineItems.${index}.attachments`)?.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-3">
@@ -299,7 +239,6 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
                             alt={fileName}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              // Fallback to icon if image fails to load
                               e.currentTarget.style.display = "none";
                               e.currentTarget.nextElementSibling?.classList.remove(
                                 "hidden"
@@ -338,6 +277,7 @@ export function LineItemForm({ index, onRemove }: LineItemFormProps) {
                         onClick={() => removeAttachment(attachment)}
                         className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
                         title="Remove file"
+                        disabled={isDeleting}
                       >
                         <X className="w-3 h-3" />
                       </button>

@@ -4,7 +4,6 @@ import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -16,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useFileUpload } from "@/hooks/use-file-upload";
 
 interface FileUploadProps {
   onUploadComplete?: (files: UploadedFile[]) => void;
@@ -29,7 +29,6 @@ interface FileUploadProps {
 interface UploadedFile {
   file: File;
   publicUrl: string;
-  progress: number;
   status: "uploading" | "completed" | "error";
   error?: string;
 }
@@ -56,134 +55,52 @@ export function FileUpload({
   className,
 }: FileUploadProps) {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const { uploadFile, deleteFile } = useFileUpload();
   const [isUploading, setIsUploading] = useState(false);
-
-  const uploadFile = async (file: File): Promise<UploadedFile> => {
-    try {
-      // Get signed URL
-      const response = await fetch(
-        `/api/upload/signed-url?fileName=${encodeURIComponent(
-          file.name
-        )}&fileType=${encodeURIComponent(file.type)}`
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to get signed URL");
-      }
-
-      const { signedUrl, publicUrl } = await response.json();
-
-      // Create upload task
-      const uploadTask: UploadedFile = {
-        file,
-        publicUrl,
-        progress: 0,
-        status: "uploading",
-      };
-
-      setUploadedFiles((prev) => [...prev, uploadTask]);
-
-      // Upload file with progress tracking
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-
-        xhr.upload.addEventListener("progress", (event) => {
-          if (event.lengthComputable) {
-            const progress = Math.round((event.loaded / event.total) * 100);
-            setUploadedFiles((prev) =>
-              prev.map((f) => (f.file === file ? { ...f, progress } : f))
-            );
-          }
-        });
-
-        xhr.addEventListener("load", () => {
-          if (xhr.status === 200) {
-            setUploadedFiles((prev) =>
-              prev.map((f) =>
-                f.file === file
-                  ? { ...f, status: "completed", progress: 100 }
-                  : f
-              )
-            );
-            resolve();
-          } else {
-            throw new Error(`Upload failed with status ${xhr.status}`);
-          }
-        });
-
-        xhr.addEventListener("error", () => {
-          reject(new Error("Upload failed"));
-        });
-
-        xhr.open("PUT", signedUrl);
-        xhr.setRequestHeader("Content-Type", file.type);
-        xhr.send(file);
-      });
-
-      return { ...uploadTask, status: "completed", progress: 100 };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Upload failed";
-      const failedTask: UploadedFile = {
-        file,
-        publicUrl: "",
-        progress: 0,
-        status: "error",
-        error: errorMessage,
-      };
-
-      setUploadedFiles((prev) => [...prev, failedTask]);
-      throw error;
-    }
-  };
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       setIsUploading(true);
 
-      try {
-        const uploadPromises = acceptedFiles.map(uploadFile);
-        const results = await Promise.allSettled(uploadPromises);
+      const newUploads: UploadedFile[] = acceptedFiles.map(file => ({
+        file,
+        publicUrl: "",
+        status: "uploading"
+      }));
 
-        const successfulUploads = results
-          .filter(
-            (result): result is PromiseFulfilledResult<UploadedFile> =>
-              result.status === "fulfilled" &&
-              result.value.status === "completed"
-          )
-          .map((result) => result.value);
+      setUploadedFiles(prev => [...prev, ...newUploads]);
 
-        const failedUploads = results.filter(
-          (result) => result.status === "rejected"
-        );
+      const successfulUploads: UploadedFile[] = [];
 
-        if (successfulUploads.length > 0) {
-          onUploadComplete?.(successfulUploads);
-          toast.success(
-            `Successfully uploaded ${successfulUploads.length} file${
-              successfulUploads.length > 1 ? "s" : ""
-            }`
-          );
+      for (const file of acceptedFiles) {
+        try {
+          const { publicUrl } = await uploadFile(file);
+          
+          setUploadedFiles(prev => prev.map(u => 
+            u.file === file ? { ...u, status: "completed", publicUrl } : u
+          ));
+
+          successfulUploads.push({
+            file,
+            publicUrl,
+            status: "completed"
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Upload failed";
+          setUploadedFiles(prev => prev.map(u => 
+            u.file === file ? { ...u, status: "error", error: errorMessage } : u
+          ));
         }
-
-        if (failedUploads.length > 0) {
-          const errorMessage = `Failed to upload ${failedUploads.length} file${
-            failedUploads.length > 1 ? "s" : ""
-          }`;
-          onUploadError?.(errorMessage);
-          toast.error(errorMessage);
-        }
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Upload failed";
-        onUploadError?.(errorMessage);
-        toast.error(errorMessage);
-      } finally {
-        setIsUploading(false);
       }
+
+      if (successfulUploads.length > 0) {
+        onUploadComplete?.(successfulUploads);
+        toast.success(`Uploaded ${successfulUploads.length} files`);
+      }
+      
+      setIsUploading(false);
     },
-    [onUploadComplete, onUploadError]
+    [uploadFile, onUploadComplete]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -200,7 +117,17 @@ export function FileUpload({
     disabled: isUploading,
   });
 
-  const removeFile = (fileToRemove: File) => {
+  const removeFile = async (fileToRemove: File, publicUrl?: string) => {
+    // If it has a publicUrl, try to delete from server
+    if (publicUrl) {
+      try {
+        const urlObj = new URL(publicUrl);
+        const fileKey = urlObj.pathname.substring(1);
+        await deleteFile(fileKey);
+      } catch (error) {
+        console.error("Failed to delete file from server:", error);
+      }
+    }
     setUploadedFiles((prev) => prev.filter((f) => f.file !== fileToRemove));
   };
 
@@ -284,20 +211,12 @@ export function FileUpload({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => removeFile(upload.file)}
+                    onClick={() => removeFile(upload.file, upload.publicUrl)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
-              {upload.status === "uploading" && (
-                <div className="mt-3">
-                  <Progress value={upload.progress} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {upload.progress}% complete
-                  </p>
-                </div>
-              )}
               {upload.status === "error" && upload.error && (
                 <Alert className="mt-3">
                   <AlertCircle className="h-4 w-4" />

@@ -1,6 +1,7 @@
 import type { Expense } from "@/types/expense";
 import Link from "next/link";
 import { ExpenseStatusBadge } from "./expense-status-badge";
+import { CategoryIcon } from "./category-icon";
 
 const IconChevronRight = ({ className }: { className?: string }) => (
   <svg
@@ -54,7 +55,7 @@ export const ExpenseCard = ({
       href={`${routePrefix}/${expense.id}`}
       className="block"
     >
-      <div className="group bg-white p-4 md:p-5 rounded-[1.5rem] border border-zinc-100 shadow-sm hover:shadow-md active:scale-[0.98] transition-all cursor-pointer flex items-center gap-4 md:gap-6">
+      <div className="group bg-white p-4 md:p-5 rounded-[1.5rem] border border-zinc-100 shadow-sm hover:shadow-md active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2 md:gap-6">
         {/* Date Block */}
         <div className="flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 md:w-16 md:h-16 bg-[#FDF8F5] rounded-2xl border border-zinc-100 text-zinc-500 group-hover:bg-[#FFF0E0] group-hover:text-[#FF8A65] transition-colors">
           <span className="text-[10px] font-bold uppercase tracking-wider">
@@ -78,6 +79,7 @@ export const ExpenseCard = ({
             </div>
           </div>
           <div className="text-xs md:text-sm text-zinc-500 truncate flex items-center gap-2">
+            <CategoryIcon category={expense.lineItems[0]?.category} size={14} className="text-muted-foreground" />
             <span>{expense.lineItems[0]?.category || "Expense"}</span>
             <span className="md:hidden">•</span>
             <div className="md:hidden">

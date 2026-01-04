@@ -94,14 +94,6 @@ export default function ExpensesPage() {
   return (
     <div className="min-h-screen bg-[#FDF8F5] text-[#121110] font-sans pb-24">
       {/* Mobile Tab Controls */}
-      <div className="sticky top-0 z-30 bg-[#FDF8F5]/80 backdrop-blur-md border-b border-zinc-100/50 px-6 pt-6 pb-4 md:hidden">
-        <ExpenseTabControls
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          variant="mobile"
-          hasOrganization={!!organization}
-        />
-      </div>
 
       <div className="">
         {/* Desktop Header (Hidden on Mobile) */}
@@ -120,6 +112,15 @@ export default function ExpensesPage() {
               New Expense
             </button>
           </Link>
+        </div>
+
+        <div className="sticky top-14 z-30 bg-[#FDF8F5]/80 backdrop-blur-md border-b border-zinc-100/50 p-2 md:hidden">
+          <ExpenseTabControls
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            variant="mobile"
+            hasOrganization={!!organization}
+          />
         </div>
 
         {/* Desktop Controls (Hidden on Mobile) */}

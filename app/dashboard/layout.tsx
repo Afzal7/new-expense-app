@@ -32,6 +32,7 @@ import {
 import ProfileDropdown from "@/components/shadcn-studio/blocks/dropdown-profile";
 import { DashboardBreadcrumb } from "@/components/shared/dashboard-breadcrumb";
 import { SubscriptionStatus } from "@/components/shared/subscription-status";
+import { MobileSidebarCloser } from "@/components/shared/mobile-sidebar-closer";
 import { useOrganizationContext } from "@/hooks/use-organization-context";
 import { useOrganization } from "@/hooks/use-organization";
 import { useIsManager } from "@/hooks/use-is-manager";
@@ -82,6 +83,7 @@ export default function DashboardLayout({
     <DashboardErrorBoundary>
       <div className="flex min-h-dvh w-full">
         <SidebarProvider>
+          <MobileSidebarCloser />
           <Sidebar>
             <SidebarContent>
               {/* Sidebar Header */}

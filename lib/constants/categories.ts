@@ -1,30 +1,23 @@
 /**
- * Category to emoji mapping for expense line items
- * Add new categories here as they are introduced
+ * Category definitions for expense line items
  */
+export const EXPENSE_CATEGORIES = [
+  { id: "Meals", label: "Meals", icon: "Utensils" },
+  { id: "Travel", label: "Travel", icon: "Plane" },
+  { id: "Transport", label: "Transport", icon: "Car" },
+  { id: "Office", label: "Office", icon: "Briefcase" },
+  { id: "Software", label: "Software", icon: "Laptop" },
+  { id: "Others", label: "Others", icon: "MoreHorizontal" },
+] as const;
 
-export const CATEGORY_EMOJIS: Record<string, string> = {
-  Travel: "✈️",
-  Lodging: "🏨",
-  Meals: "🍽️",
-  Transportation: "🚗",
-  Office: "💼",
-  Equipment: "💻",
-  Training: "📚",
-  Marketing: "📢",
-  Software: "🔧",
-  Utilities: "💡",
-  Communication: "📞",
-  Entertainment: "🎬",
-  Healthcare: "🏥",
-  Gifts: "🎁",
-  Miscellaneous: "📦",
-} as const;
+export const CATEGORY_ICONS: Record<string, string> = Object.fromEntries(
+  EXPENSE_CATEGORIES.map((cat) => [cat.id, cat.icon])
+);
 
 /**
- * Get emoji for a category, with fallback to default emoji
+ * Get icon name for a category, with fallback to default icon
  */
-export function getCategoryEmoji(category?: string): string {
-  if (!category) return "💼";
-  return CATEGORY_EMOJIS[category] || "💼";
+export function getCategoryIconName(category?: string): string {
+  if (!category) return "Briefcase";
+  return CATEGORY_ICONS[category] || "MoreHorizontal";
 }

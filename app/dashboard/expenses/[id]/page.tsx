@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import React from "react";
 
 import { ExpenseStatusDropdown } from "@/components/expenses/ExpenseStatusDropdown";
+import { CategoryIcon } from "@/components/shared/category-icon";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,21 +13,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Receipt, Edit, MoreHorizontal } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { useExpenseMutations } from "@/hooks/use-expense-mutations";
 import { useExpense } from "@/hooks/use-expenses";
-import { useSession } from "@/lib/auth-client";
 import { useIsManager } from "@/hooks/use-is-manager";
-import { toast } from "@/lib/toast";
-import { ExpenseBusinessRules } from "@/lib/utils/expense-business-logic";
-import { getCategoryEmoji } from "@/lib/constants/categories";
-import { getAuditActionLabel } from "@/lib/utils/audit-labels";
+import { useSession } from "@/lib/auth-client";
 import { EXPENSE_STATES } from "@/lib/constants/expense-states";
+import { toast } from "@/lib/toast";
+import { getAuditActionLabel } from "@/lib/utils/audit-labels";
+import { ExpenseBusinessRules } from "@/lib/utils/expense-business-logic";
 import type { LineItem } from "@/types/expense";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { ArrowLeft, Edit, MoreHorizontal, Receipt } from "lucide-react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 
 export default function ExpenseDetailPage() {
   const params = useParams();
@@ -245,11 +245,11 @@ export default function ExpenseDetailPage() {
   return (
     <div className="min-h-screen bg-[#FDF8F5] text-[#121110] font-sans pb-24 safe-area-pb">
       {/* Sticky Mobile Header */}
-      <div className="sticky top-0 z-40 bg-[#FDF8F5]/90 backdrop-blur-md border-b border-zinc-100 flex justify-between items-center px-6 py-4 md:hidden">
+      <div className="sticky top-13 z-40 bg-[#FDF8F5]/90 backdrop-blur-md border-b border-zinc-100 flex justify-between items-center px-2 md:hidden">
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.back()}
+          onClick={() => router.push("/dashboard/expenses")}
           className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full active:bg-zinc-100 text-zinc-600 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -264,11 +264,11 @@ export default function ExpenseDetailPage() {
         </Button>
       </div>
 
-      <div className="max-w-6xl mx-auto p-6 md:p-12">
+      <div className="mt-5">
         {/* Desktop Back Button */}
         <Button
           variant="ghost"
-          onClick={() => router.back()}
+          onClick={() => router.push("/dashboard/expenses")}
           className="hidden md:flex items-center gap-2 text-zinc-500 hover:text-[#121110] font-bold text-sm mb-8 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to List
@@ -400,8 +400,11 @@ export default function ExpenseDetailPage() {
                     >
                       {/* Icon & Details */}
                       <div className="flex gap-4 flex-1">
-                        <div className="w-12 h-12 bg-[#FDF8F5] rounded-xl flex-shrink-0 flex items-center justify-center text-xl border border-zinc-100">
-                          {getCategoryEmoji(item.category)}
+                        <div className="w-12 h-12 bg-[#FDF8F5] rounded-xl flex-shrink-0 flex items-center justify-center border border-zinc-100">
+                          <CategoryIcon
+                            category={item.category}
+                            className="text-zinc-600"
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start">

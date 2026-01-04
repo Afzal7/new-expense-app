@@ -1,30 +1,29 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Plus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
 
-import { useOrganizationMembers } from "@/hooks/use-organization-members";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
+import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { useExpenseFormSubmission } from "@/hooks/use-expense-form-submission";
+import { useOrganizationMembers } from "@/hooks/use-organization-members";
+import { ExpenseSubmitButtonGroup } from "./expenses/ExpenseSubmitButtonGroup";
 import { ManagerSelector } from "./expenses/ManagerSelector";
 import { ExpenseHero } from "./expenses/expense-hero";
-import { VaultToggle } from "./expenses/vault-toggle";
 import { LineItemCard } from "./expenses/line-item-card";
+import { VaultToggle } from "./expenses/vault-toggle";
 
-import { ExpenseFormSchema } from "@/lib/validations/expense";
+import { toast } from "@/lib/toast";
+import { ExpenseBusinessRules } from "@/lib/utils/expense-business-logic";
+import type { ExpenseFormData } from "@/lib/utils/expense-form";
 import {
   calculateLineItemsTotal,
   createDefaultLineItem,
-  isDraftExpense as checkIsDraftExpense,
-  totalsMatch,
 } from "@/lib/utils/expense-form";
-import { ExpenseBusinessRules } from "@/lib/utils/expense-business-logic";
+import { ExpenseFormSchema } from "@/lib/validations/expense";
 import type { Expense } from "@/types/expense";
-import type { ExpenseFormData } from "@/lib/utils/expense-form";
-import { toast } from "@/lib/toast";
 
 interface ExpenseFormProps {
   initialData?: Expense;
@@ -108,36 +107,51 @@ export function ExpenseForm({
 
   // -- Handlers --
 
-  const onSubmit = async (data: ExpenseFormData): Promise<void> => {
-    // If personal, ensure we don't send organizationId/managers if the backend supports that
-    // The useExpenseFormSubmission hook handles the actual mutation. 
-    // We need to make sure the data is consistent.
-    // NOTE: This logic might need to be in the hook, but for now we trust the form data.
-    // If isPersonal is true, we might need to handle that. 
-    // Assuming backend handles "personal" based on null organizationId or similar.
-    // Current hook uses 'transformFormDataToExpenseInput' which might need adjustment 
-    // if 'organizationId' is part of the input. 
-    // Actually, 'createExpense' usually takes organizationId as a separate arg or infers it.
-    // Let's assume standard submission works.
-    
-    await submitDraft(data);
+  const onSaveDraft = async (): Promise<void> => {
+    await submitDraft(formData);
   };
 
-  const handleSubmitReport = async (): Promise<void> => {
-    // Determine which approval flow to use
-    // If personal, maybe it just goes to approved? Or draft?
-    // For now, use standard flow.
-    if (isPersonal) {
-        // Personal expenses might not need approval, so maybe just 'submitDraft' or 'submitForPreApproval'
-        // depending on business rules. Let's assume they go to PreApproval (or just Saved).
-        await submitForPreApproval(formData);
-    } else {
-        if (managerIds.length === 0) {
-             toast.error("Please select a manager for approval");
-             return;
-        }
-        await submitForFinalApproval(formData);
+  const onPreApproval = async (): Promise<void> => {
+    // Validation for Pre-approval: Total > 0 and Manager (if Work)
+    if (!totalAmount || totalAmount <= 0) {
+      toast.error("Total amount is required for pre-approval");
+      return;
     }
+    if (!isPersonal && managerIds.length === 0) {
+      toast.error("Please select a manager for pre-approval");
+      return;
+    }
+    await submitForPreApproval(formData);
+  };
+
+  const onFinalApproval = async (): Promise<void> => {
+    // Validation for Final Approval: Everything + Line Items consistency
+    if (!totalAmount || totalAmount <= 0) {
+      toast.error("Total amount is required");
+      return;
+    }
+    if (!isPersonal && managerIds.length === 0) {
+      toast.error("Please select a manager for approval");
+      return;
+    }
+    if (
+      lineItems.length === 0 ||
+      (lineItems.length === 1 && !lineItems[0].amount)
+    ) {
+      toast.error("At least one line item is required for final approval");
+      return;
+    }
+
+    // Check if any line item is missing amount or date
+    const incompleteItems = lineItems.some(
+      (item) => !item.amount || !item.date
+    );
+    if (incompleteItems) {
+      toast.error("Please complete all line items before submitting");
+      return;
+    }
+
+    await submitForFinalApproval(formData);
   };
 
   const addLineItem = () => {
@@ -150,8 +164,8 @@ export function ExpenseForm({
       remove(index);
       setExpandedIndex(Math.max(0, index - 1));
     } else {
-        // If it's the last one, just reset it
-        setValue(`lineItems.${0}`, createDefaultLineItem());
+      // If it's the last one, just reset it
+      setValue(`lineItems.${0}`, createDefaultLineItem());
     }
   };
 
@@ -173,13 +187,13 @@ export function ExpenseForm({
   }
 
   return (
-    <div className="min-h-screen bg-[#FDF8F5] text-[#121110] font-sans pb-32">
+    <div className="min-h-screen bg-background text-foreground font-sans pb-48">
       {/* Sticky Header */}
-      <div className="sticky top-0 z-40 bg-[#FDF8F5]/90 backdrop-blur-xl border-b border-zinc-100 flex justify-between items-center px-6 py-4">
+      <div className="sticky top-13 z-40 bg-background/90 backdrop-blur-xl border-b border-border flex justify-between items-center">
         <button
           onClick={onCancel}
           aria-label="Back"
-          className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full active:bg-zinc-100 text-zinc-600 transition-colors"
+          className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full active:bg-muted text-muted-foreground transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -189,13 +203,13 @@ export function ExpenseForm({
         <div className="w-10" />
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 pt-8">
+      <div className="max-w-4xl mx-auto pt-4">
         {/* 1. VAULT TOGGLE */}
         <VaultToggle isPersonal={isPersonal} onChange={setIsPersonal} />
 
         {/* 2. THE TOTAL HERO (Editable) */}
         <ExpenseHero
-          amount={totalAmount}
+          amount={totalAmount || 0}
           onChange={(val) => setValue("totalAmount", val)}
           calculatedTotal={calculatedTotal}
           readOnly={!canModifyTotal}
@@ -208,7 +222,7 @@ export function ExpenseForm({
 
         {/* Manager Selector (Only for Work) */}
         {!isPersonal && organization && (
-          <div className="mb-8 animate-in fade-in slide-in-from-top-2">
+          <div className="px-2 mb-8 animate-in fade-in slide-in-from-top-2">
             <ManagerSelector
               organization={organization}
               watchedManagerIds={managerIds}
@@ -236,9 +250,9 @@ export function ExpenseForm({
         <div className="mt-6 mb-12 flex justify-center">
           <button
             onClick={addLineItem}
-            className="group flex flex-col items-center gap-2 text-zinc-400 hover:text-[#121110] transition-colors"
+            className="group flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
           >
-            <div className="w-12 h-12 rounded-full border-2 border-dashed border-zinc-300 flex items-center justify-center group-hover:border-[#FF8A65] group-hover:bg-[#FFF0E0] group-hover:text-[#FF8A65] transition-all">
+            <div className="w-12 h-12 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center group-hover:border-secondary group-hover:bg-secondary/10 group-hover:text-secondary transition-all">
               <Plus className="w-5 h-5" />
             </div>
             <span className="text-xs font-bold uppercase tracking-wide">
@@ -249,24 +263,23 @@ export function ExpenseForm({
       </div>
 
       {/* Sticky Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#FDF8F5]/90 backdrop-blur-md border-t border-zinc-200 p-4 md:p-6 z-50 safe-area-pb">
-        <div className="max-w-2xl mx-auto flex gap-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-xl border-t border-border p-4 md:p-6 z-50 safe-area-pb">
+        <div className="max-w-2xl mx-auto flex gap-3">
           <button
-            onClick={handleSubmit(onSubmit)}
+            onClick={onSaveDraft}
             disabled={isSubmitting}
-            className="flex-1 bg-white border border-zinc-200 text-[#121110] py-4 rounded-2xl font-bold text-base hover:bg-zinc-50 active:scale-[0.98] transition-all shadow-sm disabled:opacity-50"
+            className="flex-1 bg-card border border-border text-foreground py-4 rounded-2xl font-bold text-sm md:text-base hover:bg-muted active:scale-[0.98] transition-all shadow-sm disabled:opacity-50"
           >
             Save Draft
           </button>
-          <button
-            onClick={handleSubmitReport}
-            disabled={isSubmitting}
-            className="flex-[2] bg-[#121110] text-white py-4 rounded-2xl font-bold text-base hover:bg-zinc-800 active:scale-[0.98] transition-all shadow-lg shadow-zinc-300 disabled:opacity-50"
-          >
-            {isSubmitting
-              ? "Submitting..."
-              : `Submit Report (${fields.length})`}
-          </button>
+
+          <ExpenseSubmitButtonGroup
+            onPreApproval={onPreApproval}
+            onFinalApproval={onFinalApproval}
+            isSubmitting={isSubmitting}
+            lineItemCount={fields.length}
+            className="flex-[2]"
+          />
         </div>
       </div>
     </div>

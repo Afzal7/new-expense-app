@@ -4,7 +4,7 @@
  * Eliminates repetitive field mapping with clean destructuring patterns
  */
 
-import type { Expense, LineItem, AuditEntry } from "@/types/expense";
+import type { AuditEntry, Expense, LineItem } from "@/types/expense";
 
 type DatabaseExpense = InstanceType<
   typeof import("@/lib/models/expense").Expense
@@ -77,11 +77,8 @@ export function transformAuditEntryToApi(entry: {
   updatedValues?: Record<string, unknown>;
 }): AuditEntry {
   return {
-    action: entry.action,
+    ...entry,
     date: entry.date.toISOString(),
-    actorId: entry.actorId,
-    previousValues: entry.previousValues,
-    updatedValues: entry.updatedValues,
   };
 }
 

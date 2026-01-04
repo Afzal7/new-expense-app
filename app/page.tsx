@@ -1,10 +1,11 @@
 "use client";
 
 import { Car, Coffee, CupSoda, Plane } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 // --- Custom Icons ---
-const IconArrowRight = ({ className }) => (
+const IconArrowRight = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -18,7 +19,7 @@ const IconArrowRight = ({ className }) => (
     <path d="m12 5 7 7-7 7" />
   </svg>
 );
-const IconCheck = ({ className }) => (
+const IconCheck = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -31,7 +32,7 @@ const IconCheck = ({ className }) => (
     <path d="M20 6 9 17 4 12" />
   </svg>
 );
-const IconBriefcase = ({ className }) => (
+const IconBriefcase = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -45,7 +46,7 @@ const IconBriefcase = ({ className }) => (
     <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
   </svg>
 );
-const IconLock = ({ className }) => (
+const IconLock = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -59,7 +60,7 @@ const IconLock = ({ className }) => (
     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
   </svg>
 );
-const IconDownload = ({ className }) => (
+const IconDownload = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -74,7 +75,7 @@ const IconDownload = ({ className }) => (
     <line x1="12" x2="12" y1="15" y2="3" />
   </svg>
 );
-const IconFileText = ({ className }) => (
+const IconFileText = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -91,7 +92,7 @@ const IconFileText = ({ className }) => (
     <line x1="10" x2="8" y1="9" y2="9" />
   </svg>
 );
-const IconZap = ({ className }) => (
+const IconZap = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -104,7 +105,7 @@ const IconZap = ({ className }) => (
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
   </svg>
 );
-const IconMenu = ({ className }) => (
+const IconMenu = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -119,7 +120,7 @@ const IconMenu = ({ className }) => (
     <line x1="3" x2="21" y1="18" y2="18" />
   </svg>
 );
-const IconX = ({ className }) => (
+const IconX = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -133,7 +134,7 @@ const IconX = ({ className }) => (
     <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
-const IconChevronDown = ({ className }) => (
+const IconChevronDown = ({ className }: { className?: string }) => (
   <svg
     className={className}
     viewBox="0 0 24 24"
@@ -153,11 +154,11 @@ export default function LandingPage() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [billingCycle, setBillingCycle] = useState("annual");
-  const [openFaq, setOpenFaq] = useState(null);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
 
@@ -306,12 +307,18 @@ export default function LandingPage() {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <button className="px-5 py-2.5 text-sm font-bold text-zinc-700 hover:text-[#FF8A65] transition-colors">
+            <Link
+              href="/login"
+              className="px-5 py-2.5 text-sm font-bold text-zinc-700 hover:text-[#FF8A65] transition-colors"
+            >
               Sign In
-            </button>
-            <button className="bg-linear-to-r from-[#121110] to-[#2a2a2a] text-white px-5 py-2.5 rounded-full text-xs font-bold hover:scale-105 hover:shadow-xl transition-all duration-300 shadow-lg tracking-wide uppercase">
-              Start Free
-            </button>
+            </Link>
+            <Link
+              href="/signup"
+              className="bg-linear-to-r from-[#121110] to-[#2a2a2a] text-white px-5 py-2.5 rounded-full text-xs font-bold hover:scale-105 hover:shadow-xl transition-all duration-300 shadow-lg tracking-wide uppercase"
+            >
+              Get Started
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -398,7 +405,7 @@ export default function LandingPage() {
               animationDelay: "0s",
             }}
           >
-            <div className="bg-white p-5 rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-zinc-100/50 rotate-[-6deg] w-64 hover:rotate-0 hover:scale-105 hover:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.4)] transition-all duration-500 backdrop-blur-xl">
+            <div className="bg-white p-5 rounded-4xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-zinc-100/50 -rotate-6 w-64 hover:rotate-0 hover:scale-105 hover:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.4)] transition-all duration-500 backdrop-blur-xl">
               <div className="flex justify-between items-center mb-4">
                 <div className="w-10 h-10 bg-linear-to-br from-[#FFF0E0] to-[#FFE4CC] rounded-full flex items-center justify-center text-xl shadow-inner">
                   <CupSoda className="w-6 h-6" />
@@ -429,7 +436,7 @@ export default function LandingPage() {
               animationDelay: "1s",
             }}
           >
-            <div className="bg-linear-to-br from-[#121110] to-[#1f1f1f] text-white p-5 rounded-[2rem] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.5)] rotate-6 w-64 hover:rotate-0 hover:scale-105 hover:shadow-[0_30px_80px_-15px_rgba(0,0,0,0.6)] transition-all duration-500 border border-white/10">
+            <div className="bg-linear-to-br from-[#121110] to-[#1f1f1f] text-white p-5 rounded-4xl shadow-[0_25px_70px_-15px_rgba(0,0,0,0.5)] rotate-6 w-64 hover:rotate-0 hover:scale-105 hover:shadow-[0_30px_80px_-15px_rgba(0,0,0,0.6)] transition-all duration-500 border border-white/10">
               <div className="flex justify-between items-center mb-4">
                 <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-xl backdrop-blur-xl shadow-inner">
                   <Plane className="w-6 h-6" />
@@ -462,7 +469,7 @@ export default function LandingPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D0FC42] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D0FC42] shadow-lg shadow-lime-500/50"></span>
               </span>
-              SOC-2 Compliant & Ready
+              The standard for modern teams
             </div>
 
             <h1
@@ -471,7 +478,7 @@ export default function LandingPage() {
                 animation: "fadeInUp 0.8s ease-out",
               }}
             >
-              Don't let expenses <br />
+              Don&apos;t let expenses <br />
               kill your{" "}
               <span className="font-serif italic text-transparent bg-clip-text bg-linear-to-r from-[#FF8A65] via-[#FF6B45] to-[#FF8A65] animate-gradient">
                 Flow.
@@ -496,13 +503,19 @@ export default function LandingPage() {
                 animation: "fadeInUp 0.8s ease-out 0.4s both",
               }}
             >
-              <button className="px-8 py-4 bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white rounded-full text-lg font-bold hover:scale-105 hover:shadow-[0_20px_60px_-15px_rgba(255,138,101,0.7)] transition-all duration-300 shadow-[0_10px_40px_-15px_rgba(255,138,101,0.6)] flex items-center gap-2 group">
-                Start Personal Vault
+              <Link
+                href="/signup"
+                className="px-8 py-4 bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white rounded-full text-lg font-bold hover:scale-105 hover:shadow-[0_20px_60px_-15px_rgba(255,138,101,0.7)] transition-all duration-300 shadow-[0_10px_40px_-15px_rgba(255,138,101,0.6)] flex items-center gap-2 group"
+              >
+                Get Started
                 <IconArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button className="px-8 py-4 bg-white/80 backdrop-blur-xl border border-zinc-200/50 text-[#121110] rounded-full text-lg font-bold hover:bg-white hover:shadow-xl transition-all duration-300 hover:scale-105">
-                Book a Demo
-              </button>
+              </Link>
+              <Link
+                href="/signup"
+                className="px-8 py-4 bg-white/80 backdrop-blur-xl border border-zinc-200/50 text-[#121110] rounded-full text-lg font-bold hover:bg-white hover:shadow-xl transition-all duration-300 hover:scale-105"
+              >
+                Start Personal Vault
+              </Link>
             </div>
 
             <div className="mt-12 text-xs font-bold text-zinc-400 uppercase tracking-widest">
@@ -534,7 +547,7 @@ export default function LandingPage() {
       {/* ONE APP TWO WORLDS (Tabs) */}
       <section
         id="vault"
-        className="py-24 px-6 bg-gradient-to-b from-[#FDF8F5] to-white"
+        className="py-24 px-6 bg-linear-to-b from-[#FDF8F5] to-white"
       >
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
@@ -542,8 +555,9 @@ export default function LandingPage() {
               One app. Two worlds.
             </h2>
             <p className="text-lg text-zinc-600 max-w-2xl mx-auto">
-              Employees won't use an app that spies on them. That's why we built
-              the Vault. Toggle between Business and Personal instantly.
+              Employees won&apos;t use an app that spies on them. That&apos;s
+              why we built the Vault. Toggle between Business and Personal
+              instantly.
             </p>
           </div>
 
@@ -560,7 +574,7 @@ export default function LandingPage() {
 
             {/* Tabs */}
             <div className="flex justify-center mb-12 relative z-10">
-              <div className="inline-flex bg-gradient-to-b from-[#F5F5F0] to-[#EEEEE8] p-2 rounded-full border border-zinc-200/50 shadow-inner">
+              <div className="inline-flex bg-linear-to-b from-[#F5F5F0] to-[#EEEEE8] p-2 rounded-full border border-zinc-200/50 shadow-inner">
                 <button
                   onClick={() => setActiveTab("work")}
                   className={`px-8 py-3 rounded-full text-sm font-bold transition-all flex items-center gap-2 duration-500 ${activeTab === "work" ? "bg-linear-to-r from-[#121110] to-[#2a2a2a] text-white shadow-[0_8px_30px_-10px_rgba(0,0,0,0.5)] scale-105" : "text-zinc-500 hover:text-zinc-800 hover:bg-white/50"}`}
@@ -578,7 +592,7 @@ export default function LandingPage() {
 
             {/* Phone Mockup Container - Enhanced */}
             <div className="flex justify-center relative z-10">
-              <div className="w-[340px] h-[600px] bg-gradient-to-b from-zinc-50 to-white rounded-[3rem] border-[8px] border-zinc-800 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.5)] overflow-hidden relative">
+              <div className="w-[340px] h-[600px] bg-linear-to-b from-zinc-50 to-white rounded-[3rem] border-8 border-zinc-800 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.5)] overflow-hidden relative">
                 {/* iPhone Notch */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-800 rounded-b-3xl z-50 flex items-center justify-center">
                   <div className="w-14 h-1 bg-zinc-900 rounded-full"></div>
@@ -607,7 +621,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Content */}
-                <div className="p-4 space-y-3 bg-gradient-to-b from-zinc-50 to-white">
+                <div className="p-4 space-y-3 bg-linear-to-b from-zinc-50 to-white">
                   {activeTab === "work" ? (
                     <>
                       <div
@@ -697,7 +711,7 @@ export default function LandingPage() {
       <div id="solutions" className="space-y-12 px-6 py-24 max-w-7xl mx-auto">
         {/* 1. EMPLOYEE SECTION */}
         <section className="bg-white rounded-[3rem] p-8 md:p-16 border border-zinc-200/50 overflow-hidden relative shadow-[0_20px_70px_-15px_rgba(0,0,0,0.1)] hover:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.15)] transition-shadow duration-500">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#FF8A65]/5 to-transparent blur-3xl pointer-events-none"></div>
+          <div className="absolute top-0 right-0 w-96 h-96 bg-linear-to-bl from-[#FF8A65]/5 to-transparent blur-3xl pointer-events-none"></div>
 
           <div className="grid md:grid-cols-2 gap-16 items-center relative z-10">
             <div>
@@ -711,8 +725,9 @@ export default function LandingPage() {
                 </span>
               </h2>
               <p className="text-lg text-zinc-600 mb-8 leading-relaxed">
-                Don't be a data entry clerk. Our AI extracts merchant, date, and
-                amount in milliseconds. Just snap a photo and you're done.
+                Don&apos;t be a data entry clerk. Our AI extracts merchant,
+                date, and amount in milliseconds. Just snap a photo and
+                you&apos;re done.
               </p>
               <ul className="space-y-4">
                 <li className="flex gap-4 items-start group">
@@ -724,7 +739,7 @@ export default function LandingPage() {
                       99% Accuracy
                     </h4>
                     <p className="text-sm text-zinc-500">
-                      We read the blurry receipts so you don't have to.
+                      We read the blurry receipts so you don&apos;t have to.
                     </p>
                   </div>
                 </li>
@@ -735,8 +750,8 @@ export default function LandingPage() {
             <div className="relative h-[400px] flex items-center justify-center">
               <div className="relative w-full max-w-md">
                 {/* Raw Receipt */}
-                <div className="absolute top-1/2 left-0 -translate-y-1/2 w-48 h-64 bg-white border border-zinc-200 shadow-xl rotate-[-6deg] p-3 flex flex-col items-center z-10 hover:rotate-[-3deg] transition-transform duration-300">
-                  <div className="w-full h-32 bg-gradient-to-b from-zinc-100 to-zinc-50 rounded-lg mb-2 opacity-60"></div>
+                <div className="absolute top-1/2 left-0 -translate-y-1/2 w-48 h-64 bg-white border border-zinc-200 shadow-xl -rotate-6 p-3 flex flex-col items-center z-10 hover:-rotate-3 transition-transform duration-300">
+                  <div className="w-full h-32 bg-linear-to-b from-zinc-100 to-zinc-50 rounded-lg mb-2 opacity-60"></div>
                   <div className="w-full h-2 bg-zinc-200 rounded mb-1"></div>
                   <div className="w-2/3 h-2 bg-zinc-200 rounded"></div>
                   <div className="w-4/5 h-2 bg-zinc-100 rounded mt-2"></div>
@@ -748,7 +763,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Extracted Data Card */}
-                <div className="absolute top-1/2 right-0 -translate-y-1/2 w-56 bg-linear-to-br from-[#121110] to-[#2a2a2a] text-white rounded-2xl shadow-2xl rotate-[3deg] p-5 z-30 hover:rotate-[1deg] hover:scale-105 transition-all duration-300">
+                <div className="absolute top-1/2 right-0 -translate-y-1/2 w-56 bg-linear-to-br from-[#121110] to-[#2a2a2a] text-white rounded-2xl shadow-2xl rotate-3 p-5 z-30 hover:rotate-1 hover:scale-105 transition-all duration-300">
                   <div className="flex justify-between items-start mb-6">
                     <div>
                       <div className="text-[10px] text-zinc-400 uppercase font-bold">
@@ -778,7 +793,7 @@ export default function LandingPage() {
 
         {/* 2. MANAGER SECTION */}
         <section className="bg-linear-to-br from-[#121110] to-[#1f1f1f] text-white rounded-[3rem] p-8 md:p-16 border border-zinc-800 overflow-hidden relative shadow-[0_30px_90px_-20px_rgba(0,0,0,0.5)]">
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-[#D0FC42]/10 to-transparent blur-3xl pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-linear-to-tr from-[#D0FC42]/10 to-transparent blur-3xl pointer-events-none"></div>
 
           <div className="grid md:grid-cols-2 gap-16 items-center relative z-10">
             {/* Visual: Batch Approval */}
@@ -839,8 +854,9 @@ export default function LandingPage() {
                 <span className="text-zinc-500">Unblock your team.</span>
               </h2>
               <p className="text-lg text-zinc-400 mb-8 leading-relaxed">
-                Don't be the bottleneck. We highlight the safe expenses so you
-                can batch-approve them in seconds. Focus only on the anomalies.
+                Don&apos;t be the bottleneck. We highlight the safe expenses so
+                you can batch-approve them in seconds. Focus only on the
+                anomalies.
               </p>
             </div>
           </div>
@@ -862,9 +878,9 @@ export default function LandingPage() {
                 </span>
               </h2>
               <p className="text-lg text-zinc-600 mb-8 leading-relaxed">
-                You don't need another complex integration. You need clean data.
-                We give you perfectly categorized, audit-ready CSV exports that
-                you can import into any ledger.
+                You don&apos;t need another complex integration. You need clean
+                data. We give you perfectly categorized, audit-ready CSV exports
+                that you can import into any ledger.
               </p>
               <ul className="space-y-4">
                 <li className="flex gap-4 items-start group">
@@ -887,7 +903,7 @@ export default function LandingPage() {
             {/* Visual: The Perfect Table */}
             <div className="bg-linear-to-br from-[#F7F5F2] to-[#EEEEE8] rounded-[2.5rem] p-6 border border-zinc-200 shadow-xl hover:shadow-2xl transition-shadow duration-500">
               <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-lg">
-                <div className="flex items-center justify-between p-4 border-b border-zinc-100 bg-gradient-to-b from-zinc-50 to-white">
+                <div className="flex items-center justify-between p-4 border-b border-zinc-100 bg-linear-to-b from-zinc-50 to-white">
                   <div className="flex gap-2">
                     <div className="w-3 h-3 rounded-full bg-red-400 hover:bg-red-500 transition-colors cursor-pointer"></div>
                     <div className="w-3 h-3 rounded-full bg-yellow-400 hover:bg-yellow-500 transition-colors cursor-pointer"></div>
@@ -940,7 +956,7 @@ export default function LandingPage() {
       {/* PRICING SECTION */}
       <section
         id="pricing"
-        className="py-24 px-6 bg-gradient-to-b from-white to-[#FDF8F5]"
+        className="py-24 px-6 bg-linear-to-b from-white to-[#FDF8F5]"
       >
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -982,7 +998,7 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {/* Personal Plan */}
-            <div className="bg-white rounded-[2rem] p-8 border border-zinc-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <div className="bg-white rounded-4xl p-8 border border-zinc-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <div className="mb-6">
                 <h3 className="text-2xl font-bold mb-2">Personal Vault</h3>
                 <p className="text-sm text-zinc-500">
@@ -998,26 +1014,26 @@ export default function LandingPage() {
               </button>
               <ul className="space-y-3">
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Unlimited personal expenses</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>AI receipt scanning</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Local encryption</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>CSV exports</span>
                 </li>
               </ul>
             </div>
 
             {/* Team Plan */}
-            <div className="bg-linear-to-br from-[#121110] to-[#2a2a2a] text-white rounded-[2rem] p-8 border-2 border-[#FF8A65] shadow-[0_20px_60px_-15px_rgba(255,138,101,0.4)] hover:shadow-[0_25px_70px_-15px_rgba(255,138,101,0.5)] transition-all duration-300 hover:-translate-y-1 relative">
+            <div className="bg-linear-to-br from-[#121110] to-[#2a2a2a] text-white rounded-4xl p-8 border-2 border-[#FF8A65] shadow-[0_20px_60px_-15px_rgba(255,138,101,0.4)] hover:shadow-[0_25px_70px_-15px_rgba(255,138,101,0.5)] transition-all duration-300 hover:-translate-y-1 relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">
                 MOST POPULAR
               </div>
@@ -1038,34 +1054,34 @@ export default function LandingPage() {
               </button>
               <ul className="space-y-3">
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Everything in Personal, plus:</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Company workspace</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Approval workflows</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Policy enforcement</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Batch approvals</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Priority support</span>
                 </li>
               </ul>
             </div>
 
             {/* Enterprise Plan */}
-            <div className="bg-white rounded-[2rem] p-8 border border-zinc-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <div className="bg-white rounded-4xl p-8 border border-zinc-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <div className="mb-6">
                 <h3 className="text-2xl font-bold mb-2">Enterprise</h3>
                 <p className="text-sm text-zinc-500">
@@ -1074,34 +1090,34 @@ export default function LandingPage() {
               </div>
               <div className="mb-6">
                 <div className="text-5xl font-bold mb-2">Custom</div>
-                <p className="text-sm text-zinc-500">Let's talk</p>
+                <p className="text-sm text-zinc-500">Let&apos;s talk</p>
               </div>
               <button className="w-full bg-[#121110] text-white py-3 rounded-full font-bold hover:bg-zinc-800 transition-colors mb-6">
                 Contact Sales
               </button>
               <ul className="space-y-3">
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Everything in Team, plus:</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>ERP integrations (SAP, NetSuite)</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>SSO & advanced security</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Custom approval workflows</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>Dedicated account manager</span>
                 </li>
                 <li className="flex gap-3 items-start text-sm">
-                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 flex-shrink-0" />
+                  <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
                   <span>SLA & 24/7 support</span>
                 </li>
               </ul>
@@ -1132,7 +1148,7 @@ export default function LandingPage() {
             {faqData.map((faq, index) => (
               <div
                 key={index}
-                className="bg-gradient-to-b from-zinc-50 to-white rounded-2xl border border-zinc-200 overflow-hidden hover:shadow-lg transition-all duration-300"
+                className="bg-linear-to-b from-zinc-50 to-white rounded-2xl border border-zinc-200 overflow-hidden hover:shadow-lg transition-all duration-300"
               >
                 <button
                   onClick={() => setOpenFaq(openFaq === index ? null : index)}
@@ -1140,7 +1156,7 @@ export default function LandingPage() {
                 >
                   <span className="font-bold text-lg pr-4">{faq.question}</span>
                   <IconChevronDown
-                    className={`w-5 h-5 text-zinc-400 flex-shrink-0 transition-transform duration-600 ${
+                    className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform duration-600 ${
                       openFaq === index ? "rotate-180" : ""
                     }`}
                   />

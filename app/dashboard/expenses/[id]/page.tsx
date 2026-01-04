@@ -1,11 +1,16 @@
 "use client";
 
-import ApprovalButtonGroup from "@/components/approval-button-group";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { AuditTrail } from "@/components/shared/audit-trail";
+
 import { ExpenseWorkflow } from "@/components/shared/expense-workflow";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   ArrowLeft,
   DollarSign,
@@ -13,16 +18,20 @@ import {
   Shield,
   Receipt,
   Edit,
-  Trash2,
+  MoreHorizontal,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useExpenseMutations } from "@/hooks/use-expense-mutations";
 import { useExpense } from "@/hooks/use-expenses";
 import { useSession } from "@/lib/auth-client";
-import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { useIsManager } from "@/hooks/use-is-manager";
 import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 import type { Expense, LineItem } from "@/types/expense";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function ExpenseDetailPage() {
   const params = useParams();
@@ -31,49 +40,42 @@ export default function ExpenseDetailPage() {
   const { data: session } = useSession();
 
   const { data: expense, isLoading, error } = useExpense(id);
-  const { approveExpense, rejectExpense, reimburseExpense, deleteExpense } =
+  const { approveExpense, rejectExpense, reimburseExpense } =
     useExpenseMutations();
 
-  const approvalOptions = [
-    {
-      label: "Approve",
-      description: "Approve this expense for further processing.",
-      action: "approve",
-      variant: "default" as const,
-    },
-    {
-      label: "Reject",
-      description: "Reject this expense submission.",
-      action: "reject",
-      variant: "destructive" as const,
-    },
-    {
-      label: "Reimburse",
-      description: "Mark this expense as reimbursed.",
-      action: "reimburse",
-      variant: "default" as const,
-    },
-  ];
+  // Check if current user is a manager (admin/owner)
+  const { data: isAdmin } = useIsManager();
 
-  const handleAction = async (action: string) => {
+  const handleStatusChange = async (newStatus: string) => {
     if (!expense) return;
 
-    switch (action) {
-      case "approve":
-        await approveExpense.mutateAsync(expense.id);
+    // For now, we'll handle the main status transitions that have API support
+    switch (newStatus) {
+      case EXPENSE_STATES.APPROVED:
+        if (expense.state === EXPENSE_STATES.APPROVAL_PENDING) {
+          await approveExpense.mutateAsync(expense.id);
+        }
         break;
-      case "reject":
-        await rejectExpense.mutateAsync(expense.id);
+      case EXPENSE_STATES.REJECTED:
+        if (
+          expense.state === EXPENSE_STATES.APPROVAL_PENDING ||
+          expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING ||
+          expense.state === EXPENSE_STATES.PRE_APPROVED
+        ) {
+          await rejectExpense.mutateAsync(expense.id);
+        }
         break;
-      case "reimburse":
-        await reimburseExpense.mutateAsync(expense.id);
+      case EXPENSE_STATES.REIMBURSED:
+        if (expense.state === EXPENSE_STATES.APPROVED) {
+          await reimburseExpense.mutateAsync(expense.id);
+        }
         break;
+      // Other status changes would require additional API endpoints
+      default:
+        console.log(
+          `Status change to ${newStatus} requires additional API implementation`
+        );
     }
-  };
-
-  const handleDeleteExpense = async (expenseId: string) => {
-    await deleteExpense.mutateAsync(expenseId);
-    router.push("/dashboard/expenses");
   };
 
   if (isLoading) {
@@ -102,38 +104,6 @@ export default function ExpenseDetailPage() {
     );
   }
 
-  // Check if current user is assigned as a manager for this expense
-  const isAssignedManager =
-    session?.user?.id && expense.managerIds?.includes(session.user.id);
-
-  // Determine available manager actions based on expense state and manager assignment
-  const canApproveAsManager =
-    isAssignedManager &&
-    (expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING ||
-      expense.state === EXPENSE_STATES.APPROVAL_PENDING);
-
-  const canRejectAsManager =
-    isAssignedManager &&
-    (expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING ||
-      expense.state === EXPENSE_STATES.PRE_APPROVED ||
-      expense.state === EXPENSE_STATES.APPROVAL_PENDING);
-
-  // Reimbursement is typically a finance/admin function, not manager
-  // For now, we'll allow it for approved expenses but this could be restricted further
-  const canReimburse = expense.state === EXPENSE_STATES.APPROVED;
-
-  const availableOptions = approvalOptions.filter((option) => {
-    switch (option.action) {
-      case "approve":
-        return canApproveAsManager;
-      case "reject":
-        return canRejectAsManager;
-      case "reimburse":
-        return canReimburse;
-    }
-    return false;
-  });
-
   const getExpenseTitle = (expense: Expense) => {
     // Try to get a meaningful title from the first line item
     const firstItem = expense.lineItems[0];
@@ -160,292 +130,377 @@ export default function ExpenseDetailPage() {
     return `Expense #${expense.id.slice(-8)}`;
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case EXPENSE_STATES.DRAFT:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      case EXPENSE_STATES.PRE_APPROVAL_PENDING:
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case EXPENSE_STATES.PRE_APPROVED:
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case EXPENSE_STATES.APPROVAL_PENDING:
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      case EXPENSE_STATES.APPROVED:
+        return "bg-green-100 text-green-800 border-green-200";
+      case EXPENSE_STATES.REJECTED:
+        return "bg-red-100 text-red-800 border-red-200";
+      case EXPENSE_STATES.REIMBURSED:
+        return "bg-indigo-100 text-indigo-800 border-indigo-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    return status.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
-      <div className="container mx-auto px-4 py-6 max-w-md lg:max-w-2xl xl:max-w-4xl">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-6">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.back()}
-              className="h-11 w-11 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex-1">
-              <h1 className="text-2xl font-light text-slate-900 dark:text-white">
-                Expense Details
-              </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-light">
-                {getExpenseTitle(expense)}
-              </p>
-            </div>
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2">
-              {!expense.deletedAt && (
-                <>
+    <div className="min-h-screen bg-[#FDF8F5] text-[#121110] font-sans pb-24 safe-area-pb">
+      {/* Sticky Mobile Header */}
+      <div className="sticky top-0 z-40 bg-[#FDF8F5]/90 backdrop-blur-md border-b border-zinc-100 flex justify-between items-center px-6 py-4 md:hidden">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.back()}
+          className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full active:bg-zinc-100 text-zinc-600 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <span className="font-bold text-sm">Expense Details</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-10 h-10 -mr-2 flex items-center justify-center rounded-full active:bg-zinc-100 text-zinc-600 transition-colors"
+        >
+          <MoreHorizontal className="w-5 h-5" />
+        </Button>
+      </div>
+
+      <div className="max-w-6xl mx-auto p-6 md:p-12">
+        {/* Desktop Back Button */}
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="hidden md:flex items-center gap-2 text-zinc-500 hover:text-[#121110] font-bold text-sm mb-8 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to List
+        </Button>
+
+        <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
+          {/* LEFT COL: Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Header Card */}
+            <div className="bg-white rounded-[2rem] p-6 md:p-8 border border-zinc-200 shadow-sm">
+              <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
+                <div>
+                  <div className="inline-block px-3 py-1 bg-[#F0FDF4] text-emerald-600 border border-emerald-100 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider mb-3">
+                    {expense.state === "Approved"
+                      ? "Approved"
+                      : expense.state.replace("-", " ")}
+                  </div>
+                  <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight text-[#121110]">
+                    {getExpenseTitle(expense)}
+                  </h1>
+                </div>
+                <div className="text-left md:text-right mt-2 md:mt-0">
+                  <div className="text-zinc-400 text-xs md:text-sm font-medium mb-1">
+                    Total Amount
+                  </div>
+                  <div className="font-mono text-3xl md:text-4xl font-bold tracking-tighter text-[#121110]">
+                    ${expense.totalAmount.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop Action Bar */}
+              <div className="hidden md:flex gap-3 border-t border-zinc-100 pt-6">
+                {/* Edit button - only for expense owner before approval */}
+                {!expense.deletedAt && session?.user?.id === expense.userId && (
                   <Button
                     asChild
                     variant="ghost"
-                    size="sm"
-                    className="h-10 w-10 p-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700"
+                    className="flex-1 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 font-bold py-3 rounded-xl text-sm transition-colors border border-zinc-200"
                   >
                     <Link href={`/dashboard/expenses/${expense.id}/edit`}>
-                      <Edit className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
                     </Link>
                   </Button>
-                  <ConfirmationDialog
-                    trigger={
+                )}
+
+                {/* Status dropdown - only for admins */}
+                {isAdmin && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-10 w-10 p-0 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 hover:text-red-600"
+                        variant="outline"
+                        className={`justify-between font-medium ${getStatusColor(expense.state)} ${approveExpense.isPending || rejectExpense.isPending || reimburseExpense.isPending ? "opacity-50" : ""}`}
+                        disabled={
+                          approveExpense.isPending ||
+                          rejectExpense.isPending ||
+                          reimburseExpense.isPending
+                        }
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <span className="flex items-center gap-2">
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              expense.state === EXPENSE_STATES.APPROVED
+                                ? "bg-green-500"
+                                : expense.state === EXPENSE_STATES.REJECTED
+                                  ? "bg-red-500"
+                                  : expense.state === EXPENSE_STATES.REIMBURSED
+                                    ? "bg-indigo-500"
+                                    : "bg-current opacity-60"
+                            }`}
+                          />
+                          {getStatusLabel(expense.state)}
+                        </span>
+                        <ChevronDown className="w-4 h-4 opacity-60" />
                       </Button>
-                    }
-                    title="Delete Expense"
-                    description="Are you sure you want to delete this expense? This action cannot be undone."
-                    confirmText="Delete"
-                    variant="destructive"
-                    onConfirm={() => handleDeleteExpense(expense.id)}
-                  />
-                </>
-              )}
-              {availableOptions.length > 0 && (
-                <ApprovalButtonGroup
-                  options={availableOptions}
-                  onAction={handleAction}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <div className="px-2 py-1.5 text-sm font-medium text-gray-500 border-b">
+                        Change Status
+                      </div>
+                      {Object.values(EXPENSE_STATES)
+                        .filter((status) => status !== expense.state)
+                        .map((status) => (
+                          <DropdownMenuItem
+                            key={status}
+                            onClick={() => handleStatusChange(status)}
+                            className="flex items-center justify-between cursor-pointer"
+                          >
+                            <span className="flex items-center gap-2">
+                              <div
+                                className={`w-2 h-2 rounded-full ${
+                                  status === EXPENSE_STATES.APPROVED
+                                    ? "bg-green-500"
+                                    : status === EXPENSE_STATES.REJECTED
+                                      ? "bg-red-500"
+                                      : status === EXPENSE_STATES.REIMBURSED
+                                        ? "bg-indigo-500"
+                                        : "bg-gray-400"
+                                }`}
+                              />
+                              {getStatusLabel(status)}
+                            </span>
+                            {status === expense.state && (
+                              <Check className="w-4 h-4" />
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            </div>
+
+            {/* Line Items */}
+            <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden">
+              <div className="p-6 md:p-8">
+                <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-zinc-400" /> Line Items
+                </h3>
+
+                <div className="space-y-6">
+                  {expense.lineItems.map((item: LineItem, i: number) => (
+                    <div
+                      key={i}
+                      className="flex flex-col md:flex-row gap-4 border-b border-zinc-50 last:border-0 pb-6 last:pb-0"
+                    >
+                      {/* Icon & Details */}
+                      <div className="flex gap-4 flex-1">
+                        <div className="w-12 h-12 bg-[#FDF8F5] rounded-xl flex-shrink-0 flex items-center justify-center text-xl border border-zinc-100">
+                          {item.category === "Travel"
+                            ? "✈️"
+                            : item.category === "Lodging"
+                              ? "🏨"
+                              : "💼"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-bold text-[#121110]">
+                                {item.description || "No description"}
+                              </div>
+                              <div className="text-sm text-zinc-500">
+                                {new Date(item.date).toLocaleDateString()} •{" "}
+                                {item.category}
+                              </div>
+                            </div>
+                            <div className="font-mono font-bold text-lg md:hidden block">
+                              ${item.amount.toFixed(2)}
+                            </div>
+                          </div>
+
+                          {/* Attachments Area */}
+                          {item.attachments && item.attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {item.attachments.map(
+                                (url: string, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    className="w-12 h-12 bg-zinc-100 rounded-xl"
+                                  ></div>
+                                )
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Desktop Amount */}
+                      <div className="hidden md:block text-right">
+                        <div className="font-mono font-bold text-lg">
+                          ${item.amount.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT COL: Meta & History */}
+          <div className="space-y-6">
+            {/* Audit Log Card */}
+            <div className="bg-white rounded-[2rem] p-6 border border-zinc-200 shadow-sm">
+              <h3 className="font-bold text-lg mb-6">Activity</h3>
+              <div className="relative border-l-2 border-zinc-100 ml-3 space-y-8 py-2">
+                {[...expense.auditLog].reverse().map((log, i) => (
+                  <div key={i} className="relative pl-6 md:pl-8">
+                    <div
+                      className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white ${log.action === "created" ? "bg-zinc-300" : "bg-[#D0FC42]"}`}
+                    />
+                    <div className="text-[10px] md:text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">
+                      {new Date(log.date).toLocaleDateString()} •{" "}
+                      {new Date(log.date).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                    <div className="font-bold text-sm text-[#121110]">
+                      {log.action === "created" && "Expense Draft Created"}
+                      {log.action === "submitted" && "Submitted for Approval"}
+                      {log.action === "approved" && "Approved by Manager"}
+                      {log.action === "rejected" && "Rejected by Manager"}
+                      {log.action === "reimbursed" && "Marked as Reimbursed"}
+                    </div>
+                    <div className="text-xs md:text-sm text-zinc-500 mt-0.5">
+                      by{" "}
+                      <span className="text-[#121110] font-medium">
+                        {log.actorName || "Unknown User"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Details Card */}
+            <div className="bg-white rounded-[2rem] p-6 border border-zinc-200 shadow-sm">
+              <h3 className="font-bold text-lg mb-4">Meta Data</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">ID</span>
+                  <span className="font-mono font-bold">
+                    #{expense.id.slice(-8)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Merchant</span>
+                  <span className="font-bold">Multiple</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Sticky Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-zinc-200 p-4 md:hidden flex gap-3 z-50">
+        {/* Edit button - only for expense owner before approval */}
+        {!expense.deletedAt && session?.user?.id === expense.userId && (
+          <Button
+            asChild
+            variant="ghost"
+            className="flex-1 bg-zinc-100 text-zinc-600 font-bold py-3.5 rounded-xl text-sm active:bg-zinc-200 transition-colors"
+          >
+            <Link href={`/dashboard/expenses/${expense.id}/edit`}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit
+            </Link>
+          </Button>
+        )}
+
+        {/* Status dropdown - only for admins */}
+        {isAdmin && (
+          <div className="flex-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`justify-between font-medium ${getStatusColor(expense.state)} ${approveExpense.isPending || rejectExpense.isPending || reimburseExpense.isPending ? "opacity-50" : ""}`}
                   disabled={
                     approveExpense.isPending ||
                     rejectExpense.isPending ||
                     reimburseExpense.isPending
                   }
-                />
-              )}
-            </div>
-          </div>
-
-          {/* Status badges - Icon-based */}
-          <div className="flex items-center gap-3 mb-6">
-            {expense.state === "Approved" && (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 dark:bg-green-950/30 rounded-full">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                  Approved
-                </span>
-              </div>
-            )}
-            {expense.state === "Rejected" && (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 dark:bg-red-950/30 rounded-full">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-sm font-medium text-red-700 dark:text-red-300">
-                  Rejected
-                </span>
-              </div>
-            )}
-            {expense.state === "Pre-Approval Pending" && (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/30 rounded-full">
-                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                  Awaiting Pre-Approval
-                </span>
-              </div>
-            )}
-            {expense.state === "Pre-Approved" && (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 dark:bg-blue-950/30 rounded-full">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                  Pre-Approved
-                </span>
-              </div>
-            )}
-            {expense.state === "Approval Pending" && (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-purple-50 dark:bg-purple-950/30 rounded-full">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                  Awaiting Final Approval
-                </span>
-              </div>
-            )}
-            {expense.state === "Reimbursed" && (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/30 rounded-full">
-                <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
-                  Reimbursed
-                </span>
-              </div>
-            )}
-            <span className="text-sm text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
-              {expense.id.slice(-8)}
-            </span>
-          </div>
-
-          {/* Status Description */}
-          <div className="mt-4 mb-6">
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              {expense.state === EXPENSE_STATES.DRAFT &&
-                "This expense is in draft mode. You can edit it and submit for approval when ready."}
-              {expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING &&
-                "This expense is waiting for initial pre-approval from your assigned manager."}
-              {expense.state === EXPENSE_STATES.PRE_APPROVED &&
-                "This expense has been pre-approved. You can now submit it for final approval."}
-              {expense.state === EXPENSE_STATES.APPROVAL_PENDING &&
-                "This expense is waiting for final approval from your assigned manager."}
-              {expense.state === EXPENSE_STATES.APPROVED &&
-                "This expense has been approved and is ready for reimbursement."}
-              {expense.state === EXPENSE_STATES.REIMBURSED &&
-                "This expense has been processed and reimbursed."}
-              {expense.state === EXPENSE_STATES.REJECTED &&
-                "This expense was rejected. You can edit and resubmit it."}
-            </div>
-          </div>
-
-          {/* Expense Workflow Progress */}
-          <div className="mt-6">
-            <ExpenseWorkflow currentState={expense.state} />
-          </div>
-
-          {/* Privacy Notice for Private Expenses */}
-          {!expense.organizationId && (
-            <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl mb-6">
-              <div className="h-10 w-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
-                <Shield className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="font-semibold text-emerald-700 dark:text-emerald-300">
-                  Private Expense
-                </p>
-                <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                  Only visible to you
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Total Amount - Bold and prominent */}
-        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-8 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                Total Amount
-              </p>
-              <p className="text-5xl font-bold text-slate-900 dark:text-white mt-2">
-                ${expense.totalAmount.toFixed(2)}
-              </p>
-            </div>
-            <div className="h-16 w-16 bg-slate-900/5 dark:bg-white/10 rounded-2xl flex items-center justify-center">
-              <DollarSign className="h-8 w-8 text-slate-900 dark:text-white" />
-            </div>
-          </div>
-        </div>
-
-        {/* Additional Details */}
-        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm p-6 mb-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="h-10 w-10 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center">
-              <FileText className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-            </div>
-            <h2 className="text-xl font-medium text-slate-900 dark:text-white">
-              Additional Details
-            </h2>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between py-3">
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                Created
-              </span>
-              <span className="text-sm text-slate-900 dark:text-white">
-                {new Date(expense.createdAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                Last Updated
-              </span>
-              <span className="text-sm text-slate-900 dark:text-white">
-                {new Date(
-                  expense.updatedAt || expense.createdAt
-                ).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </span>
-            </div>
-            {expense.organizationId && (
-              <div className="flex items-center justify-between py-3">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Organization
-                </span>
-                <span className="text-sm text-slate-900 dark:text-white">
-                  {expense.organizationId}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Line Items - Clean list */}
-        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm overflow-hidden mb-6">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-700">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center">
-                <Receipt className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-medium text-slate-900 dark:text-white">
-                  Line Items
-                </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  {expense.lineItems.length} item
-                  {expense.lineItems.length !== 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="divide-y divide-slate-100 dark:divide-slate-700">
-            {expense.lineItems.map((item: LineItem, index: number) => (
-              <div
-                key={index}
-                className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-lg font-medium text-slate-900 dark:text-white mb-2">
-                      {item.description || "No description"}
-                    </p>
-                    <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
-                      {item.category && (
-                        <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded-full">
-                          {item.category}
-                        </span>
-                      )}
-                      <span>{new Date(item.date).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  <div className="text-right ml-4">
-                    <p className="text-3xl font-bold text-slate-900 dark:text-white">
-                      ${item.amount.toFixed(2)}
-                    </p>
-                  </div>
+                >
+                  <span className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        expense.state === EXPENSE_STATES.APPROVED
+                          ? "bg-green-500"
+                          : expense.state === EXPENSE_STATES.REJECTED
+                            ? "bg-red-500"
+                            : expense.state === EXPENSE_STATES.REIMBURSED
+                              ? "bg-indigo-500"
+                              : "bg-current opacity-60"
+                      }`}
+                    />
+                    {getStatusLabel(expense.state)}
+                  </span>
+                  <ChevronDown className="w-4 h-4 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5 text-sm font-medium text-gray-500 border-b">
+                  Change Status
                 </div>
-              </div>
-            ))}
+                {Object.values(EXPENSE_STATES)
+                  .filter((status) => status !== expense.state)
+                  .map((status) => (
+                    <DropdownMenuItem
+                      key={status}
+                      onClick={() => handleStatusChange(status)}
+                      className="flex items-center justify-between cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            status === EXPENSE_STATES.APPROVED
+                              ? "bg-green-500"
+                              : status === EXPENSE_STATES.REJECTED
+                                ? "bg-red-500"
+                                : status === EXPENSE_STATES.REIMBURSED
+                                  ? "bg-indigo-500"
+                                  : "bg-gray-400"
+                          }`}
+                        />
+                        {getStatusLabel(status)}
+                      </span>
+                      {status === expense.state && (
+                        <Check className="w-4 h-4" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
-
-        {/* Audit Trail */}
-        <AuditTrail expense={expense} />
+        )}
       </div>
     </div>
   );

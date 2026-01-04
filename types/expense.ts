@@ -23,6 +23,8 @@ export interface AuditEntry {
   action: string;
   date: string; // ISO date string from API
   actorId: string;
+  actorName?: string;
+  actorEmail?: string;
   previousValues?: Record<string, unknown>;
   updatedValues?: Record<string, unknown>;
 }

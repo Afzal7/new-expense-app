@@ -103,7 +103,7 @@ export default function ExpensesPage() {
         />
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 md:px-12 md:py-12">
+      <div className="">
         {/* Desktop Header (Hidden on Mobile) */}
         <div className="hidden md:flex flex-row justify-between items-center mb-12 gap-6">
           <div>

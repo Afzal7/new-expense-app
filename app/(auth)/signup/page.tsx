@@ -1,15 +1,14 @@
 "use client";
 
-import { LogoIcon } from "@/components/logo";
+import { ErrorState } from "@/components/shared/error-state";
+import { OAuthButton } from "@/components/shared/oauth-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
 import { signUp } from "@/lib/auth-client";
-import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ErrorState } from "@/components/shared/error-state";
-import { OAuthButton } from "@/components/shared/oauth-button";
+import { useState } from "react";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -33,7 +32,7 @@ export default function SignupPage() {
     }
   };
   return (
-    <section className="flex min-h-screen bg-zinc-50 px-4 py-16 md:py-32 dark:bg-transparent">
+    <section className="flex min-h-screen bg-background px-4 py-16 md:py-32 dark:bg-transparent">
       <form
         onSubmit={handleSubmit}
         className="bg-card m-auto h-fit w-full max-w-sm rounded-xl border p-0.5 shadow-md"
@@ -41,7 +40,10 @@ export default function SignupPage() {
         <div className="p-8 pb-6">
           <div>
             <Link href="/" aria-label="go home">
-              <LogoIcon />
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF8A65] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-[#FF6B45] shadow-lg shadow-lime-500/50"></span>
+              </span>
             </Link>
             <h1 className="mb-1 mt-4 text-xl font-semibold">
               Get Started Free
@@ -115,9 +117,9 @@ export default function SignupPage() {
         <div className="bg-muted rounded-lg border p-3">
           <p className="text-accent-foreground text-center text-sm">
             Already have an account?
-            <Button asChild variant="link" className="px-2">
-              <Link href="/login">Sign In</Link>
-            </Button>
+            <Link href="/login" className="px-2 hover:underline">
+              Sign In
+            </Link>
           </p>
         </div>
       </form>

@@ -3,25 +3,30 @@
  * Handles operations on individual expenses
  */
 
-import { NextRequest } from "next/server";
-import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { connectMongoose, db } from "@/lib/db";
-import { Expense, EXPENSE_STATES } from "@/lib/models/expense";
 import {
   createErrorResponse,
+  ForbiddenError,
+  NotFoundError,
   UnauthorizedError,
   ValidationError,
-  NotFoundError,
-  ForbiddenError,
 } from "@/lib/errors";
-import type { ExpenseInput } from "@/types/expense";
-import { UpdateExpenseSchema } from "@/lib/validations/expense";
+import { Expense, EXPENSE_STATES } from "@/lib/models/expense";
 import {
+  createLineItemsSnapshot,
   transformExpenseToApiResponse,
   transformLineItemsToDatabase,
-  createLineItemsSnapshot,
 } from "@/lib/utils/expense-api-transformers";
+import { UpdateExpenseSchema } from "@/lib/validations/expense";
+import type {
+  AuditEntry,
+  ExpenseInput,
+  Expense as ExpenseType,
+} from "@/types/expense";
+import { ObjectId } from "mongodb";
+import { NextRequest } from "next/server";
+import { z } from "zod";
 
 // Zod schema for action validation
 const ExpenseActionSchema = z.object({
@@ -58,7 +63,7 @@ export async function GET(
     const { id } = await params;
 
     // Find expense
-    const expense = await Expense.findById(id).lean();
+    const expense: ExpenseType | null = await Expense.findById(id).lean();
 
     if (!expense) {
       return createErrorResponse(new NotFoundError("Expense not found"));
@@ -72,8 +77,44 @@ export async function GET(
       return createErrorResponse(new ForbiddenError());
     }
 
+    // Get unique actor IDs from audit log
+    const actorIds = [
+      ...new Set(expense.auditLog.map((log: AuditEntry) => log.actorId)),
+    ];
+
+    // Fetch user information for all actors
+    const users = await db
+      .collection("user")
+      .find(
+        { _id: { $in: actorIds.map((id) => new ObjectId(id)) } },
+        { projection: { name: 1, email: 1 } }
+      )
+      .toArray();
+
+    // Create a map of userId to user info
+    const userMap = new Map<string, { name: string; email: string }>();
+    users.forEach((user) => {
+      userMap.set(user._id.toString(), {
+        name: user.name || "Unknown User",
+        email: user.email || "",
+      });
+    });
+
+    // Enhance audit log with user information
+    const enhancedAuditLog = expense.auditLog.map((log: AuditEntry) => ({
+      ...log,
+      actorName: userMap.get(log.actorId.toString())?.name || "Unknown User",
+      actorEmail: userMap.get(log.actorId.toString())?.email || "",
+    }));
+
+    // Create enhanced expense object
+    const enhancedExpense = {
+      ...expense,
+      auditLog: enhancedAuditLog,
+    };
+
     // Return expense
-    return Response.json(transformExpenseToApiResponse(expense));
+    return Response.json(transformExpenseToApiResponse(enhancedExpense));
   } catch (error) {
     console.error("[API] GET /api/expenses/[id] error:", error);
     return createErrorResponse(error);

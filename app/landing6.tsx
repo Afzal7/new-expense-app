@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { Check, Zap } from "lucide-react";

@@ -1,103 +1,70 @@
 import { z } from "zod";
 import { EXPENSE_STATES } from "../constants/expense-states";
 
-// Line item schema - for validated/complete line items
+// Line item schema - minimal validation
 export const LineItemSchema = z.object({
-  amount: z.number().positive("Amount must be greater than 0"),
-  date: z
-    .string()
-    .refine((date) => !isNaN(Date.parse(date)), "Invalid date format")
-    .refine(
-      (date) => new Date(date) <= new Date(),
-      "Date cannot be in the future"
-    ),
-  description: z.string().optional(),
-  category: z.string().optional(),
-  attachments: z.array(z.string()).optional().default([]),
-});
-
-// Line item schema for forms - allows incomplete data during editing
-const FormLineItemSchema = z.object({
-  amount: z.number().min(0, "Amount must be 0 or greater").optional(),
-  date: z
-    .string()
-    .refine((date) => !isNaN(Date.parse(date)), "Invalid date format")
-    .refine(
-      (date) => new Date(date) <= new Date(),
-      "Date cannot be in the future"
-    ),
-  description: z.string().optional(),
-  category: z.string().optional(),
+  amount: z.number().default(0),
+  date: z.string().default(() => new Date().toISOString().split("T")[0]),
+  description: z.string().default(""),
+  category: z.string().default("Others"),
   attachments: z.array(z.string()).default([]),
 });
 
-// Schema for creating expenses - supports both drafts and submissions
-export const CreateExpenseSchema = z.union([
-  // For draft creation (no validations required)
-  z.object({
-    totalAmount: z.number().min(0).optional(),
-    managerIds: z.array(z.string()).optional(),
-    lineItems: z.array(FormLineItemSchema).optional(),
-    status: z.literal(EXPENSE_STATES.DRAFT).optional(),
-  }),
-  // For submission creation (strict validations required)
-  z.object({
-    totalAmount: z.number().positive("Total amount must be greater than 0"),
-    managerIds: z
-      .array(z.string()),
-    lineItems: z.array(LineItemSchema).optional().default([]),
-    status: z.enum([
-      EXPENSE_STATES.PRE_APPROVAL_PENDING,
-      EXPENSE_STATES.APPROVAL_PENDING,
-    ]),
-  }),
-]);
+// For forms and updates - everything optional with defaults
+const FormLineItemSchema = z.object({
+  amount: z.number().optional().default(0),
+  date: z.string().optional().default(() => new Date().toISOString().split("T")[0]),
+  description: z.string().optional().default(""),
+  category: z.string().optional().default("Others"),
+  attachments: z.array(z.string()).optional().default([]),
+});
 
-// Schema for form validation during editing (flexible for drafts)
+// Schema for creating expenses
+export const CreateExpenseSchema = z.object({
+  totalAmount: z.number().default(0),
+  managerIds: z.array(z.string()).default([]),
+  lineItems: z.array(FormLineItemSchema).default([]),
+  status: z.string().optional().default(EXPENSE_STATES.DRAFT),
+}).refine(data => {
+  // Rule: Can only be pending if manager is added
+  if (data.status === EXPENSE_STATES.PRE_APPROVAL_PENDING || data.status === EXPENSE_STATES.APPROVAL_PENDING) {
+    return data.managerIds.length > 0;
+  }
+  return true;
+}, {
+  message: "At least one manager is required to submit for approval",
+  path: ["managerIds"],
+});
+
+// Schema for form validation during editing
 export const ExpenseFormSchema = z.object({
-  totalAmount: z
-    .number()
-    .min(0, "Total amount must be 0 or greater")
-    .optional(),
-  managerIds: z.array(z.string()).optional(),
-  lineItems: z.array(FormLineItemSchema).optional(),
+  totalAmount: z.number().default(0),
+  managerIds: z.array(z.string()).default([]),
+  lineItems: z.array(FormLineItemSchema).default([]),
 });
 
-// Schema for backend validation of expense updates (flexible for drafts)
+// Schema for updating expenses
 export const UpdateExpenseSchema = z.object({
-  totalAmount: z
-    .number()
-    .min(0, "Total amount must be 0 or greater")
-    .optional(),
+  totalAmount: z.number().optional(),
   managerIds: z.array(z.string()).optional(),
   lineItems: z.array(FormLineItemSchema).optional(),
 });
 
-// Schema for backend validation of submissions (status-based validation)
-export const ExpenseSubmissionSchema = z.union([
-  // Draft status - no validations
-  z.object({
-    totalAmount: z.number().min(0).optional(),
-    managerIds: z.array(z.string()).optional(),
-    lineItems: z.array(FormLineItemSchema).optional(),
-    status: z.literal(EXPENSE_STATES.DRAFT),
-  }),
-  // Submission statuses - strict validations
-  z.object({
-    totalAmount: z.number().positive("Total amount must be greater than 0"),
-    managerIds: z
-      .array(z.string()),
-    lineItems: z.array(LineItemSchema).optional().default([]),
-    status: z.enum([
-      EXPENSE_STATES.PRE_APPROVAL_PENDING,
-      EXPENSE_STATES.APPROVAL_PENDING,
-      EXPENSE_STATES.PRE_APPROVED,
-      EXPENSE_STATES.APPROVED,
-      EXPENSE_STATES.REJECTED,
-      EXPENSE_STATES.REIMBURSED,
-    ]),
-  }),
-]);
+// Schema for submissions (status-based validation)
+export const ExpenseSubmissionSchema = z.object({
+  totalAmount: z.number().default(0),
+  managerIds: z.array(z.string()).default([]),
+  lineItems: z.array(FormLineItemSchema).default([]),
+  status: z.string(),
+}).refine(data => {
+  if (data.status === EXPENSE_STATES.PRE_APPROVAL_PENDING || data.status === EXPENSE_STATES.APPROVAL_PENDING) {
+    return data.managerIds.length > 0;
+  }
+  return true;
+}, {
+  message: "Manager required for approval",
+  path: ["managerIds"],
+});
 
 // Export types
 export type ExpenseInput = z.infer<typeof CreateExpenseSchema>;

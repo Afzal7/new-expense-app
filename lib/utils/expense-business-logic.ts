@@ -161,15 +161,11 @@ export const ExpenseBusinessRules = {
         return currentState === EXPENSE_STATES.APPROVED;
 
       case EXPENSE_STATES.REJECTED:
-        return (
-          (currentState === EXPENSE_STATES.PRE_APPROVAL_PENDING ||
-            currentState === EXPENSE_STATES.PRE_APPROVED ||
-            currentState === EXPENSE_STATES.APPROVAL_PENDING) &&
-          isAssignedManager
-        );
+        return isAssignedManager;
 
       default:
-        return false;
+        // Allow most other transitions for simplicity unless specific rule applies
+        return true;
     }
   },
 

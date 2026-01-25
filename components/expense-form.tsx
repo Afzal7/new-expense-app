@@ -112,11 +112,7 @@ export function ExpenseForm({
   };
 
   const onPreApproval = async (): Promise<void> => {
-    // Validation for Pre-approval: Total > 0 and Manager (if Work)
-    if (!totalAmount || totalAmount <= 0) {
-      toast.error("Total amount is required for pre-approval");
-      return;
-    }
+    // Only Manager is required by schema for pre-approval status
     if (!isPersonal && managerIds.length === 0) {
       toast.error("Please select a manager for pre-approval");
       return;
@@ -125,29 +121,9 @@ export function ExpenseForm({
   };
 
   const onFinalApproval = async (): Promise<void> => {
-    // Validation for Final Approval: Everything + Line Items consistency
-    if (!totalAmount || totalAmount <= 0) {
-      toast.error("Total amount is required");
-      return;
-    }
+    // Only Manager is required by schema for approval-pending status
     if (!isPersonal && managerIds.length === 0) {
       toast.error("Please select a manager for approval");
-      return;
-    }
-    if (
-      lineItems.length === 0 ||
-      (lineItems.length === 1 && !lineItems[0].amount)
-    ) {
-      toast.error("At least one line item is required for final approval");
-      return;
-    }
-
-    // Check if any line item is missing amount or date
-    const incompleteItems = lineItems.some(
-      (item) => !item.amount || !item.date
-    );
-    if (incompleteItems) {
-      toast.error("Please complete all line items before submitting");
       return;
     }
 

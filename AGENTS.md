@@ -77,4 +77,35 @@ TypeScript 5.x, Next.js 14+: Follow standard conventions
 - **Error handling**: Controlled error messages prevent information leakage
 - **HTTPS enforcement**: All external URLs must be HTTPS
 
+## Code Quality Best Practices
+
+### DRY (Don't Repeat Yourself) Principle
+
+- **Always follow DRY principle**: Extract repeated code into reusable functions, components, or utilities
+- **Avoid duplication**: If code logic appears more than once, refactor it into a shared function or hook
+- **Create reusable utilities**: Extract common patterns into utility functions or custom hooks
+- **Share types/interfaces**: Define types once and reuse them across the codebase
+- **Component composition**: Build complex components from smaller, reusable pieces
+
+### TypeScript Strictness
+
+- **No `any` types allowed**: Always use proper TypeScript types, interfaces, or generics
+- **Strict type checking**: Enable and follow strict TypeScript compiler options
+- **Explicit return types**: Define return types for functions, especially public APIs
+- **Type inference**: Use type inference where appropriate, but prefer explicit types for clarity
+- **Generic types**: Use generics to create reusable, type-safe functions and components
+- **Type guards**: Implement proper type guards for runtime type checking when needed
+- **Avoid type assertions**: Prefer type guards and proper type narrowing over `as` assertions
+
+### Component & Function Design
+
+- **Single Responsibility**: Each component/function should have one clear purpose
+- **Small, focused units**: Break large components/functions into smaller, readable, and maintainable units
+- **Component size**: Keep components under 200-300 lines; split larger components
+- **Function size**: Keep functions focused and under 50-100 lines when possible
+- **Clear naming**: Use descriptive names that clearly indicate purpose and behavior
+- **Extract logic**: Move complex logic out of components into custom hooks or utility functions
+- **Composition over complexity**: Prefer composing smaller pieces over creating monolithic components
+- **Testability**: Design functions and components to be easily testable in isolation
+
 <!-- MANUAL ADDITIONS END -->

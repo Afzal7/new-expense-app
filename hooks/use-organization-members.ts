@@ -15,7 +15,7 @@ interface MemberWithUser extends Member {
   };
 }
 
-interface OrganizationWithMembers extends Organization {
+export interface OrganizationWithMembers extends Organization {
   members?: MemberWithUser[];
 }
 

@@ -1,156 +1,137 @@
 "use client";
 
-import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { CheckIcon, ChevronsUpDownIcon, XIcon } from "lucide-react";
+import { Search, Check, Loader2 } from "lucide-react";
 import { useState } from "react";
+import type { OrganizationWithMembers } from "@/hooks/use-organization-members";
 
-interface ManagerComboboxProps {
-  organization: any;
-  selectedManagerIds: string[];
-  onSelectionChange: (ids: string[]) => void;
-}
+const ACCENT_COLOR = "#D0FC42";
+
+// Color palette for avatars (matching dummy design)
+const AVATAR_COLORS = [
+  { bg: "bg-orange-100", text: "text-orange-700" },
+  { bg: "bg-blue-100", text: "text-blue-700" },
+  { bg: "bg-purple-100", text: "text-purple-700" },
+  { bg: "bg-green-100", text: "text-green-700" },
+  { bg: "bg-pink-100", text: "text-pink-700" },
+  { bg: "bg-yellow-100", text: "text-yellow-700" },
+  { bg: "bg-indigo-100", text: "text-indigo-700" },
+  { bg: "bg-teal-100", text: "text-teal-700" },
+];
+
+const getAvatarColor = (index: number) => {
+  return AVATAR_COLORS[index % AVATAR_COLORS.length];
+};
 
 const ManagerCombobox = ({
   organization,
   selectedManagerIds,
   onSelectionChange,
-}: ManagerComboboxProps) => {
-  const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+}: {
+  organization: OrganizationWithMembers | null | undefined;
+  selectedManagerIds: string[];
+  onSelectionChange: (ids: string[]) => void;
+}) => {
+  const [search, setSearch] = useState("");
 
-  const toggleSelection = (value: string) => {
-    const newSelection = selectedManagerIds.includes(value)
-      ? selectedManagerIds.filter((id) => id !== value)
-      : [...selectedManagerIds, value];
+  const handleSelection = (managerId: string) => {
+    // Single-select: replace current selection with the clicked manager
+    // Since we're single-select, array will only have 0 or 1 item
+    const isCurrentlySelected = selectedManagerIds.length > 0 && selectedManagerIds[0] === managerId;
+    const newSelection = isCurrentlySelected ? [] : [managerId];
     onSelectionChange(newSelection);
   };
 
-  const removeSelection = (value: string) => {
-    onSelectionChange(selectedManagerIds.filter((id) => id !== value));
-  };
+  // Filter to only show owners and admins (not regular members)
+  const managersOnly = (organization?.members || []).filter(
+    (member) => member.role === "owner" || member.role === "admin"
+  );
 
-  const maxShownItems = 2;
-  const visibleItems = expanded
-    ? selectedManagerIds
-    : selectedManagerIds.slice(0, maxShownItems);
-  const hiddenCount = selectedManagerIds.length - visibleItems.length;
-
-  const availableMembers =
-    organization?.members?.filter(
-      (member: any) => !selectedManagerIds.includes(member.user.id)
-    ) || [];
+  const filteredMembers = managersOnly.filter((member) =>
+    member.user.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className="w-full space-y-2">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="h-auto min-h-8 w-full justify-between hover:bg-transparent"
-          >
-            <div className="flex flex-wrap items-center gap-1 pr-2.5">
-              {selectedManagerIds.length > 0 ? (
-                <>
-                  {visibleItems.map((managerId) => {
-                    const member = organization?.members?.find(
-                      (m: any) => m.user.id === managerId
-                    );
-                    return member ? (
-                      <Badge
-                        key={managerId}
-                        variant="outline"
-                        className="rounded-sm"
-                      >
-                        {member.user.name}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-4"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeSelection(managerId);
-                          }}
-                          asChild
-                        >
-                          <span>
-                            <XIcon className="size-3" />
-                          </span>
-                        </Button>
-                      </Badge>
-                    ) : null;
-                  })}
-                  {hiddenCount > 0 || expanded ? (
-                    <Badge
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpanded((prev) => !prev);
-                      }}
-                      className="rounded-sm"
-                    >
-                      {expanded ? "Show Less" : `+${hiddenCount} more`}
-                    </Badge>
-                  ) : null}
-                </>
-              ) : (
-                <span className="text-muted-foreground">Select managers</span>
+    <div className="space-y-4">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search approver..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full bg-muted border border-border rounded-xl py-2.5 pl-10 pr-4 text-sm font-bold focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+        />
+      </div>
+      {filteredMembers.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-4">
+          {search 
+            ? `No managers found matching "${search}"`
+            : "No owners or admins available"}
+        </p>
+      )}
+      <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+        {filteredMembers.map((member, index) => {
+          // Single-select: check if this manager is the selected one
+          const isSelected = selectedManagerIds.length > 0 && selectedManagerIds[0] === member.user.id;
+          const initials = member.user.name
+            .split(" ")
+            .map((n: string) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2);
+          const avatarColor = getAvatarColor(index);
+          const roleLabel = member.role === "owner" ? "Owner" : member.role === "admin" ? "Admin" : "Member";
+
+          return (
+            <button
+              key={member.user.id}
+              onClick={() => handleSelection(member.user.id)}
+              className={`flex items-center gap-3 p-2 rounded-xl border transition-all text-left group ${
+                isSelected
+                  ? "bg-primary border-primary text-primary-foreground shadow-md"
+                  : "bg-card border-border text-foreground hover:border-muted-foreground/30"
+              }`}
+            >
+              <div
+                className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center font-bold text-sm ${
+                  isSelected
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : `${avatarColor.bg} ${avatarColor.text}`
+                }`}
+              >
+                {initials}
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold">{member.user.name}</div>
+                <div
+                  className={`text-[10px] ${
+                    isSelected ? "text-primary-foreground/60" : "text-muted-foreground"
+                  }`}
+                >
+                  {roleLabel}
+                </div>
+              </div>
+              {isSelected && (
+                <Check className="w-5 h-5 text-[#D0FC42] pr-2" aria-hidden="true" />
               )}
-            </div>
-            <ChevronsUpDownIcon
-              className="text-muted-foreground/80 shrink-0"
-              aria-hidden="true"
-            />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-(--radix-popper-anchor-width) p-0">
-          <Command>
-            <CommandInput placeholder="Search managers..." />
-            <CommandList>
-              <CommandEmpty>No managers found.</CommandEmpty>
-              <CommandGroup>
-                {organization?.members?.map((member: any) => (
-                  <CommandItem
-                    key={member.user.id}
-                    value={member.user.name}
-                    onSelect={() => toggleSelection(member.user.id)}
-                  >
-                    <span className="truncate">{member.user.name}</span>
-                    {selectedManagerIds.includes(member.user.id) && (
-                      <CheckIcon size={16} className="ml-auto" />
-                    )}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 };
 
 interface ManagerSelectorProps {
-  organization: any;
+  organization: OrganizationWithMembers | null | undefined;
   watchedManagerIds: string[];
   onSelectionChange: (ids: string[]) => void;
-  errors: any;
+  errors?: {
+    managerIds?: {
+      message?: string;
+    };
+  };
+  isLoading?: boolean;
 }
 
 export function ManagerSelector({
@@ -158,21 +139,33 @@ export function ManagerSelector({
   watchedManagerIds,
   onSelectionChange,
   errors,
+  isLoading,
 }: ManagerSelectorProps) {
-  return (
-    <div className="space-y-3">
-      <div className="space-y-1">
-        <Label className="text-base font-medium">Approval Manager *</Label>
-        <p className="text-sm text-muted-foreground">
-          Select who will review and approve this expense
-        </p>
+  // Show loading state only in the manager selector (child component)
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="w-full bg-muted border border-border rounded-xl py-2.5 pl-10 pr-4 text-sm font-bold">
+            <div className="h-5 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
       <ManagerCombobox
         organization={organization}
         selectedManagerIds={watchedManagerIds}
         onSelectionChange={onSelectionChange}
       />
-      {errors.managerIds && (
+      {errors?.managerIds && (
         <p className="text-sm text-destructive">{errors.managerIds.message}</p>
       )}
     </div>

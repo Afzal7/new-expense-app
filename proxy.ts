@@ -1,5 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
+import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Proxy for route protection (Next.js 16+ Middleware replacement).
@@ -14,6 +14,7 @@ const publicRoutes = [
   "/",
   "/login",
   "/signup",
+  "/dummy",
   "/forgot-password",
   "/reset-password",
   "/verify-email",

@@ -4,7 +4,7 @@
  */
 
 import { auth } from "@/lib/auth";
-import { connectMongoose } from "@/lib/db";
+import { connectMongoose, db } from "@/lib/db";
 import {
   createErrorResponse,
   UnauthorizedError,
@@ -18,6 +18,7 @@ import {
   transformLineItemsToDatabase,
 } from "@/lib/utils/expense-api-transformers";
 import { CreateExpenseSchema } from "@/lib/validations/expense";
+import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -163,11 +164,47 @@ export async function POST(request: NextRequest) {
       validatedData.lineItems || []
     );
 
+    // Handle organizationId based on managerIds
+    let organizationId: string | null = null;
+
+    if (validatedData.managerIds && validatedData.managerIds.length > 0) {
+      // Get the first manager's organization
+      const firstManager = await db.collection("member").findOne({
+        userId: new ObjectId(validatedData.managerIds[0]),
+      });
+
+      if (firstManager) {
+        // Validate all managers belong to the same organization
+        const managerMemberships = await db
+          .collection("member")
+          .find({
+            userId: {
+              $in: validatedData.managerIds.map((id) => new ObjectId(id)),
+            },
+          })
+          .toArray();
+
+        const organizationIds = new Set(
+          managerMemberships.map((m) => m.organizationId.toString())
+        );
+
+        if (organizationIds.size === 1) {
+          organizationId = firstManager.organizationId.toString();
+        } else if (organizationIds.size > 1) {
+          return createErrorResponse(
+            new ValidationError(
+              "All managers must belong to the same organization"
+            )
+          );
+        }
+      }
+    }
+
     // Create expense
     const expense = new Expense({
       userId: session.user.id,
-      organizationId: null, // For now, all expenses are private. TODO: Add organization support
-      managerIds: validatedData.managerIds,
+      organizationId: organizationId,
+      managerIds: validatedData.managerIds || [],
       totalAmount: validatedData.totalAmount || 0,
       state: validatedData.status || EXPENSE_STATES.DRAFT,
       lineItems: lineItemsWithDates,

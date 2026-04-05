@@ -59,9 +59,11 @@ export function useExpenseMutations() {
 
       return response.json();
     },
-    onSuccess: (_data) => {
+    onSuccess: (_data, variables) => {
       // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      // Also invalidate the specific expense query
+      queryClient.invalidateQueries({ queryKey: ["expense", variables.id] });
       toast.success("Expense updated successfully");
     },
     onError: (error) => {

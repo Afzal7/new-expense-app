@@ -364,6 +364,7 @@ export async function GET(req: Request) {
 
 ## Subscription States
 
+
 | State        | Stripe Status         | User Access        | Description                 |
 | ------------ | --------------------- | ------------------ | --------------------------- |
 | **Free**     | `null` or `undefined` | Free features only | Default after signup        |
@@ -372,18 +373,21 @@ export async function GET(req: Request) {
 | **Canceled** | `canceled`            | Free features only | Subscription ended          |
 | **Past Due** | `past_due`            | Grace period       | Payment failed, retry       |
 
+
 ---
 
 ## Feature Matrix
 
+
 | Feature              | Free | Pro |
 | -------------------- | ---- | --- |
-| Basic functionality  | ✅   | ✅  |
-| Limited usage        | ✅   | ✅  |
-| Advanced features    | ❌   | ✅  |
-| Priority support     | ❌   | ✅  |
-| Create organizations | ✅   | ✅  |
-| Custom branding      | ❌   | ✅  |
+| Basic functionality  | ✅    | ✅   |
+| Limited usage        | ✅    | ✅   |
+| Advanced features    | ❌    | ✅   |
+| Priority support     | ❌    | ✅   |
+| Create organizations | ✅    | ✅   |
+| Custom branding      | ❌    | ✅   |
+
 
 **Implementation**: Check subscription status in components/pages to gate features.
 
@@ -412,21 +416,19 @@ export async function GET(req: Request) {
 ## What You Build
 
 1. **UI Components** (~200-300 lines total)
-   - Login/signup forms
-   - Pricing page
-   - Dashboard showing subscription status
-   - Upgrade button
-   - Feature gates/paywalls
-
+  - Login/signup forms
+  - Pricing page
+  - Dashboard showing subscription status
+  - Upgrade button
+  - Feature gates/paywalls
 2. **Feature Implementation** (varies)
-   - Free tier features
-   - Pro tier features
-   - Business logic for your app
-
+  - Free tier features
+  - Pro tier features
+  - Business logic for your app
 3. **Optional: Organization UI** (if using teams)
-   - Create organization button
-   - Member management UI
-   - Organization switcher
+  - Create organization button
+  - Member management UI
+  - Organization switcher
 
 **That's it. Everything else is handled by Better Auth.**
 
@@ -436,32 +438,32 @@ export async function GET(req: Request) {
 
 ### Authentication
 
-- [ ] User can sign up
-- [ ] User receives verification email
-- [ ] User can sign in
-- [ ] User starts on Free tier
+- User can sign up
+- User receives verification email
+- User can sign in
+- User starts on Free tier
 
 ### Subscriptions
 
-- [ ] User can click "Upgrade to Pro"
-- [ ] Stripe Checkout opens
-- [ ] After payment, 14-day trial starts
-- [ ] User has access to Pro features
-- [ ] After 14 days, user is charged
-- [ ] Subscription status shows correctly
-- [ ] User cannot get second trial
+- User can click "Upgrade to Pro"
+- Stripe Checkout opens
+- After payment, 14-day trial starts
+- User has access to Pro features
+- After 14 days, user is charged
+- Subscription status shows correctly
+- User cannot get second trial
 
 ### Feature Gating
 
-- [ ] Free users see limited features
-- [ ] Pro users (trialing or active) see all features
-- [ ] Canceled users revert to free features
+- Free users see limited features
+- Pro users (trialing or active) see all features
+- Canceled users revert to free features
 
 ### Organizations (Optional)
 
-- [ ] User can create organization (as free or pro user)
-- [ ] User can invite members
-- [ ] Members can join organization
+- User can create organization (as free or pro user)
+- User can invite members
+- Members can join organization
 
 ---
 
@@ -489,14 +491,14 @@ export async function GET(req: Request) {
 
 ## Production Checklist
 
-- [ ] Update all environment variables with production values
-- [ ] Configure Stripe webhook with production URL
-- [ ] Set up email provider (Resend recommended)
-- [ ] Test checkout flow end-to-end
-- [ ] Test trial→paid conversion
-- [ ] Verify webhook delivery
-- [ ] Test feature gating
-- [ ] Add error boundaries and loading states
+- Update all environment variables with production values
+- Configure Stripe webhook with production URL
+- Set up email provider (Resend recommended)
+- Test checkout flow end-to-end
+- Test trial→paid conversion
+- Verify webhook delivery
+- Test feature gating
+- Add error boundaries and loading states
 
 ---
 

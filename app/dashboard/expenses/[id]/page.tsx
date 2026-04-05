@@ -1,32 +1,33 @@
 "use client";
 
+import { AuditLog } from "@/components/expenses/audit-log";
+import { LineItemRow } from "@/components/expenses/line-item-row";
+import { ManagerSelector } from "@/components/expenses/ManagerSelector";
+import { StatusBadge } from "@/components/expenses/status-badge";
+import { StatusDrawer } from "@/components/expenses/status-drawer";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import React from "react";
-
-import { ExpenseStatusDropdown } from "@/components/expenses/ExpenseStatusDropdown";
-import { CategoryIcon } from "@/components/shared/category-icon";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useExpenseMutations } from "@/hooks/use-expense-mutations";
 import { useExpense } from "@/hooks/use-expenses";
 import { useIsManager } from "@/hooks/use-is-manager";
+import { useOrganization } from "@/hooks/use-organization";
+import { useOrganizationMembers } from "@/hooks/use-organization-members";
 import { useSession } from "@/lib/auth-client";
+import { getStateConfig } from "@/lib/constants/expense-state-config";
+import type { ExpenseState } from "@/lib/constants/expense-states";
 import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 import { toast } from "@/lib/toast";
-import { getAuditActionLabel } from "@/lib/utils/audit-labels";
-import { ExpenseBusinessRules } from "@/lib/utils/expense-business-logic";
-import type { LineItem } from "@/types/expense";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import { ArrowLeft, Edit, MoreHorizontal, Receipt } from "lucide-react";
+import {
+    ArrowLeft,
+    Building,
+    ChevronUp,
+    Lock,
+    Pen,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function ExpenseDetailPage() {
   const params = useParams();
@@ -34,16 +35,24 @@ export default function ExpenseDetailPage() {
   const id = params.id as string;
   const { data: session } = useSession();
 
-  const { data: expense, isLoading, error } = useExpense(id);
+  const { data: expense, isLoading, error, refetch } = useExpense(id);
   const {
-    approveExpense,
-    rejectExpense,
-    reimburseExpense,
+    updateExpense,
     changeExpenseStatus,
   } = useExpenseMutations();
 
   // Check if current user is a manager (admin/owner)
   const { data: isAdmin } = useIsManager();
+
+  // Get organization for manager selection
+  const { data: organization } = useOrganization();
+  const { data: organizationWithMembers, isLoading: orgMembersLoading } =
+    useOrganizationMembers(organization?.id || "");
+
+  // UI State
+  const [showStatusDrawer, setShowStatusDrawer] = useState(false);
+  const [showManagerSheet, setShowManagerSheet] = useState(false);
+  const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([]);
 
   // Authorization check: User can view expense if they are:
   // 1. The expense owner, OR
@@ -57,79 +66,103 @@ export default function ExpenseDetailPage() {
       expense.managerIds?.includes(session?.user?.id || "") ||
       isAdmin);
 
-  // Comment state for approve/reject actions
-  const [comment, setComment] = React.useState("");
+  // State calculations
+  const isPrivate = expense?.organizationId === null;
+  const isLocked = expense
+    ? (expense.state === EXPENSE_STATES.APPROVED ||
+        expense.state === EXPENSE_STATES.REIMBURSED ||
+        expense.state === EXPENSE_STATES.PRE_APPROVED)
+    : false;
+  const isEditable = isPrivate || (!isPrivate && !isLocked);
+  const isManager = isAdmin || false;
+  const isEmployee = session?.user?.id === expense?.userId;
 
-  const handleStatusChange = async (
-    newStatus: string,
-    commentInput?: string
-  ) => {
+  const handleStatusChange = async (newState: ExpenseState) => {
     if (!expense) return;
 
-    // Prevent users from approving their own expenses (FR-011, FR-036)
+    // Prevent users from approving their own expenses
     const isExpenseOwner = session?.user?.id === expense.userId;
     const isApprovalAction =
-      newStatus === EXPENSE_STATES.APPROVED ||
-      newStatus === EXPENSE_STATES.PRE_APPROVED;
+      newState === EXPENSE_STATES.APPROVED ||
+      newState === EXPENSE_STATES.PRE_APPROVED;
 
     if (isApprovalAction && isExpenseOwner) {
       toast.error("You cannot approve your own expense");
       return;
     }
 
-    // Use admin status override for admins to change to ANY state
-    // This bypasses the normal workflow transitions
-    if (isAdmin) {
+    try {
       await changeExpenseStatus.mutateAsync({
         id: expense.id,
-        status: newStatus,
-        comment: commentInput?.trim(),
+        status: newState,
       });
-      setComment("");
+    } catch (error) {
+      console.error("Status change failed:", error);
+    }
+  };
+
+  const handleSubmitToOrg = async () => {
+    if (!expense || selectedManagerIds.length === 0) {
+      toast.error("Please select at least one manager");
       return;
     }
 
-    // For non-admins, only support specific workflow transitions
-    // (though currently the dropdown only shows for admins, this is future-proof)
     try {
-      switch (newStatus) {
-        case EXPENSE_STATES.APPROVED:
-          if (expense.state === EXPENSE_STATES.APPROVAL_PENDING) {
-            await approveExpense.mutateAsync(expense.id);
-          } else {
-            toast.error(
-              `Can only approve from Approval Pending state (currently: ${expense.state})`
-            );
-          }
-          break;
-        case EXPENSE_STATES.REJECTED:
-          await rejectExpense.mutateAsync(expense.id);
-          break;
-        case EXPENSE_STATES.REIMBURSED:
-          if (expense.state === EXPENSE_STATES.APPROVED) {
-            await reimburseExpense.mutateAsync(expense.id);
-          } else {
-            toast.error(
-              `Can only reimburse from Approved state (currently: ${expense.state})`
-            );
-          }
-          break;
-        default:
-          toast.error(
-            `Cannot change to ${newStatus}. This transition requires admin access.`
-          );
-      }
-      setComment("");
+      await updateExpense.mutateAsync({
+        id: expense.id,
+        expenseInput: {
+          totalAmount: expense.totalAmount,
+          managerIds: selectedManagerIds,
+          lineItems: expense.lineItems.map((item) => ({
+            amount: item.amount,
+            date: new Date(item.date),
+            description: item.description,
+            category: item.category,
+            attachments: item.attachments,
+          })),
+        },
+      });
+      setShowManagerSheet(false);
+      setSelectedManagerIds([]);
+      toast.success("Expense submitted to organization");
+      // Refetch expense to get updated organizationId
+      await refetch();
     } catch (error) {
-      // Error handling is done by the mutation hooks (toast)
-      console.error("Status change failed:", error);
+      console.error("Submit to org failed:", error);
+    }
+  };
+
+  const handleWithdrawRequest = async () => {
+    if (!expense) return;
+
+    try {
+      // Clear managerIds to make expense private again
+      await updateExpense.mutateAsync({
+        id: expense.id,
+        expenseInput: {
+          totalAmount: expense.totalAmount,
+          managerIds: [],
+          lineItems: expense.lineItems.map((item) => ({
+            amount: item.amount,
+            date: new Date(item.date),
+            description: item.description,
+            category: item.category,
+            attachments: item.attachments,
+          })),
+        },
+      });
+      toast.success("Expense withdrawn from organization");
+      // Refetch expense to get updated organizationId
+      await refetch();
+    } catch (error) {
+      console.error("Withdraw request failed:", error);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
-        <div className="container mx-auto px-4 py-6 max-w-md lg:max-w-2xl xl:max-w-4xl">
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-6 max-w-2xl">
           <div className="space-y-6">
             <LoadingSkeleton type="card" count={3} />
           </div>
@@ -140,8 +173,8 @@ export default function ExpenseDetailPage() {
 
   if (error || !expense) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
-        <div className="container mx-auto px-4 py-6 max-w-md lg:max-w-2xl xl:max-w-4xl">
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-6 max-w-2xl">
           <ErrorState
             message="Failed to load expense details. Please try again."
             type="page"
@@ -154,8 +187,8 @@ export default function ExpenseDetailPage() {
 
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
-        <div className="container mx-auto px-4 py-6 max-w-md lg:max-w-2xl xl:max-w-4xl">
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-6 max-w-2xl">
           <ErrorState
             message="You don't have permission to view this expense."
             type="page"
@@ -167,451 +200,235 @@ export default function ExpenseDetailPage() {
     );
   }
 
-  // Export functions
-  const exportAsCSV = () => {
-    if (!expense) return;
-
-    const headers = ["Date", "Description", "Category", "Amount"];
-    const rows = expense.lineItems.map((item) => [
-      new Date(item.date).toLocaleDateString(),
-      item.description || "",
-      item.category || "",
-      item.amount.toFixed(2),
-    ]);
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `expense-${expense.id.slice(-8)}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const exportAsPDF = () => {
-    if (!expense) return;
-
-    const doc = new jsPDF();
-
-    // Add title
-    doc.setFontSize(18);
-    doc.text(`Expense #${expense.id.slice(-8)}`, 14, 22);
-
-    // Add metadata
-    doc.setFontSize(12);
-    doc.text(`Status: ${expense.state}`, 14, 32);
-    doc.text(`Total Amount: $${expense.totalAmount.toFixed(2)}`, 14, 40);
-    doc.text(
-      `Created: ${new Date(expense.createdAt).toLocaleDateString()}`,
-      14,
-      48
-    );
-
-    // Add line items table
-    const tableData = expense.lineItems.map((item) => [
-      new Date(item.date).toLocaleDateString(),
-      item.description || "",
-      item.category || "",
-      `$${item.amount.toFixed(2)}`,
-    ]);
-
-    autoTable(doc, {
-      startY: 58,
-      head: [["Date", "Description", "Category", "Amount"]],
-      body: tableData,
-      theme: "striped",
-      headStyles: { fillColor: [17, 17, 16] },
-    });
-
-    doc.save(`expense-${expense.id.slice(-8)}.pdf`);
-  };
-
-  // Calculate line items total for comparison with pre-approved amount
-  const lineItemsTotal =
-    expense?.lineItems?.reduce((sum, item) => sum + item.amount, 0) || 0;
-  const exceedsPreApproved =
-    expense &&
-    (expense.state === EXPENSE_STATES.PRE_APPROVED ||
-      expense.state === EXPENSE_STATES.APPROVED) &&
-    lineItemsTotal > expense.totalAmount;
+  const statusConfig = getStateConfig(expense.state);
 
   return (
-    <div className="min-h-screen bg-[#FDF8F5] text-[#121110] font-sans pb-24 safe-area-pb">
-      {/* Sticky Mobile Header */}
-      <div className="sticky top-13 z-40 bg-[#FDF8F5]/90 backdrop-blur-md border-b border-zinc-100 flex justify-between items-center px-2 md:hidden">
-        <Button
-          variant="ghost"
-          size="sm"
+    <div className="min-h-screen bg-background text-foreground font-sans pb-40">
+      {/* HEADER */}
+      <div className="bg-background border-b border-border px-6 py-4 flex justify-between items-center">
+        <button
           onClick={() => router.push("/dashboard/expenses")}
-          className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full active:bg-zinc-100 text-zinc-600 transition-colors"
+          className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full active:bg-muted text-muted-foreground transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <span className="font-bold text-sm">Expense Details</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-10 h-10 -mr-2 flex items-center justify-center rounded-full active:bg-zinc-100 text-zinc-600 transition-colors"
-        >
-          <MoreHorizontal className="w-5 h-5" />
-        </Button>
+        </button>
       </div>
 
-      <div className="mt-5">
-        {/* Desktop Back Button */}
-        <Button
-          variant="ghost"
-          onClick={() => router.push("/dashboard/expenses")}
-          className="hidden md:flex items-center gap-2 text-zinc-500 hover:text-[#121110] font-bold text-sm mb-8 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to List
-        </Button>
-
-        <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
-          {/* LEFT COL: Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Header Card */}
-            <div className="bg-white rounded-[2rem] p-6 md:p-8 border border-zinc-200 shadow-sm">
-              <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-                <div className="flex-1">
-                  {/* Status badges */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="inline-block px-3 py-1 bg-[#F0FDF4] text-emerald-600 border border-emerald-100 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider">
-                      {expense.state === "Approved"
-                        ? "Approved"
-                        : expense.state.replace("-", " ")}
-                    </div>
-                    {/* Private badge for personal expenses */}
-                    {!expense.organizationId && (
-                      <div className="inline-block px-2 py-1 bg-zinc-100 text-zinc-600 border border-zinc-200 rounded-full text-[10px] md:text-xs font-medium">
-                        Private
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Title */}
-                  <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight text-[#121110]">
-                    {ExpenseBusinessRules.generateExpenseTitle(expense)}
-                  </h1>
-
-                  {/* Warning when line items exceed pre-approved amount */}
-                  {exceedsPreApproved && (
-                    <div className="mt-3 inline-flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-xs font-medium">
-                      <span>⚠️</span>
-                      <span>
-                        Total (${lineItemsTotal.toFixed(2)}) exceeds
-                        pre-approved amount (${expense.totalAmount.toFixed(2)})
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Total Amount */}
-                <div className="text-right">
-                  <div className="text-zinc-400 text-xs md:text-sm font-medium mb-1">
-                    Total Amount
-                  </div>
-                  <div className="font-mono text-3xl md:text-4xl font-bold tracking-tighter text-[#121110]">
-                    ${expense.totalAmount.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-
-              {/* Desktop Action Bar */}
-              <div className="hidden md:flex gap-3 border-t border-zinc-100 pt-6 mt-6">
-                {/* Edit button - only for expense owner before approval */}
-                {!expense.deletedAt && session?.user?.id === expense.userId && (
-                  <Button
-                    asChild
-                    variant="ghost"
-                    className="flex-1 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 font-bold py-3 rounded-xl text-sm transition-colors border border-zinc-200"
-                  >
-                    <Link href={`/dashboard/expenses/${expense.id}/edit`}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </Link>
-                  </Button>
-                )}
-
-                {/* Export dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="bg-zinc-50 hover:bg-zinc-100 text-zinc-600 font-bold py-3 rounded-xl text-sm transition-colors border border-zinc-200"
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2 rotate-[-90deg]" />
-                      Export
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem
-                      onClick={exportAsCSV}
-                      className="cursor-pointer"
-                    >
-                      Export as CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={exportAsPDF}
-                      className="cursor-pointer"
-                    >
-                      Export as PDF
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Status dropdown - only for admins */}
-                {isAdmin && (
-                  <ExpenseStatusDropdown
-                    expense={expense}
-                    isAdmin={isAdmin}
-                    isPending={
-                      approveExpense.isPending ||
-                      rejectExpense.isPending ||
-                      reimburseExpense.isPending
-                    }
-                    onStatusChange={handleStatusChange}
-                    comment={comment}
-                    onCommentChange={setComment}
-                  />
-                )}
-              </div>
+      <div className="max-w-2xl mx-auto px-6 pt-8 space-y-8">
+        {/* 1. CONTEXT & STATUS BANNER */}
+        <div className="flex justify-between items-center">
+          {/* Context Indicator (Privacy) */}
+          {isPrivate ? (
+            <div className="flex items-center gap-2 text-muted-foreground font-bold text-xs uppercase tracking-widest">
+              <Lock className="w-4 h-4" /> Personal Vault
             </div>
-
-            {/* Line Items */}
-            <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden">
-              <div className="p-6 md:p-8">
-                <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-zinc-400" /> Line Items
-                </h3>
-
-                <div className="space-y-6">
-                  {expense.lineItems.map((item: LineItem, i: number) => (
-                    <div
-                      key={i}
-                      className="flex flex-col md:flex-row gap-4 border-b border-zinc-50 last:border-0 pb-6 last:pb-0"
-                    >
-                      {/* Icon & Details */}
-                      <div className="flex gap-4 flex-1">
-                        <div className="w-12 h-12 bg-[#FDF8F5] rounded-xl flex-shrink-0 flex items-center justify-center border border-zinc-100">
-                          <CategoryIcon
-                            category={item.category}
-                            className="text-zinc-600"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="font-bold text-[#121110]">
-                                {item.description || "No description"}
-                              </div>
-                              <div className="text-sm text-zinc-500">
-                                {new Date(item.date).toLocaleDateString()} •{" "}
-                                {item.category}
-                              </div>
-                            </div>
-                            <div className="font-mono font-bold text-lg md:hidden">
-                              ${item.amount.toFixed(2)}
-                            </div>
-                          </div>
-
-                          {/* Attachments Area */}
-                          {item.attachments && item.attachments.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-3">
-                              {item.attachments.map(
-                                (url: string, idx: number) => {
-                                  const isImage = url.match(
-                                    /\.(jpg|jpeg|png|gif|webp)$/i
-                                  );
-                                  const isPdf = url.match(/\.pdf$/i);
-
-                                  return (
-                                    <a
-                                      key={idx}
-                                      href={url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="group relative w-12 h-12 bg-zinc-100 hover:bg-zinc-200 rounded-xl border border-zinc-200 hover:border-zinc-300 transition-all duration-200 flex items-center justify-center overflow-hidden"
-                                      title={
-                                        isPdf
-                                          ? "View PDF"
-                                          : "Click to view attachment"
-                                      }
-                                    >
-                                      {isImage ? (
-                                        <img
-                                          src={url}
-                                          alt={`Attachment ${idx + 1}`}
-                                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
-                                        />
-                                      ) : isPdf ? (
-                                        <span className="text-xs font-bold text-red-600">
-                                          PDF
-                                        </span>
-                                      ) : (
-                                        <span className="text-xs font-bold text-zinc-500">
-                                          FILE
-                                        </span>
-                                      )}
-                                    </a>
-                                  );
-                                }
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Desktop Amount */}
-                      <div className="hidden md:block text-right">
-                        <div className="font-mono font-bold text-lg">
-                          ${item.amount.toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          ) : (
+            <div className="flex items-center gap-2 text-muted-foreground font-bold text-xs uppercase tracking-widest">
+              <Building className="w-4 h-4" /> {organization?.name || "Organization"}
             </div>
+          )}
+          {/* Status Badge (Only for Org) */}
+          {!isPrivate && <StatusBadge state={expense.state} />}
+        </div>
+
+        {/* 2. HERO TOTAL */}
+        <div className="text-center">
+          <div className="text-muted-foreground font-bold text-sm mb-1">
+            Total Amount
           </div>
-
-          {/* RIGHT COL: Meta & History */}
-          <div className="space-y-6">
-            {/* Audit Log Card */}
-            <div className="bg-white rounded-[2rem] p-6 border border-zinc-200 shadow-sm">
-              <h3 className="font-bold text-lg mb-6">Activity</h3>
-              <div className="relative border-l-2 border-zinc-100 ml-3 space-y-8 py-2">
-                {[...expense.auditLog].reverse().map((log, i) => (
-                  <div key={i} className="relative pl-6 md:pl-8">
-                    <div
-                      className={`absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white ${log.action === "created" ? "bg-zinc-300" : "bg-[#D0FC42]"}`}
-                    />
-                    <div className="text-[10px] md:text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">
-                      {new Date(log.date).toLocaleDateString()} •{" "}
-                      {new Date(log.date).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </div>
-                    <div className="font-bold text-sm text-[#121110]">
-                      {getAuditActionLabel(log.action)}
-                    </div>
-                    <div className="text-xs md:text-sm text-zinc-500 mt-0.5">
-                      by{" "}
-                      <span className="text-[#121110] font-medium">
-                        {log.actorName || "Unknown User"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Details Card */}
-            <div className="bg-white rounded-[2rem] p-6 border border-zinc-200 shadow-sm">
-              <h3 className="font-bold text-lg mb-4">Meta Data</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">ID</span>
-                  <span className="font-mono font-bold">
-                    #{expense.id.slice(-8)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Merchant</span>
-                  <span className="font-bold">Multiple</span>
-                </div>
-                <div className="flex justify-between items-start">
-                  <span className="text-zinc-500">Type</span>
-                  <div className="text-right">
-                    {expense.organizationId ? (
-                      <span className="font-bold">Organization</span>
-                    ) : (
-                      <span className="text-zinc-400 italic">Personal</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-between items-start">
-                  <span className="text-zinc-500">Assigned Managers</span>
-                  <div className="text-right">
-                    {expense.managerIds && expense.managerIds.length > 0 ? (
-                      <div className="font-bold">
-                        {expense.managerIds.length} manager
-                        {expense.managerIds.length > 1 ? "s" : ""}
-                      </div>
-                    ) : (
-                      <span className="text-zinc-400 italic">No managers</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="font-mono font-bold text-6xl tracking-tighter text-foreground">
+            ${expense.totalAmount.toFixed(2)}
           </div>
         </div>
-      </div>
 
-      {/* Mobile Sticky Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-zinc-200 p-4 md:hidden flex gap-3 z-50">
-        {/* Edit button - only for expense owner before approval */}
-        {!expense.deletedAt && session?.user?.id === expense.userId && (
-          <Button
-            asChild
-            variant="ghost"
-            className="flex-1 bg-zinc-100 text-zinc-600 font-bold py-3.5 rounded-xl text-sm active:bg-zinc-200 transition-colors"
-          >
-            <Link href={`/dashboard/expenses/${expense.id}/edit`}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
-            </Link>
-          </Button>
-        )}
+        {/* 3. LINE ITEMS LIST */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">
+            Receipts & Items
+          </h3>
+          <div className="space-y-3">
+            {expense.lineItems.length > 0 ? (
+              expense.lineItems.map((item, index) => (
+                <LineItemRow key={index} item={item} />
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No line items
+              </div>
+            )}
+          </div>
+        </div>
 
-        {/* Export dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="flex-1 bg-zinc-100 text-zinc-600 font-bold py-3.5 rounded-xl text-sm active:bg-zinc-200 transition-colors border border-zinc-200"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2 rotate-[-90deg]" />
-              Export
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={exportAsCSV} className="cursor-pointer">
-              Export as CSV
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={exportAsPDF} className="cursor-pointer">
-              Export as PDF
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Status dropdown - only for admins */}
-        {isAdmin && (
-          <div className="flex-1">
-            <ExpenseStatusDropdown
-              expense={expense}
-              isAdmin={isAdmin}
-              isPending={
-                approveExpense.isPending ||
-                rejectExpense.isPending ||
-                reimburseExpense.isPending
-              }
-              onStatusChange={handleStatusChange}
-              comment={comment}
-              onCommentChange={setComment}
-            />
+        {/* 4. AUDIT LOG (Only visible in Org Context) */}
+        {!isPrivate && (
+          <div className="pt-8 border-t border-border">
+            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1 mb-4">
+              History
+            </h3>
+            <AuditLog logs={expense.auditLog} />
           </div>
         )}
       </div>
+
+      {/* --- FOOTER LOGIC: The "Brain" of the Page --- */}
+
+      {/* SCENARIO 1: MANAGER VIEW */}
+      {!isPrivate && isManager && (
+        <>
+          <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border p-6 z-40 safe-area-pb">
+            <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
+              {/* Current Status Readout */}
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${statusConfig.bg} ${statusConfig.color}`}
+                >
+                  <statusConfig.icon className="w-5 h-5" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Status
+                  </div>
+                  <div className="text-sm font-bold text-foreground">
+                    {statusConfig.label}
+                  </div>
+                </div>
+              </div>
+
+              {/* Trigger for State Drawer */}
+              <button
+                onClick={() => setShowStatusDrawer(true)}
+                className="bg-primary text-primary-foreground px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:opacity-90 transition-all flex items-center gap-2"
+              >
+                Change <ChevronUp className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* STATUS DRAWER */}
+          <StatusDrawer
+            open={showStatusDrawer}
+            onOpenChange={setShowStatusDrawer}
+            currentState={expense.state}
+            onStateChange={handleStatusChange}
+          />
+        </>
+      )}
+
+      {/* SCENARIO 2: EMPLOYEE VIEW */}
+      {isEmployee && (
+        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border p-6 z-40 safe-area-pb">
+          <div className="max-w-2xl mx-auto">
+            {isEditable ? (
+              // Case A: Actionable Footer
+              <div className="flex gap-3">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="flex-1 bg-card border-2 border-border text-foreground py-4 rounded-2xl font-bold text-sm hover:bg-muted active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
+                  <Link href={`/dashboard/expenses/${expense.id}/edit`}>
+                    <Pen className="w-4 h-4" /> Edit
+                  </Link>
+                </Button>
+
+                {isPrivate ? (
+                  <button
+                    onClick={() => setShowManagerSheet(true)}
+                    className="flex-[2] bg-primary text-primary-foreground py-4 rounded-2xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-lg"
+                  >
+                    Submit to Org
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleWithdrawRequest}
+                    className="flex-[2] bg-card border-2 border-border text-destructive py-4 rounded-2xl font-bold text-sm hover:bg-destructive/10 active:scale-[0.98] transition-all"
+                  >
+                    Withdraw Request
+                  </button>
+                )}
+              </div>
+            ) : (
+              // Case B: Read-Only Status Footer
+              <div className="text-center">
+                <div
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm border ${statusConfig.bg} ${statusConfig.color} ${statusConfig.border}`}
+                >
+                  <statusConfig.icon className="w-4 h-4" strokeWidth={2.5} />
+                  {statusConfig.label} - Read Only
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Manager Selection Sheet for Submit to Org */}
+      {showManagerSheet && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm animate-in fade-in"
+            onClick={() => {
+              setShowManagerSheet(false);
+              setSelectedManagerIds([]);
+            }}
+          />
+
+          {/* Sheet Content */}
+          <div className="fixed bottom-0 left-0 right-0 bg-card rounded-t-[2.5rem] p-6 z-50 animate-in slide-in-from-bottom-full duration-500 pb-12 shadow-2xl">
+            <div className="max-w-xl mx-auto">
+              <div className="flex justify-center -mt-2 mb-6">
+                <div className="w-12 h-1.5 bg-border rounded-full" />
+              </div>
+              <h3 className="text-lg font-bold mb-6 px-2 text-foreground">
+                Select Manager
+              </h3>
+
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
+                {organizationWithMembers ? (
+                  <>
+                    <ManagerSelector
+                      organization={organizationWithMembers}
+                      watchedManagerIds={selectedManagerIds}
+                      onSelectionChange={setSelectedManagerIds}
+                      errors={undefined}
+                      isLoading={orgMembersLoading}
+                    />
+                    <div className="flex gap-3 pt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowManagerSheet(false);
+                          setSelectedManagerIds([]);
+                        }}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSubmitToOrg}
+                        disabled={
+                          selectedManagerIds.length === 0 ||
+                          updateExpense.isPending
+                        }
+                        className="flex-[2]"
+                      >
+                        {updateExpense.isPending ? "Submitting..." : "Submit to Org"}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    {orgMembersLoading
+                      ? "Loading managers..."
+                      : "No organization found. Please create or join an organization first."}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -15,6 +15,8 @@ const ACTION_LABELS: Record<string, string> = {
   deleted: "Deleted",
   restored: "Restored",
   updated: "Updated",
+  "submitted-to-org": "Submitted to Organization",
+  "withdrawn-from-org": "Withdrawn from Organization",
 } as const;
 
 /**

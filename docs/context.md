@@ -28,11 +28,11 @@
 
 - **Visuals**: Use "System" visuals (clean badges, system fonts, subtle borders) over loud graphics.
 - **Micro-interactions**:
-  - _Do_: Tactile button presses (`active:scale-95`), smooth loading states, staggered entrance animations, fluid progress bars.
-  - _Don't_: Confetti, jarring popups, aggressive clutter.
+  - *Do*: Tactile button presses (`active:scale-95`), smooth loading states, staggered entrance animations, fluid progress bars.
+  - *Don't*: Confetti, jarring popups, aggressive clutter.
 - **Feedback**: Feedback must be **immediate** and **liquid**.
-  - _Action_: User clicks "Save".
-  - _Reaction_: Button state changes instantly -> Toast appears gently -> "Success Wave" (subtle gradient pulse) confirms completion.
+  - *Action*: User clicks "Save".
+  - *Reaction*: Button state changes instantly -> Toast appears gently -> "Success Wave" (subtle gradient pulse) confirms completion.
 
 ## 4. UX & Psychology Rules
 
@@ -46,6 +46,6 @@
 - **Model**: Pro (Trial with CC) -> Auto-Renews.
 - **Rule**: **NEVER** nag a Trial user to "Upgrade". They are already subscribed.
 - **Messaging**: Focus on **Value Reaffirmation**, not Anxiety.
-  - _Bad_: "Trial Ending Soon!" (Induces Cortisol/Panic).
-  - _Good_: "Pro Features Active. You're saving time." (Induces Dopamine/Trust).
+  - *Bad*: "Trial Ending Soon!" (Induces Cortisol/Panic).
+  - *Good*: "Pro Features Active. You're saving time." (Induces Dopamine/Trust).
 - **Scarcity**: Use gentle scarcity for limits (e.g., "2/3 Seats Used") to trigger loss aversion naturally.

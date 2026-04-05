@@ -153,10 +153,18 @@ export async function PUT(
       return createErrorResponse(new ForbiddenError());
     }
 
-    // Prevent updates on submitted expenses (only allow updates on draft)
-    if (expense.state !== EXPENSE_STATES.DRAFT) {
+    // Prevent updates on locked expenses (Approved, Reimbursed, Pre-Approved)
+    // Allow updates on editable expenses: Draft, Pending states, Rejected
+    const isLocked =
+      expense.state === EXPENSE_STATES.APPROVED ||
+      expense.state === EXPENSE_STATES.REIMBURSED ||
+      expense.state === EXPENSE_STATES.PRE_APPROVED;
+
+    if (isLocked) {
       return createErrorResponse(
-        new ForbiddenError("Only draft expenses can be updated")
+        new ForbiddenError(
+          "Cannot update expenses in Approved, Reimbursed, or Pre-Approved state"
+        )
       );
     }
 
@@ -220,32 +228,94 @@ export async function PUT(
       validatedData.lineItems || []
     );
 
+    // Handle organizationId based on managerIds
+    let newOrganizationId: string | null = null;
+    const previousOrganizationId = expense.organizationId;
+
+    if (expenseInput.managerIds.length > 0) {
+      // Get the first manager's organization
+      const firstManager = await db.collection("member").findOne({
+        userId: new ObjectId(expenseInput.managerIds[0]),
+      });
+
+      if (firstManager) {
+        // Validate all managers belong to the same organization
+        const managerMemberships = await db
+          .collection("member")
+          .find({
+            userId: { $in: expenseInput.managerIds.map((id) => new ObjectId(id)) },
+          })
+          .toArray();
+
+        const organizationIds = new Set(
+          managerMemberships.map((m) => m.organizationId.toString())
+        );
+
+        if (organizationIds.size === 1) {
+          newOrganizationId = firstManager.organizationId.toString();
+        } else if (organizationIds.size > 1) {
+          return createErrorResponse(
+            new ValidationError(
+              "All managers must belong to the same organization"
+            )
+          );
+        }
+      }
+    } else {
+      // If no managers, set organizationId to null (private expense)
+      newOrganizationId = null;
+    }
+
     // Store previous values for audit log
     const previousValues = {
       totalAmount: expense.totalAmount,
       managerIds: [...expense.managerIds],
+      organizationId: expense.organizationId,
       lineItems: createLineItemsSnapshot(expense.lineItems),
     };
 
     // Update expense fields
     expense.totalAmount = expenseInput.totalAmount;
     expense.managerIds = expenseInput.managerIds;
+    expense.organizationId = newOrganizationId;
     expense.lineItems = lineItemsWithDates;
 
     // Store updated values for audit log
     const updatedValues = {
       totalAmount: expense.totalAmount,
       managerIds: [...expense.managerIds],
+      organizationId: expense.organizationId,
       lineItems: createLineItemsSnapshot(expense.lineItems),
     };
 
-    // Add audit entry
-    expense.addAuditEntry(
-      "updated",
-      session.user.id,
-      previousValues,
-      updatedValues
-    );
+    // Add specific audit entry if organizationId changed
+    if (previousOrganizationId !== newOrganizationId) {
+      if (newOrganizationId) {
+        expense.addAuditEntry(
+          "submitted-to-org",
+          session.user.id,
+          { organizationId: previousOrganizationId },
+          { organizationId: newOrganizationId }
+        );
+      } else {
+        expense.addAuditEntry(
+          "withdrawn-from-org",
+          session.user.id,
+          { organizationId: previousOrganizationId },
+          { organizationId: null }
+        );
+      }
+    }
+
+    // Add audit entry (only if organizationId didn't change, as it's handled above)
+    if (previousOrganizationId === newOrganizationId) {
+      expense.addAuditEntry(
+        "updated",
+        session.user.id,
+        previousValues,
+        updatedValues
+      );
+    }
 
     // Save to database
     const savedExpense = await expense.save();

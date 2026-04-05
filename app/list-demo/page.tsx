@@ -8,21 +8,6 @@ const IconLock = ({ className }) => <svg className={className} viewBox="0 0 24 2
 const IconBriefcase = ({ className }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
 const IconInbox = ({ className }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>;
 const IconUser = ({ className }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
-const IconCheck = ({ className }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17 4 12" /></svg>;
-
-// --- Mock Data ---
-const generateExpenses = (count) => {
-  return Array.from({ length: count }).map((_, i) => ({
-    id: `EXP-${i}`,
-    merchant: ["Starbucks", "Uber", "United Airlines", "WeWork", "Apple Store"][i % 5],
-    employee: ["Sarah Jones", "Mike Ross", "Harvey S.", "Jessica P."][i % 4], // For inbox
-    amount: (Math.random() * 500).toFixed(2),
-    date: new Date(Date.now() - i * 86400000).toISOString(),
-    status: ["draft", "pending", "approved", "rejected", "reimbursed"][i % 5],
-    category: ["Meals", "Transport", "Travel", "Office", "Tech"][i % 5],
-    isPrivate: i % 2 === 0, // Split 50/50 for demo
-  }));
-};
 
 // --- Components ---
 
@@ -45,7 +30,6 @@ const ExpenseCard = ({ expense, showEmployeeName }) => {
   return (
     <div className="group bg-white p-4 rounded-[1.25rem] border border-zinc-200 shadow-sm flex items-center justify-between active:scale-[0.99] transition-all hover:border-zinc-300">
       <div className="flex items-center gap-4">
-        {/* Category Icon */}
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl border border-zinc-100 flex-shrink-0 ${expense.isPrivate ? 'bg-[#FFF0E0]' : 'bg-zinc-50'}`}>
             {expense.category === 'Meals' && '🍔'}
             {expense.category === 'Transport' && '🚕'}
@@ -53,17 +37,13 @@ const ExpenseCard = ({ expense, showEmployeeName }) => {
             {expense.category === 'Office' && '🖇️'}
             {expense.category === 'Tech' && '💻'}
         </div>
-
-        {/* Text Details */}
         <div className="min-w-0">
             {showEmployeeName ? (
-                // INBOX VIEW: Focus on WHO
                 <div>
                     <div className="font-bold text-[#121110] text-sm">{expense.employee}</div>
                     <div className="text-xs text-zinc-500 mt-0.5">{expense.merchant}</div>
                 </div>
             ) : (
-                // MY VIEW: Focus on WHAT
                 <div>
                     <div className="font-bold text-[#121110] text-base truncate">{expense.merchant}</div>
                     <div className="text-xs text-zinc-500 mt-0.5">{expense.category}</div>
@@ -71,8 +51,6 @@ const ExpenseCard = ({ expense, showEmployeeName }) => {
             )}
         </div>
       </div>
-
-      {/* Right Side: Amount & Status */}
       <div className="text-right">
         <div className="font-mono font-bold text-lg text-[#121110]">${expense.amount}</div>
         <div className="flex justify-end mt-1">
@@ -83,41 +61,45 @@ const ExpenseCard = ({ expense, showEmployeeName }) => {
   );
 };
 
-export default function StrictContextListPage() {
-  const [role, setRole] = useState("manager"); // 'employee' | 'manager'
+export default function SmartContextListPage() {
+  // --- USER STATE SIMULATION ---
+  const [isSoloUser, setIsSoloUser] = useState(true); // Toggle to test views
+  const [role, setRole] = useState("manager"); 
   
-  // 1. TOP LEVEL CONTEXT (The God Switch)
-  const [context, setContext] = useState("work"); // 'vault' | 'work'
-  
-  // 2. SUB LEVEL VIEW (Work Only)
-  const [workView, setWorkView] = useState("inbox"); // 'mine' | 'inbox' (Default to Inbox for managers)
-
-  // 3. SEARCH
+  // --- UI STATE ---
+  const [context, setContext] = useState("vault"); // 'vault' | 'work'
+  const [workView, setWorkView] = useState("inbox");
   const [search, setSearch] = useState("");
 
-  const allExpenses = useMemo(() => generateExpenses(20), []);
+  // Logic: If solo user, FORCE context to 'vault'.
+  const activeContext = isSoloUser ? 'vault' : context;
+
+  // Mock Data Generation
+  const allExpenses = useMemo(() => {
+      return Array.from({ length: 15 }).map((_, i) => ({
+        id: `EXP-${i}`,
+        merchant: ["Starbucks", "Uber", "United", "WeWork", "Apple"][i % 5],
+        employee: ["Sarah", "Mike", "Harvey"][i % 3],
+        amount: (Math.random() * 500).toFixed(2),
+        date: new Date().toISOString(),
+        status: ["draft", "pending", "approved"][i % 3],
+        category: ["Meals", "Transport", "Travel", "Office", "Tech"][i % 5],
+        isPrivate: i % 2 === 0, 
+      }));
+  }, []);
 
   const filteredData = allExpenses.filter(item => {
-    // A. STRICT CONTEXT SEPARATION
-    if (context === 'vault') {
+    if (activeContext === 'vault') {
         if (!item.isPrivate) return false;
-        // Search Logic for Vault
         if (search && !item.merchant.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
     }
-
-    // B. WORK CONTEXT LOGIC
-    if (context === 'work') {
-        if (item.isPrivate) return false; // Hide private items
-
+    if (activeContext === 'work') {
+        if (item.isPrivate) return false;
         if (role === 'manager' && workView === 'inbox') {
-            // Manager Inbox: Show Pending items from OTHERS
             if (item.status !== 'pending') return false; 
-            // Search by Employee Name in Inbox
             if (search && !item.employee.toLowerCase().includes(search.toLowerCase())) return false;
         } else {
-            // My Claims: Show MY items (All statuses)
-            // Search by Merchant in My Claims
             if (search && !item.merchant.toLowerCase().includes(search.toLowerCase())) return false;
         }
         return true;
@@ -126,58 +108,61 @@ export default function StrictContextListPage() {
   });
 
   return (
-    <div className={`min-h-screen font-sans pb-24 transition-colors duration-500 ${context === 'vault' ? 'bg-[#FFF8F5]' : 'bg-[#FDFDFD]'}`}>
+    <div className={`min-h-screen font-sans pb-24 transition-colors duration-500 ${activeContext === 'vault' ? 'bg-[#FFF8F5]' : 'bg-[#FDFDFD]'}`}>
       
-      {/* --- HEADER & CONTROLS --- */}
-      <div className={`sticky top-0 z-30 backdrop-blur-xl border-b transition-colors duration-500 ${context === 'vault' ? 'bg-[#FFF8F5]/95 border-orange-100' : 'bg-[#FDFDFD]/95 border-zinc-200'}`}>
+      {/* --- HEADER --- */}
+      <div className={`sticky top-0 z-30 backdrop-blur-xl border-b transition-colors duration-500 ${activeContext === 'vault' ? 'bg-[#FFF8F5]/95 border-orange-100' : 'bg-[#FDFDFD]/95 border-zinc-200'}`}>
          <div className="px-6 pt-6 pb-4 space-y-6">
              
-             {/* 1. THE GOD SWITCH (Personal vs Work) */}
-             <div className="flex justify-center">
-                 <div className="bg-white p-1.5 rounded-full border border-zinc-200 shadow-sm flex relative">
-                    <button 
-                        onClick={() => setContext('vault')}
-                        className={`px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${context === 'vault' ? 'bg-[#FF8A65] text-white shadow-md' : 'text-zinc-400 hover:text-zinc-600'}`}
-                    >
-                        <IconLock className="w-4 h-4" /> Personal
-                    </button>
-                    <button 
-                        onClick={() => { setContext('work'); if(role==='manager') setWorkView('inbox'); }}
-                        className={`px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${context === 'work' ? 'bg-[#121110] text-white shadow-md' : 'text-zinc-400 hover:text-zinc-600'}`}
-                    >
-                        <IconBriefcase className="w-4 h-4" /> Work
-                    </button>
-                 </div>
+             {/* 1. TITLE / SWITCHER AREA */}
+             <div className="flex justify-center relative">
+                 
+                 {/* SCENARIO A: SOLO USER (Static Title) */}
+                 {isSoloUser ? (
+                     <div className="flex items-center gap-2 text-xl font-bold text-[#121110]">
+                         <div className="w-8 h-8 bg-[#FF8A65] rounded-lg flex items-center justify-center text-white shadow-md shadow-orange-200">
+                             <IconLock className="w-4 h-4" />
+                         </div>
+                         My Vault
+                     </div>
+                 ) : (
+                     // SCENARIO B: ORG USER (The Toggle)
+                     <div className="bg-white p-1.5 rounded-full border border-zinc-200 shadow-sm flex relative">
+                        <button 
+                            onClick={() => setContext('vault')}
+                            className={`px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${activeContext === 'vault' ? 'bg-[#FF8A65] text-white shadow-md' : 'text-zinc-400 hover:text-zinc-600'}`}
+                        >
+                            <IconLock className="w-4 h-4" /> Personal
+                        </button>
+                        <button 
+                            onClick={() => { setContext('work'); if(role==='manager') setWorkView('inbox'); }}
+                            className={`px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${activeContext === 'work' ? 'bg-[#121110] text-white shadow-md' : 'text-zinc-400 hover:text-zinc-600'}`}
+                        >
+                            <IconBriefcase className="w-4 h-4" /> Work
+                        </button>
+                     </div>
+                 )}
              </div>
 
              {/* 2. SUB-NAV (Only for Managers in Work Mode) */}
-             {context === 'work' && role === 'manager' && (
+             {!isSoloUser && activeContext === 'work' && role === 'manager' && (
                  <div className="flex justify-start border-b border-zinc-100">
-                    <button 
-                        onClick={() => setWorkView('inbox')}
-                        className={`pb-3 px-4 text-sm font-bold flex items-center gap-2 transition-all border-b-2 ${workView === 'inbox' ? 'border-[#121110] text-[#121110]' : 'border-transparent text-zinc-400'}`}
-                    >
+                    <button onClick={() => setWorkView('inbox')} className={`pb-3 px-4 text-sm font-bold flex items-center gap-2 transition-all border-b-2 ${workView === 'inbox' ? 'border-[#121110] text-[#121110]' : 'border-transparent text-zinc-400'}`}>
                         <IconInbox className="w-4 h-4" /> Inbox
                         <span className="bg-[#D0FC42] text-[#121110] text-[10px] px-1.5 py-0.5 rounded-full">4</span>
                     </button>
-                    <button 
-                        onClick={() => setWorkView('mine')}
-                        className={`pb-3 px-4 text-sm font-bold flex items-center gap-2 transition-all border-b-2 ${workView === 'mine' ? 'border-[#121110] text-[#121110]' : 'border-transparent text-zinc-400'}`}
-                    >
+                    <button onClick={() => setWorkView('mine')} className={`pb-3 px-4 text-sm font-bold flex items-center gap-2 transition-all border-b-2 ${workView === 'mine' ? 'border-[#121110] text-[#121110]' : 'border-transparent text-zinc-400'}`}>
                         <IconUser className="w-4 h-4" /> My Claims
                     </button>
                  </div>
              )}
 
-             {/* 3. CONTEXT-AWARE SEARCH */}
+             {/* 3. SEARCH */}
              <div className="relative">
                 <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                 <input 
                     type="text" 
-                    placeholder={
-                        context === 'vault' ? "Search personal expenses..." : 
-                        (role === 'manager' && workView === 'inbox') ? "Search by employee..." : "Search business expenses..."
-                    }
+                    placeholder={activeContext === 'vault' ? "Search personal..." : "Search business..."}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-full bg-white border border-zinc-200 rounded-2xl py-3 pl-10 pr-4 text-sm font-bold focus:outline-none focus:border-[#121110] focus:ring-1 focus:ring-[#121110] shadow-sm transition-all"
@@ -189,12 +174,10 @@ export default function StrictContextListPage() {
       {/* --- LIST CONTENT --- */}
       <div className="px-4 md:px-6 py-6 space-y-3">
         
-        {/* Section Title */}
         <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-2 mb-2">
-            {context === 'vault' && "Private Storage"}
-            {context === 'work' && role === 'employee' && "My History"}
-            {context === 'work' && role === 'manager' && workView === 'inbox' && "Needs Approval"}
-            {context === 'work' && role === 'manager' && workView === 'mine' && "My History"}
+            {activeContext === 'vault' && "Private Storage"}
+            {activeContext === 'work' && role === 'manager' && workView === 'inbox' && "Needs Approval"}
+            {activeContext === 'work' && role === 'manager' && workView === 'mine' && "My History"}
         </h3>
 
         {filteredData.length > 0 ? (
@@ -202,7 +185,7 @@ export default function StrictContextListPage() {
                 <ExpenseCard 
                     key={item.id} 
                     expense={item} 
-                    showEmployeeName={context === 'work' && role === 'manager' && workView === 'inbox'} 
+                    showEmployeeName={activeContext === 'work' && role === 'manager' && workView === 'inbox'} 
                 />
             ))
         ) : (
@@ -212,11 +195,16 @@ export default function StrictContextListPage() {
         )}
       </div>
 
-      {/* DEBUG TOGGLE (Remove in Prod) */}
-      <div className="fixed bottom-6 right-6 z-50">
-          <button onClick={() => setRole(role === 'manager' ? 'employee' : 'manager')} className="bg-black text-white text-[10px] px-3 py-1 rounded-full shadow-xl opacity-50 hover:opacity-100">
-              Role: {role.toUpperCase()}
+      {/* --- SIMULATION TOGGLE (Bottom Right) --- */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 items-end">
+          <button onClick={() => setIsSoloUser(!isSoloUser)} className="bg-black text-white text-[10px] px-3 py-1 rounded-full shadow-xl opacity-80 hover:opacity-100">
+              User: {isSoloUser ? 'SOLO' : 'ORG MEMBER'}
           </button>
+          {!isSoloUser && (
+              <button onClick={() => setRole(role === 'manager' ? 'employee' : 'manager')} className="bg-white border border-zinc-200 text-zinc-600 text-[10px] px-3 py-1 rounded-full shadow-xl">
+                  Role: {role.toUpperCase()}
+              </button>
+          )}
       </div>
 
     </div>

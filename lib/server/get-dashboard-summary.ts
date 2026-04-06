@@ -349,19 +349,41 @@ async function orgBurnLast7DayPercents(
   return amounts.map((v) => Math.round((v / max) * 100));
 }
 
-async function memberOwedCents(userId: string, orgId: string): Promise<number> {
-  const agg = await Expense.aggregate<{ total: number }>([
+async function memberPipelineOwedCents(
+  userId: string,
+  orgId: string
+): Promise<{
+  preApprovalPendingCents: number;
+  approvalPendingCents: number;
+  approvedCents: number;
+}> {
+  const rows = await Expense.aggregate<{ _id: string; total: number }>([
     {
       $match: {
         userId,
         organizationId: orgId,
         deletedAt: null,
-        state: EXPENSE_STATES.APPROVED,
+        state: {
+          $in: [
+            EXPENSE_STATES.PRE_APPROVAL_PENDING,
+            EXPENSE_STATES.APPROVAL_PENDING,
+            EXPENSE_STATES.APPROVED,
+          ],
+        },
       },
     },
-    { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+    { $group: { _id: "$state", total: { $sum: "$totalAmount" } } },
   ]);
-  return dollarsToCents(agg[0]?.total ?? 0);
+  const byState = new Map(rows.map((r) => [r._id, r.total]));
+  return {
+    preApprovalPendingCents: dollarsToCents(
+      byState.get(EXPENSE_STATES.PRE_APPROVAL_PENDING) ?? 0
+    ),
+    approvalPendingCents: dollarsToCents(
+      byState.get(EXPENSE_STATES.APPROVAL_PENDING) ?? 0
+    ),
+    approvedCents: dollarsToCents(byState.get(EXPENSE_STATES.APPROVED) ?? 0),
+  };
 }
 
 async function resolveMemberStatusSummary(
@@ -468,6 +490,8 @@ export async function getDashboardSummary(
     pendingPreApprovalCount: null,
     financeQueueCount: null,
     memberOwedCents: null,
+    memberPreApprovalPendingCents: null,
+    memberApprovalPendingCents: null,
     memberStatusSummary: null,
   });
 
@@ -523,15 +547,17 @@ export async function getDashboardSummary(
         financeQueueCount: fq,
       };
     } else {
-      const [owedCents, statusSummary, counts] = await Promise.all([
-        memberOwedCents(userId, activeOrganizationId),
+      const [pipeline, statusSummary, counts] = await Promise.all([
+        memberPipelineOwedCents(userId, activeOrganizationId),
         resolveMemberStatusSummary(userId, activeOrganizationId),
         approvalCounts(userId, activeOrganizationId),
       ]);
       smartContext = {
         ...emptySmartContext(),
         organizationId: activeOrganizationId,
-        memberOwedCents: owedCents,
+        memberOwedCents: pipeline.approvedCents,
+        memberPreApprovalPendingCents: pipeline.preApprovalPendingCents,
+        memberApprovalPendingCents: pipeline.approvalPendingCents,
         memberStatusSummary: statusSummary,
         pendingApprovalCount: counts.pendingPreApproval + counts.pendingFinal,
         pendingPreApprovalCount: counts.pendingPreApproval,

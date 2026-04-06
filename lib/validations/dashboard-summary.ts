@@ -34,7 +34,10 @@ export const smartContextFlatSchema = z.object({
   pendingApprovalCount: z.number().int().nonnegative().nullable(),
   pendingPreApprovalCount: z.number().int().nonnegative().nullable(),
   financeQueueCount: z.number().int().nonnegative().nullable(),
+  /** Approved (final) — awaiting reimbursement; same as historical `memberOwedCents` semantics. */
   memberOwedCents: z.number().int().nonnegative().nullable(),
+  memberPreApprovalPendingCents: z.number().int().nonnegative().nullable(),
+  memberApprovalPendingCents: z.number().int().nonnegative().nullable(),
   memberStatusSummary: memberStatusSummarySchema.nullable(),
 });
 

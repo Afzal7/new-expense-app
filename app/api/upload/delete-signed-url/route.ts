@@ -11,18 +11,10 @@ import {
   ValidationError,
 } from "@/lib/errors";
 import { checkRateLimit, uploadRateLimiter } from "@/lib/rate-limiter";
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getR2S3Client } from "@/lib/server/r2-s3-client";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextRequest } from "next/server";
-
-const s3Client = new S3Client({
-  region: "auto",
-  endpoint: env.ENDPOINT_URL_S3,
-  credentials: {
-    accessKeyId: env.ACCESS_KEY_ID,
-    secretAccessKey: env.SECRET_ACCESS_KEY,
-  },
-});
 
 export async function DELETE(request: NextRequest): Promise<Response> {
   try {
@@ -79,7 +71,7 @@ export async function DELETE(request: NextRequest): Promise<Response> {
     });
 
     // Generate signed URL valid for 5 minutes
-    const signedUrl = await getSignedUrl(s3Client, command, {
+    const signedUrl = await getSignedUrl(getR2S3Client(), command, {
       expiresIn: 5 * 60, // 5 minutes
     });
 

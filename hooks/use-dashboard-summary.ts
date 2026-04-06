@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-client";
 import { useActiveMember } from "@/hooks/use-active-member";
+import { toOrganizationIdString } from "@/lib/utils/organization-id";
 import {
   dashboardSummaryResponseSchema,
   type DashboardSummaryResponse,
@@ -25,16 +26,23 @@ async function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
 }
 
 function readActiveOrganizationId(
-  session: { session?: unknown } | null | undefined
+  session:
+    | { session?: unknown; activeOrganizationId?: unknown }
+    | null
+    | undefined
 ): string | null {
-  if (!session?.session || typeof session.session !== "object") {
+  if (!session) {
     return null;
   }
-  const s = session.session as { activeOrganizationId?: unknown };
-  return typeof s.activeOrganizationId === "string" &&
-    s.activeOrganizationId.length > 0
-    ? s.activeOrganizationId
-    : null;
+  if (session.session && typeof session.session === "object") {
+    const nested = (session.session as { activeOrganizationId?: unknown })
+      .activeOrganizationId;
+    const fromNested = toOrganizationIdString(nested);
+    if (fromNested) {
+      return fromNested;
+    }
+  }
+  return toOrganizationIdString(session.activeOrganizationId);
 }
 
 /**

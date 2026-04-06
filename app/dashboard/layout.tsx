@@ -288,6 +288,7 @@ export default function DashboardLayout({
                   <SubscriptionStatus />
                   <ProfileDropdown
                     user={session?.user}
+                    organization={userOrg ?? null}
                     trigger={
                       <Button variant="ghost" size="icon" className="size-9.5">
                         <Avatar className="size-9.5 rounded-md">

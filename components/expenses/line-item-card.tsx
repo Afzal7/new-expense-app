@@ -10,7 +10,9 @@ import {
 
 const ACCENT_COLOR = "#D0FC42";
 import { UseFormReturn } from "react-hook-form";
+import { useSession } from "@/lib/auth-client";
 import { useFileUpload } from "@/hooks/use-file-upload";
+import { attachmentUrlToUserScopedStorageKey } from "@/lib/utils/attachment-url";
 import { toast } from "sonner";
 import type { ExpenseFormData } from "@/lib/utils/expense-form";
 import { EXPENSE_CATEGORIES } from "@/lib/constants/categories";
@@ -60,7 +62,9 @@ export function LineItemCard({
   const item = watch(`lineItems.${index}`);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadFile, deleteFile, isUploading } = useFileUpload();
+  const { data: session } = useSession();
   const [uploadingState, setUploadingState] = useState(false);
+  const userId = session?.user?.id;
 
   // Fallback if item is undefined (e.g. during deletion/render cycles)
   if (!item) return null;
@@ -74,19 +78,19 @@ export function LineItemCard({
       const currentAttachments = item.attachments || [];
       if (currentAttachments.length > 0) {
         const existingUrl = currentAttachments[0];
-        // If it's a blob URL, just revoke it
-        if (existingUrl.startsWith('blob:')) {
+        if (existingUrl.startsWith("blob:")) {
           URL.revokeObjectURL(existingUrl);
-        } else {
-          // Delete from server
-          try {
-            const urlObj = new URL(existingUrl);
-            const fileKey = urlObj.pathname.startsWith("/") 
-              ? urlObj.pathname.substring(1) 
-              : urlObj.pathname;
-            await deleteFile(fileKey);
-          } catch (error) {
-            console.error("Failed to delete existing attachment:", error);
+        } else if (userId != null) {
+          const fileKey = attachmentUrlToUserScopedStorageKey(
+            existingUrl,
+            userId
+          );
+          if (fileKey) {
+            try {
+              await deleteFile(fileKey);
+            } catch (error) {
+              console.error("Failed to delete existing attachment:", error);
+            }
           }
         }
       }
@@ -131,18 +135,17 @@ export function LineItemCard({
 
     // Try to delete from storage
     try {
-      // If it's a blob URL, just revoke it
-      if (url.startsWith('blob:')) {
+      if (url.startsWith("blob:")) {
         URL.revokeObjectURL(url);
         return;
       }
-      
-      const urlObj = new URL(url);
-      // Remove leading slash if present
-      const fileKey = urlObj.pathname.startsWith("/") 
-        ? urlObj.pathname.substring(1) 
-        : urlObj.pathname;
-      
+      if (userId == null) {
+        return;
+      }
+      const fileKey = attachmentUrlToUserScopedStorageKey(url, userId);
+      if (!fileKey) {
+        return;
+      }
       await deleteFile(fileKey);
     } catch (error) {
       // We don't necessarily want to block the UI if delete fails, 

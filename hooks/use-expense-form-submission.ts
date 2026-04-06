@@ -58,7 +58,11 @@ export function useExpenseFormSubmission({
       const expenseInput = transformFormDataToExpenseInput(formData, status);
 
       if (isEdit) {
-        // For existing expenses, submit for pre-approval
+        const draftInput = transformFormDataToExpenseInput(formData);
+        await updateExpense.mutateAsync({
+          id: expenseId,
+          expenseInput: draftInput,
+        });
         const result = await submitExpense.mutateAsync(expenseId);
         onSuccess(result);
       } else {
@@ -67,7 +71,7 @@ export function useExpenseFormSubmission({
         onSuccess(result);
       }
     },
-    [createExpense, submitExpense, isEdit, expenseId, onSuccess]
+    [createExpense, updateExpense, submitExpense, isEdit, expenseId, onSuccess]
   );
 
   /**
@@ -96,7 +100,6 @@ export function useExpenseFormSubmission({
     [
       createExpense,
       updateExpense,
-      submitExpense,
       submitExpenseForFinalApproval,
       isEdit,
       expenseId,

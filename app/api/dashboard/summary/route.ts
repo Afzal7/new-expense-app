@@ -6,6 +6,7 @@ import {
   getDashboardSummary,
   type DashboardActiveMember,
 } from "@/lib/server/get-dashboard-summary";
+import { toOrganizationIdString } from "@/lib/utils/organization-id";
 import { dashboardSummaryResponseSchema } from "@/lib/validations/dashboard-summary";
 import { APIError } from "better-auth/api";
 import { NextRequest } from "next/server";
@@ -15,21 +16,27 @@ const SESSION_ORG_MISMATCH =
 
 async function activeMemberForDashboard(
   headers: Headers,
-  activeOrganizationId: string | null
+  sessionActiveOrganizationId: string | null
 ): Promise<DashboardActiveMember> {
-  if (!activeOrganizationId) {
-    return { kind: "no_active_org_in_session" };
-  }
-
   try {
     const member = await auth.api.getActiveMember({ headers });
     if (!member || typeof member.role !== "string") {
+      return { kind: "no_active_org_in_session" };
+    }
+    const organizationId = toOrganizationIdString(member.organizationId);
+    if (!organizationId) {
+      return { kind: "no_active_org_in_session" };
+    }
+
+    const sessionOrg = sessionActiveOrganizationId?.trim() ?? null;
+    if (sessionOrg != null && sessionOrg !== organizationId) {
       return { kind: "session_org_error", message: SESSION_ORG_MISMATCH };
     }
+
     return {
       kind: "ok",
       role: member.role,
-      organizationId: member.organizationId,
+      organizationId,
     };
   } catch (error) {
     if (error instanceof APIError) {
@@ -44,7 +51,7 @@ async function activeMemberForDashboard(
         msg.includes("No active organization") ||
         msg.includes("NO_ACTIVE_ORGANIZATION")
       ) {
-        return { kind: "session_org_error", message: SESSION_ORG_MISMATCH };
+        return { kind: "no_active_org_in_session" };
       }
     }
     throw error;
@@ -61,18 +68,12 @@ function readActiveOrganizationIdFromAuthSession(
   const nested = session.session as
     | { activeOrganizationId?: unknown }
     | undefined;
-  const nestedId = nested?.activeOrganizationId;
-  if (typeof nestedId === "string" && nestedId.length > 0) {
-    return nestedId;
+  const fromNested = toOrganizationIdString(nested?.activeOrganizationId);
+  if (fromNested) {
+    return fromNested;
   }
   const root = session as { activeOrganizationId?: unknown };
-  if (
-    typeof root.activeOrganizationId === "string" &&
-    root.activeOrganizationId.length > 0
-  ) {
-    return root.activeOrganizationId;
-  }
-  return null;
+  return toOrganizationIdString(root.activeOrganizationId);
 }
 
 /**
@@ -106,7 +107,8 @@ export async function GET(request: NextRequest) {
 
     await connectMongoose();
 
-    const activeOrganizationId = readActiveOrganizationIdFromAuthSession(session);
+    const activeOrganizationId =
+      readActiveOrganizationIdFromAuthSession(session);
 
     const [activeMember, activeSubscriptions] = await Promise.all([
       activeMemberForDashboard(request.headers, activeOrganizationId),

@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut, subscription } from "@/lib/auth-client";
-import { useOrganization } from "@/hooks/use-organization";
+import type { Organization } from "@/hooks/use-organization";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -30,6 +30,8 @@ type Props = {
     email?: string;
     image?: string | null;
   };
+  /** From layout {@link useOrganization} so we do not subscribe twice to the org list query. */
+  organization: Organization | null;
   defaultOpen?: boolean;
   align?: "start" | "center" | "end";
 };
@@ -37,11 +39,11 @@ type Props = {
 const ProfileDropdown = ({
   trigger,
   user,
+  organization,
   defaultOpen,
   align = "end",
 }: Props) => {
   const router = useRouter();
-  const { data: organization } = useOrganization();
 
   const handleLogout = async () => {
     await signOut();

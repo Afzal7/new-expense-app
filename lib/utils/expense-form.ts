@@ -5,6 +5,7 @@
 
 import type { Expense, ExpenseInput, LineItemInput } from "@/types/expense";
 import type { ExpenseSubmissionStatus } from "@/lib/constants/expense-states";
+import { normalizeExpenseCategory } from "@/lib/constants/categories";
 import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 
 // Types for form operations
@@ -88,7 +89,7 @@ export function transformLineItem(item: FormLineItem): LineItemInput {
     amount: lineItemAmountToNumber(item.amount),
     date: new Date(item.date),
     description: item.description || "",
-    category: item.category || "",
+    category: normalizeExpenseCategory(item.category),
     attachments: item.attachments || [],
   };
 }

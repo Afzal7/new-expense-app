@@ -5,6 +5,7 @@
  */
 
 import type { AuditEntry, Expense, LineItem } from "@/types/expense";
+import { normalizeExpenseCategory } from "@/lib/constants/categories";
 
 type DatabaseExpense = InstanceType<
   typeof import("@/lib/models/expense").Expense
@@ -96,7 +97,7 @@ export function transformLineItemToDatabase(item: {
     amount: item.amount || 0,
     date: new Date(item.date),
     description: item.description,
-    category: item.category,
+    category: normalizeExpenseCategory(item.category),
     attachments: item.attachments || [],
   };
 }

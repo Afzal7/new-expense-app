@@ -1,38 +1,17 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-client";
 import { orgClient } from "@/lib/auth-client";
-import type { Organization } from "better-auth/plugins/organization";
+import { useOrganizationsListQuery } from "@/hooks/use-organization";
 import { toast } from "@/lib/toast";
 
 /**
  * Hook to fetch all organizations for the current user
+ * (same cache entry as {@link useOrganization} / layout org list).
  */
 export function useUserOrganizations() {
-  const { data: session } = useSession();
-
-  return useQuery({
-    queryKey: ["user-organizations", session?.user?.id],
-    queryFn: async (): Promise<Organization[]> => {
-      if (!session?.user) {
-        throw new Error("User not authenticated");
-      }
-
-      const { data, error } = await orgClient.list({
-        query: { userId: session.user.id },
-      });
-
-      if (error) {
-        throw new Error(error.message || "Failed to fetch organizations");
-      }
-
-      return data || [];
-    },
-    enabled: !!session?.user?.id,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
+  return useOrganizationsListQuery();
 }
 
 /**
@@ -57,9 +36,6 @@ export function useCreateOrganization() {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: ["user-organizations"],
-      });
       queryClient.invalidateQueries({
         queryKey: ["organizations"],
       });
@@ -115,9 +91,6 @@ export function useUpdateOrganization() {
         queryKey: ["organization-members", variables?.organizationId],
       });
       queryClient.invalidateQueries({
-        queryKey: ["user-organizations"],
-      });
-      queryClient.invalidateQueries({
         queryKey: ["organizations"],
       });
     },
@@ -160,9 +133,6 @@ export function useDeleteOrganization() {
         queryKey: ["organization-members", variables.organizationId],
       });
       queryClient.invalidateQueries({
-        queryKey: ["user-organizations"],
-      });
-      queryClient.invalidateQueries({
         queryKey: ["organizations"],
       });
     },
@@ -203,9 +173,6 @@ export function useLeaveOrganization() {
     onSettled: (_data, _error, variables) => {
       queryClient.removeQueries({
         queryKey: ["organization-members", variables.organizationId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["user-organizations"],
       });
       queryClient.invalidateQueries({
         queryKey: ["organizations"],

@@ -9,31 +9,33 @@ import {
   ListPlus,
   Lock,
   Briefcase,
-  DollarSign,
-  CreditCard,
-  Send,
 } from "lucide-react";
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import { ErrorState } from "@/components/shared/error-state";
+import { useSession } from "@/lib/auth-client";
 import { useExpenseFormSubmission } from "@/hooks/use-expense-form-submission";
 import { useOrganizationMembers } from "@/hooks/use-organization-members";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { ManagerSelector } from "./expenses/ManagerSelector";
 import { LineItemCard } from "./expenses/line-item-card";
+import { ExpenseSubmitToOrgSheet } from "./expenses/expense-submit-to-org-sheet";
+import {
+  EXPENSE_FOOTER_BTN_PRIMARY,
+  EXPENSE_FOOTER_BTN_SECONDARY,
+  EXPENSE_TOOLBAR_SOFT_BTN,
+} from "./expenses/expense-footer-classes";
 
 import { toast } from "@/lib/toast";
-import { ExpenseBusinessRules } from "@/lib/utils/expense-business-logic";
 import type { ExpenseFormData } from "@/lib/utils/expense-form";
 import {
   calculateLineItemsTotal,
   createDefaultLineItem,
 } from "@/lib/utils/expense-form";
+import { attachmentUrlToUserScopedStorageKey } from "@/lib/utils/attachment-url";
 import { ExpenseFormSchema } from "@/lib/validations/expense";
 import type { Expense } from "@/types/expense";
-import type { OrganizationWithMembers } from "@/hooks/use-organization-members";
-import type { FieldErrors } from "react-hook-form";
 
 interface ExpenseFormProps {
   initialData?: Expense;
@@ -51,20 +53,15 @@ export function ExpenseForm({
   // -- State --
   const [isPersonal, setIsPersonal] = useState(
     initialData
-      ? !initialData.organizationId
+      ? !initialData.organizationId && !organizationId
       : !organizationId
   );
   const [expandedIndex, setExpandedIndex] = useState(0);
   const [showSubmitSheet, setShowSubmitSheet] = useState(false);
-  const [submitType, setSubmitType] = useState<"reimburse" | "preapproval">("reimburse");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Constants
   const ACCENT_COLOR = "#D0FC42";
-  const SUBMIT_TYPES = {
-    REIMBURSE: "reimburse",
-    PREAPPROVAL: "preapproval",
-  } as const;
 
   // -- Hooks --
   const {
@@ -84,19 +81,9 @@ export function ExpenseForm({
   });
 
   const { uploadFile, deleteFile } = useFileUpload();
+  const { data: session } = useSession();
 
   const isEdit = !!initialData;
-
-  // Handle Escape key to close drawer
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && showSubmitSheet) {
-        setShowSubmitSheet(false);
-      }
-    };
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [showSubmitSheet]);
 
   const formMethods = useForm<ExpenseFormData>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -108,7 +95,7 @@ export function ExpenseForm({
         amount: item.amount,
         date: new Date(item.date).toISOString().split("T")[0],
         description: item.description || "",
-        category: item.category || "",
+        category: item.category?.trim() ? item.category : "",
         attachments: item.attachments || [],
       })) || [],
     },
@@ -118,6 +105,7 @@ export function ExpenseForm({
     control,
     setValue,
     watch,
+    getValues,
     formState: { errors },
   } = formMethods;
 
@@ -247,28 +235,28 @@ export function ExpenseForm({
   };
 
   const handleRemoveLineItem = async (index: number) => {
-    const itemToRemove = watch(`lineItems.${index}`);
-    
-    // Delete attachment from server before removing item (singular attachment)
-    if (itemToRemove?.attachments && itemToRemove.attachments.length > 0) {
-      const attachmentUrl = itemToRemove.attachments[0];
-      // Skip blob URLs (preview URLs that haven't been uploaded yet)
-      if (attachmentUrl.startsWith('blob:')) {
+    const itemToRemove = getValues(`lineItems.${index}`);
+    const userId = session?.user?.id;
+
+    for (const attachmentUrl of itemToRemove?.attachments || []) {
+      if (attachmentUrl.startsWith("blob:")) {
         URL.revokeObjectURL(attachmentUrl);
-      } else {
-        try {
-          const urlObj = new URL(attachmentUrl);
-          const fileKey = urlObj.pathname.startsWith("/") 
-            ? urlObj.pathname.substring(1) 
-            : urlObj.pathname;
-          await deleteFile(fileKey);
-        } catch (error) {
-          console.error("Failed to delete attachment from server:", error);
-          // Continue with removal even if delete fails
-        }
+        continue;
+      }
+      const fileKey =
+        userId != null
+          ? attachmentUrlToUserScopedStorageKey(attachmentUrl, userId)
+          : null;
+      if (!fileKey) {
+        continue;
+      }
+      try {
+        await deleteFile(fileKey);
+      } catch (error) {
+        console.error("Failed to delete attachment from server:", error);
       }
     }
-    
+
     const wasOnlyLine = fields.length <= 1;
     remove(index);
     setExpandedIndex(wasOnlyLine ? 0 : Math.max(0, index - 1));
@@ -382,196 +370,103 @@ export function ExpenseForm({
         />
       </div>
 
-      {/* FOOTER ACTIONS */}
-      <div
-        className={`fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border z-40 transition-transform duration-300 pb-[env(safe-area-inset-bottom)] ${
-          fields.length > 0 ? "translate-y-0" : "translate-y-full"
-        }`}
-      >
-        <div className="max-w-xl mx-auto w-full">
-          {/* Append line items: fixed above total + actions */}
-          <div className="flex gap-2 px-4 pt-3 sm:px-6 border-b border-border/80 bg-background/95">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1 min-h-11 py-2.5 px-2 bg-primary text-primary-foreground rounded-2xl text-xs font-bold inline-flex items-center justify-center gap-2 shadow-md hover:bg-primary/90 transition-colors"
-              aria-label="Add another line from a receipt photo"
-            >
-              <ImagePlus className="w-[1.125rem] h-[1.125rem] shrink-0" aria-hidden />
-              <span className="leading-tight text-center">Add receipt</span>
-            </button>
-            <button
-              type="button"
-              onClick={addLineItem}
-              className="flex-1 min-h-11 py-2.5 px-2 bg-card border border-border text-foreground rounded-2xl text-xs font-bold inline-flex items-center justify-center gap-2 hover:bg-muted transition-colors"
-              aria-label="Add another manual line item"
-            >
-              <ListPlus className="w-[1.125rem] h-[1.125rem] shrink-0 text-muted-foreground" aria-hidden />
-              <span className="leading-tight text-center">Add line</span>
-            </button>
-          </div>
-
-          {/* Total Bar */}
-          <div className="border-b border-border bg-background px-4 py-3 sm:px-6 flex justify-between items-center">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-              Total Expense
-            </span>
-            <span className="font-mono font-bold text-xl text-foreground">
-              ${totalAmount.toFixed(2)}
-            </span>
-          </div>
-
-          {/* Buttons */}
-          <div className="flex gap-3 px-4 pt-4 pb-6 sm:px-6">
-            <button
-              onClick={onSaveDraft}
-              disabled={isSubmitting}
-              className={`bg-card border-2 border-border text-foreground py-4 rounded-2xl font-bold text-sm hover:bg-muted hover:border-muted-foreground/30 active:scale-[0.98] transition-all shadow-sm flex flex-col items-center gap-1 disabled:opacity-50 ${
-                hasOrganization ? "flex-1" : "w-full"
-              }`}
-              aria-label="Save expense to vault"
-            >
-              <Lock className="w-5 h-5 text-secondary mb-1" />
-              <span>{isSubmitting ? "Saving..." : "Save to Vault"}</span>
-            </button>
-
-            {hasOrganization ? (
+      {/* FOOTER ACTIONS — only mount when there are line items (avoids off-screen focus traps) */}
+      {fields.length > 0 ? (
+        <div className="fixed bottom-0 left-0 right-0 z-40 animate-in slide-in-from-bottom-2 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl duration-300">
+          <div className="mx-auto w-full max-w-xl">
+            {/* Append line items: fixed above total + actions */}
+            <div className="flex gap-2 border-b border-border/80 bg-background/95 px-4 pb-3 pt-3 sm:px-6 sm:pb-4">
               <button
                 type="button"
-                onClick={() => setShowSubmitSheet(true)}
-                disabled={isSubmitting || isPersonal}
-                title={
-                  isPersonal
-                    ? "Personal expenses stay in your vault; switch to an organization expense to submit"
-                    : undefined
-                }
-                className="flex-1 bg-primary text-primary-foreground py-4 rounded-2xl font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-zinc-300 flex flex-col items-center gap-1 disabled:opacity-50"
-                aria-label="Submit expense report"
+                onClick={() => fileInputRef.current?.click()}
+                className={EXPENSE_TOOLBAR_SOFT_BTN}
+                aria-label="Add another line from a receipt photo"
               >
-                <Briefcase className="w-5 h-5 text-[#D0FC42] mb-1" />
-                <span>Submit Report</span>
+                <ImagePlus className="h-[1.125rem] w-[1.125rem] shrink-0" aria-hidden />
+                <span className="text-center leading-tight">Add receipt</span>
               </button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      {/* SUBMISSION DRAWER */}
-      {showSubmitSheet && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm animate-in fade-in duration-300"
-            onClick={() => setShowSubmitSheet(false)}
-            aria-label="Close submission drawer"
-          />
-          <div className="fixed bottom-0 left-0 right-0 bg-card rounded-t-[2.5rem] px-4 pt-8 pb-10 sm:px-6 z-50 animate-in slide-in-from-bottom-full duration-500 shadow-2xl">
-            <div className="max-w-xl mx-auto w-full space-y-8">
-              <div className="flex justify-center -mt-2 mb-2">
-                <div className="w-12 h-1.5 bg-muted rounded-full" />
-              </div>
-              <h2 className="text-2xl font-bold text-center">Submit to Organization</h2>
-
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => setSubmitType(SUBMIT_TYPES.REIMBURSE)}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
-                    submitType === SUBMIT_TYPES.REIMBURSE
-                      ? "bg-background border-primary ring-1 ring-primary"
-                      : "bg-card border-border hover:border-muted-foreground/30"
-                  }`}
-                  aria-pressed={submitType === SUBMIT_TYPES.REIMBURSE}
-                >
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center mb-3 ${
-                      submitType === SUBMIT_TYPES.REIMBURSE
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    <DollarSign className="w-5 h-5" />
-                  </div>
-                  <div className="font-bold text-sm text-foreground">
-                    Reimbursement
-                  </div>
-                  <div className="text-[10px] text-muted-foreground font-medium">
-                    Get paid back
-                  </div>
-                </button>
-                <button
-                  onClick={() => setSubmitType(SUBMIT_TYPES.PREAPPROVAL)}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
-                    submitType === SUBMIT_TYPES.PREAPPROVAL
-                      ? "bg-background border-primary ring-1 ring-primary"
-                      : "bg-card border-border hover:border-muted-foreground/30"
-                  }`}
-                  aria-pressed={submitType === SUBMIT_TYPES.PREAPPROVAL}
-                >
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center mb-3 ${
-                      submitType === SUBMIT_TYPES.PREAPPROVAL
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    <CreditCard className="w-5 h-5" />
-                  </div>
-                  <div className="font-bold text-sm text-foreground">
-                    Pre-approval
-                  </div>
-                  <div className="text-[10px] text-muted-foreground font-medium">
-                    Get permission
-                  </div>
-                </button>
-              </div>
-
-              {!isPersonal && (
-                <ManagerSelector
-                  organization={organization}
-                  watchedManagerIds={managerIds}
-                  onSelectionChange={(ids) => setValue("managerIds", ids)}
-                  errors={errors}
-                  isLoading={orgLoading}
-                />
-              )}
-              {!isPersonal && orgError && (
-                <div className="mb-8">
-                  <ErrorState
-                    message="Failed to load organization members."
-                    type="inline"
-                    onRetry={() => window.location.reload()}
-                  />
-                </div>
-              )}
-
               <button
-                disabled={
-                  isSubmitting ||
-                  isPersonal ||
-                  (!isPersonal && managerIds.length === 0)
-                }
-                onClick={async () => {
-                  try {
-                    if (submitType === SUBMIT_TYPES.REIMBURSE) {
-                      await onFinalApproval();
-                    } else {
-                      await onPreApproval();
-                    }
-                    setShowSubmitSheet(false);
-                  } catch (error) {
-                    // Error handling is done in the submission hooks
-                    console.error("Submission error:", error);
-                  }
-                }}
-                className="w-full bg-primary text-primary-foreground py-5 rounded-2xl font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xl shadow-zinc-200"
-                aria-label="Send expense request"
+                type="button"
+                onClick={addLineItem}
+                className={EXPENSE_TOOLBAR_SOFT_BTN}
+                aria-label="Add another manual line item"
               >
-                <span>{isSubmitting ? "Sending..." : "Send Request"}</span>
-                {!isSubmitting && <Send className="w-5 h-5" />}
+                <ListPlus className="h-[1.125rem] w-[1.125rem] shrink-0" aria-hidden />
+                <span className="text-center leading-tight">Add line</span>
               </button>
             </div>
+
+            {/* Total Bar */}
+            <div className="flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Total Expense
+              </span>
+              <span className="font-mono text-xl font-bold text-foreground">
+                ${totalAmount.toFixed(2)}
+              </span>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2 px-4 pb-5 pt-3 sm:px-6">
+              <button
+                type="button"
+                onClick={onSaveDraft}
+                disabled={isSubmitting}
+                className={`${EXPENSE_FOOTER_BTN_SECONDARY} ${
+                  hasOrganization ? "" : "w-full flex-none"
+                }`}
+                aria-label="Save expense to vault"
+              >
+                <Lock className="h-4 w-4 shrink-0 text-secondary" aria-hidden />
+                <span>{isSubmitting ? "Saving..." : "Save to Vault"}</span>
+              </button>
+
+              {hasOrganization ? (
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitSheet(true)}
+                  disabled={isSubmitting || isPersonal}
+                  title={
+                    isPersonal
+                      ? "Personal expenses stay in your vault; switch to an organization expense to submit"
+                      : undefined
+                  }
+                  className={EXPENSE_FOOTER_BTN_PRIMARY}
+                  aria-label="Submit expense to organization"
+                >
+                  <Briefcase className="h-4 w-4 shrink-0 text-[#D0FC42]" aria-hidden />
+                  <span>Submit to org</span>
+                </button>
+              ) : null}
+            </div>
           </div>
-        </>
-      )}
+        </div>
+      ) : null}
+
+      <ExpenseSubmitToOrgSheet
+        open={showSubmitSheet}
+        onOpenChange={setShowSubmitSheet}
+        selectedManagerIds={managerIds}
+        onManagerIdsChange={(ids) => setValue("managerIds", ids)}
+        organization={organization}
+        orgLoading={orgLoading}
+        orgError={orgError}
+        isPersonal={isPersonal}
+        isSubmitting={isSubmitting}
+        managerErrors={errors}
+        onConfirm={async (submitType) => {
+          try {
+            if (submitType === "reimburse") {
+              await onFinalApproval();
+            } else {
+              await onPreApproval();
+            }
+            setShowSubmitSheet(false);
+          } catch (error) {
+            console.error("Submission error:", error);
+          }
+        }}
+      />
     </div>
   );
 }

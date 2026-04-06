@@ -109,9 +109,6 @@ export function useAcceptInvitation() {
 
       // Invalidate organizations list since user is now a member
       queryClient.invalidateQueries({
-        queryKey: ["user-organizations"],
-      });
-      queryClient.invalidateQueries({
         queryKey: ["organizations"],
       });
 

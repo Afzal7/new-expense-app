@@ -36,27 +36,32 @@ export function InlineAnalyticsCard({
       {!hasActivity ? (
         <p className="text-sm text-zinc-500">No activity in this window.</p>
       ) : (
-        <div className="flex h-24 items-end justify-between gap-2">
+        <div
+          className="flex justify-between gap-2"
+          role="img"
+          aria-label="Spending by day, last seven days"
+        >
           {data.days.map((item, i) => {
             const hPct = Math.round((item.amountCents / maxCents) * 100);
+            const barHeightPct = Math.max(hPct, item.amountCents > 0 ? 6 : 2);
             return (
               <div
                 key={`${item.label}-${i}`}
-                className="group flex flex-1 cursor-pointer flex-col items-center gap-2"
+                className="group flex min-w-0 flex-1 cursor-default flex-col items-center gap-1.5"
               >
-                <div className="flex h-full w-full items-end justify-center">
+                <div className="flex h-16 w-full items-end justify-center">
                   <div
-                    className={`w-full max-w-[12px] origin-bottom rounded-full transition-all duration-300 group-hover:scale-y-110 ${
+                    className={`w-full max-w-3 min-h-[3px] origin-bottom rounded-full transition-all duration-300 group-hover:scale-y-105 ${
                       item.isToday
                         ? "bg-[#FF8A65]"
-                        : "bg-zinc-100 group-hover:bg-zinc-200"
+                        : "bg-zinc-300 group-hover:bg-zinc-400"
                     }`}
-                    style={{ height: `${Math.max(hPct, 4)}%` }}
+                    style={{ height: `${barHeightPct}%` }}
                   />
                 </div>
                 <span
                   className={`text-[10px] font-bold ${
-                    item.isToday ? "text-[#FF8A65]" : "text-zinc-300"
+                    item.isToday ? "text-[#FF8A65]" : "text-zinc-400"
                   }`}
                 >
                   {item.label}

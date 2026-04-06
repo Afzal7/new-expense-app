@@ -52,8 +52,7 @@ function FreeUpsellCard() {
       <div
         className="pointer-events-none absolute inset-0 opacity-20 mix-blend-overlay"
         style={{
-          backgroundImage:
-            "url(https://grainy-gradients.vercel.app/noise.svg)",
+          backgroundImage: "url(https://grainy-gradients.vercel.app/noise.svg)",
         }}
       />
       <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-purple-500 opacity-30 blur-[60px]" />
@@ -287,7 +286,36 @@ export function SmartContextCard({
           }
         : null;
 
-  const owed = ctx.memberOwedCents ?? 0;
+  const preCents = ctx.memberPreApprovalPendingCents ?? 0;
+  const approvalPendingCents = ctx.memberApprovalPendingCents ?? 0;
+  const approvedCents = ctx.memberOwedCents ?? 0;
+  const pipelineTotalCents = preCents + approvalPendingCents + approvedCents;
+
+  const pipelineSegments = [
+    {
+      key: "pre",
+      label: "Pre-approval review",
+      cents: preCents,
+      dotClass: "bg-orange-400",
+    },
+    {
+      key: "approval",
+      label: "Final approval",
+      cents: approvalPendingCents,
+      dotClass: "bg-amber-500",
+    },
+    {
+      key: "approved",
+      label: "Approved, awaiting pay",
+      cents: approvedCents,
+      dotClass: "bg-[#9FD62A]",
+    },
+  ].filter((s) => s.cents > 0);
+
+  const showBreakdown = pipelineSegments.length > 1;
+  const showStatusChip = Boolean(
+    chip && pipelineTotalCents > 0 && !showBreakdown
+  );
 
   return (
     <div className="h-full rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
@@ -299,15 +327,42 @@ export function SmartContextCard({
           <Briefcase className="h-5 w-5 text-zinc-300" aria-hidden />
         </div>
         <div>
-          <div className="font-mono text-3xl font-bold tracking-tighter text-[#121110]">
-            {formatUsd(owed)}
+          <div
+            className="font-mono text-3xl font-bold tracking-tighter text-[#121110] tabular-nums"
+            aria-label={`Total in reimbursement pipeline: ${formatUsd(pipelineTotalCents)}`}
+          >
+            {formatUsd(pipelineTotalCents)}
           </div>
-          {owed === 0 && !chip ? (
+          {pipelineTotalCents === 0 ? (
             <p className="mt-2 text-xs text-zinc-500">
               No outstanding reimbursements
             </p>
           ) : null}
-          {chip ? (
+          {showBreakdown ? (
+            <ul
+              className="mt-3 space-y-2 border-t border-zinc-100 pt-3"
+              aria-label="Amounts by review stage"
+            >
+              {pipelineSegments.map((s) => (
+                <li
+                  key={s.key}
+                  className="flex items-baseline justify-between gap-3 text-xs"
+                >
+                  <span className="flex min-w-0 items-center gap-2 text-zinc-600">
+                    <span
+                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${s.dotClass}`}
+                      aria-hidden
+                    />
+                    <span className="truncate">{s.label}</span>
+                  </span>
+                  <span className="shrink-0 font-mono text-[11px] font-semibold tracking-tight text-[#121110] tabular-nums">
+                    {formatUsd(s.cents)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {showStatusChip && chip ? (
             <div
               className={`mt-3 inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-[10px] font-bold ${chip.className}`}
             >

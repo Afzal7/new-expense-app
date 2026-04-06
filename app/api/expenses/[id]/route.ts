@@ -13,6 +13,7 @@ import {
   ValidationError,
 } from "@/lib/errors";
 import { Expense, EXPENSE_STATES } from "@/lib/models/expense";
+import { deleteOrphanedExpenseAttachments } from "@/lib/server/delete-orphaned-expense-attachments";
 import {
   createLineItemsSnapshot,
   transformExpenseToApiResponse,
@@ -32,6 +33,7 @@ import { z } from "zod";
 const ExpenseActionSchema = z.object({
   action: z.enum([
     "submit",
+    "submit-for-final-approval",
     "approve",
     "reject",
     "reimburse",
@@ -274,6 +276,16 @@ export async function PUT(
       lineItems: createLineItemsSnapshot(expense.lineItems),
     };
 
+    await deleteOrphanedExpenseAttachments({
+      ownerUserId: expense.userId,
+      previousLineItems: expense.lineItems.map((li) => ({
+        attachments: li.attachments || [],
+      })),
+      nextLineItems: lineItemsWithDates.map((li) => ({
+        attachments: li.attachments || [],
+      })),
+    });
+
     // Update expense fields
     expense.totalAmount = expenseInput.totalAmount;
     expense.managerIds = expenseInput.managerIds;
@@ -429,6 +441,42 @@ export async function PATCH(
       };
 
       // Add audit entry
+      expense.addAuditEntry(
+        "submitted",
+        session.user.id,
+        previousValues,
+        updatedValues
+      );
+    } else if (action === "submit-for-final-approval") {
+      // Skip pre-approval queue → approval pending (reimbursement path)
+      if (!isOwner) {
+        return createErrorResponse(
+          new ForbiddenError("Only expense owners can submit expenses")
+        );
+      }
+
+      if (expense.managerIds.length === 0) {
+        return createErrorResponse(
+          new ValidationError("At least one approver is required")
+        );
+      }
+
+      if (expense.lineItems.length === 0) {
+        return createErrorResponse(
+          new ValidationError("Cannot submit expense without line items")
+        );
+      }
+
+      const previousValues = {
+        state: expense.state,
+      };
+
+      expense.state = EXPENSE_STATES.APPROVAL_PENDING;
+
+      const updatedValues = {
+        state: expense.state,
+      };
+
       expense.addAuditEntry(
         "submitted",
         session.user.id,

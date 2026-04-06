@@ -83,7 +83,7 @@ export const auth = betterAuth({
           console.log("Setting active org:", membership.organizationId);
           return {
             data: {
-              activeOrganizationId: membership.organizationId,
+              activeOrganizationId: String(membership.organizationId),
             },
           };
         },

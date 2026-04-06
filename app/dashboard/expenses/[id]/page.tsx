@@ -2,12 +2,15 @@
 
 import { AuditLog } from "@/components/expenses/audit-log";
 import { LineItemRow } from "@/components/expenses/line-item-row";
-import { ManagerSelector } from "@/components/expenses/ManagerSelector";
+import { ExpenseSubmitToOrgSheet } from "@/components/expenses/expense-submit-to-org-sheet";
+import {
+  EXPENSE_FOOTER_BTN_PRIMARY,
+  EXPENSE_FOOTER_BTN_SECONDARY,
+} from "@/components/expenses/expense-footer-classes";
 import { StatusBadge } from "@/components/expenses/status-badge";
 import { StatusDrawer } from "@/components/expenses/status-drawer";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { Button } from "@/components/ui/button";
 import { useExpenseMutations } from "@/hooks/use-expense-mutations";
 import { useExpense } from "@/hooks/use-expenses";
 import { useIsManager } from "@/hooks/use-is-manager";
@@ -21,6 +24,7 @@ import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 import { toast } from "@/lib/toast";
 import {
     ArrowLeft,
+    Briefcase,
     Building,
     ChevronUp,
     Lock,
@@ -40,6 +44,8 @@ export default function ExpenseDetailPage() {
   const {
     updateExpense,
     changeExpenseStatus,
+    submitExpense,
+    submitExpenseForFinalApproval,
   } = useExpenseMutations();
 
   // Check if current user is a manager (admin/owner)
@@ -47,8 +53,11 @@ export default function ExpenseDetailPage() {
 
   // Get organization for manager selection
   const { data: organization } = useOrganization();
-  const { data: organizationWithMembers, isLoading: orgMembersLoading } =
-    useOrganizationMembers(organization?.id || "");
+  const {
+    data: organizationWithMembers,
+    isLoading: orgMembersLoading,
+    error: orgMembersError,
+  } = useOrganizationMembers(organization?.id || "");
 
   // UI State
   const [showStatusDrawer, setShowStatusDrawer] = useState(false);
@@ -77,6 +86,7 @@ export default function ExpenseDetailPage() {
   const isEditable = isPrivate || (!isPrivate && !isLocked);
   const isManager = isAdmin || false;
   const isEmployee = session?.user?.id === expense?.userId;
+  const hasActiveOrg = Boolean(organization?.id);
 
   const handleStatusChange = async (newState: ExpenseState) => {
     if (!expense) return;
@@ -102,7 +112,14 @@ export default function ExpenseDetailPage() {
     }
   };
 
-  const handleSubmitToOrg = async () => {
+  const submitToOrgPending =
+    updateExpense.isPending ||
+    submitExpense.isPending ||
+    submitExpenseForFinalApproval.isPending;
+
+  const handleConfirmSubmitToOrg = async (
+    submitType: "reimburse" | "preapproval"
+  ) => {
     if (!expense || selectedManagerIds.length === 0) {
       toast.error("Please select at least one manager");
       return;
@@ -123,10 +140,15 @@ export default function ExpenseDetailPage() {
           })),
         },
       });
+
+      if (submitType === "preapproval") {
+        await submitExpense.mutateAsync(expense.id);
+      } else {
+        await submitExpenseForFinalApproval.mutateAsync(expense.id);
+      }
+
       setShowManagerSheet(false);
       setSelectedManagerIds([]);
-      toast.success("Expense submitted to organization");
-      // Refetch expense to get updated organizationId
       await refetch();
     } catch (error) {
       console.error("Submit to org failed:", error);
@@ -327,39 +349,38 @@ export default function ExpenseDetailPage() {
           <div className="max-w-2xl mx-auto">
             {isEditable ? (
               // Case A: Actionable Footer
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="h-auto min-h-14 w-full bg-card border-2 border-border py-4 text-foreground rounded-2xl font-bold text-sm hover:bg-muted active:scale-[0.98] transition-all"
+              <div className="flex gap-2">
+                <Link
+                  href={`/dashboard/expenses/${expense.id}/edit`}
+                  className={EXPENSE_FOOTER_BTN_SECONDARY}
                 >
-                  <Link
-                    href={`/dashboard/expenses/${expense.id}/edit`}
-                    className="flex items-center justify-center gap-2"
-                  >
-                    <Pen className="h-5 w-5 shrink-0" aria-hidden />
-                    Edit
-                  </Link>
-                </Button>
+                  <Pen className="h-4 w-4 shrink-0" aria-hidden />
+                  Edit
+                </Link>
 
-                {isPrivate ? (
+                {isPrivate && hasActiveOrg ? (
                   <button
                     type="button"
                     onClick={() => setShowManagerSheet(true)}
-                    className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-4 text-sm font-bold text-primary-foreground shadow-lg transition-all hover:opacity-90 active:scale-[0.98]"
+                    disabled={submitToOrgPending}
+                    className={EXPENSE_FOOTER_BTN_PRIMARY}
                   >
-                    Submit to Org
+                    <Briefcase
+                      className="h-4 w-4 shrink-0 text-[#D0FC42]"
+                      aria-hidden
+                    />
+                    Submit to org
                   </button>
-                ) : (
+                ) : !isPrivate ? (
                   <button
                     type="button"
                     onClick={handleWithdrawRequest}
-                    className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-border bg-card px-4 py-4 text-sm font-bold text-destructive transition-all hover:bg-destructive/10 active:scale-[0.98]"
+                    disabled={updateExpense.isPending}
+                    className={`${EXPENSE_FOOTER_BTN_SECONDARY} text-destructive hover:bg-destructive/10 hover:text-destructive`}
                   >
-                    Withdraw Request
+                    Withdraw request
                   </button>
-                )}
+                ) : null}
               </div>
             ) : (
               // Case B: Read-Only Status Footer
@@ -376,73 +397,23 @@ export default function ExpenseDetailPage() {
         </div>
       )}
 
-      {/* Manager Selection Sheet for Submit to Org */}
-      {showManagerSheet && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/40 z-50 backdrop-blur-sm animate-in fade-in"
-            onClick={() => {
-              setShowManagerSheet(false);
-              setSelectedManagerIds([]);
-            }}
-          />
-
-          {/* Sheet Content */}
-          <div className="fixed bottom-0 left-0 right-0 bg-card rounded-t-[2.5rem] px-4 pt-6 pb-12 sm:px-6 z-50 animate-in slide-in-from-bottom-full duration-500 shadow-2xl">
-            <div className="max-w-xl mx-auto">
-              <div className="flex justify-center -mt-2 mb-6">
-                <div className="w-12 h-1.5 bg-border rounded-full" />
-              </div>
-              <h3 className="text-lg font-bold mb-6 px-2 text-foreground">
-                Select Manager
-              </h3>
-
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                {organizationWithMembers ? (
-                  <>
-                    <ManagerSelector
-                      organization={organizationWithMembers}
-                      watchedManagerIds={selectedManagerIds}
-                      onSelectionChange={setSelectedManagerIds}
-                      errors={undefined}
-                      isLoading={orgMembersLoading}
-                    />
-                    <div className="flex gap-3 pt-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowManagerSheet(false);
-                          setSelectedManagerIds([]);
-                        }}
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleSubmitToOrg}
-                        disabled={
-                          selectedManagerIds.length === 0 ||
-                          updateExpense.isPending
-                        }
-                        className="flex-[2]"
-                      >
-                        {updateExpense.isPending ? "Submitting..." : "Submit to Org"}
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {orgMembersLoading
-                      ? "Loading managers..."
-                      : "No organization found. Please create or join an organization first."}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      <ExpenseSubmitToOrgSheet
+        open={showManagerSheet}
+        onOpenChange={(open) => {
+          setShowManagerSheet(open);
+          if (!open) {
+            setSelectedManagerIds([]);
+          }
+        }}
+        selectedManagerIds={selectedManagerIds}
+        onManagerIdsChange={setSelectedManagerIds}
+        organization={organizationWithMembers}
+        orgLoading={orgMembersLoading}
+        orgError={orgMembersError}
+        isPersonal={false}
+        isSubmitting={submitToOrgPending}
+        onConfirm={handleConfirmSubmitToOrg}
+      />
     </div>
   );
 }

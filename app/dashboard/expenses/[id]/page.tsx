@@ -10,7 +10,7 @@ import {
 import { StatusBadge } from "@/components/expenses/status-badge";
 import { StatusDrawer } from "@/components/expenses/status-drawer";
 import { ErrorState } from "@/components/shared/error-state";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { ExpenseDetailPageSkeleton } from "@/components/expenses/expense-detail-page-skeleton";
 import { useExpenseMutations } from "@/hooks/use-expense-mutations";
 import { useExpense } from "@/hooks/use-expenses";
 import { useIsManager } from "@/hooks/use-is-manager";
@@ -183,15 +183,7 @@ export default function ExpenseDetailPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="mx-auto w-full max-w-2xl">
-          <div className="space-y-6">
-            <LoadingSkeleton type="card" count={3} />
-          </div>
-        </div>
-      </div>
-    );
+    return <ExpenseDetailPageSkeleton />;
   }
 
   if (error || !expense) {

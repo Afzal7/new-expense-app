@@ -11,7 +11,7 @@ import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 import { isPrivateExpense } from "@/lib/utils/expense-display";
 import type { Expense } from "@/types/expense";
 import { ErrorState } from "@/components/shared/error-state";
-import { ExpenseListCardSkeleton } from "@/components/expenses/expense-list-card-skeleton";
+import { ExpenseListSkeleton } from "@/components/expenses/expense-list-card-skeleton";
 import { DashboardFab } from "@/app/dashboard/_components/dashboard-fab";
 
 // --- Icons ---
@@ -195,7 +195,7 @@ export default function ExpensesPage() {
 
     return filtered;
   }, [
-    expensesData?.expenses,
+    expensesData,
     activeContext,
     isManager,
     workView,
@@ -219,7 +219,7 @@ export default function ExpensesPage() {
           expense.state === EXPENSE_STATES.PRE_APPROVAL_PENDING) &&
         expense.managerIds.includes(session?.user?.id || "")
     ).length;
-  }, [expensesData?.expenses, isManager, activeContext, workView, session?.user?.id]);
+  }, [expensesData, isManager, activeContext, workView, session?.user?.id]);
 
   const isLoading = expensesLoading || orgLoading || managerLoading;
   const error = expensesError;
@@ -352,11 +352,7 @@ export default function ExpensesPage() {
         </h3>
 
         {isLoading ? (
-          <>
-            <ExpenseListCardSkeleton />
-            <ExpenseListCardSkeleton />
-            <ExpenseListCardSkeleton />
-          </>
+          <ExpenseListSkeleton count={5} />
         ) : error ? (
           <div className="bg-white p-8 text-center rounded-[1.25rem] border border-zinc-200 shadow-sm">
             <ErrorState

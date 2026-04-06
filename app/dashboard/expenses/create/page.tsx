@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ExpenseForm } from "@/components/expense-form";
 import { useOrganization } from "@/hooks/use-organization";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { ExpenseFormPageSkeleton } from "@/components/expenses/expense-form-page-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import type { Expense, ExpenseInput } from "@/types/expense";
 
@@ -22,7 +22,7 @@ export default function CreateExpensePage() {
   };
 
   if (isLoading) {
-    return <LoadingSkeleton type="form" count={3} />;
+    return <ExpenseFormPageSkeleton variant="ctas" />;
   }
 
   if (error) {

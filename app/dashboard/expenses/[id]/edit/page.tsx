@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ExpenseForm } from "@/components/expense-form";
 import { useExpense } from "@/hooks/use-expenses";
 import { useOrganization } from "@/hooks/use-organization";
-import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { ExpenseFormPageSkeleton } from "@/components/expenses/expense-form-page-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 
 export default function EditExpensePage() {
@@ -30,11 +30,7 @@ export default function EditExpensePage() {
   };
 
   if (expenseLoading || orgLoading) {
-    return (
-      <div className="space-y-8">
-        <LoadingSkeleton type="form" count={3} />
-      </div>
-    );
+    return <ExpenseFormPageSkeleton variant="editor" />;
   }
 
   if (orgError) {

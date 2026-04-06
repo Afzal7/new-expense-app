@@ -234,10 +234,11 @@ export function ExpenseForm({
     }
   };
 
-  const handleRemoveLineItem = async (index: number) => {
+  const handleRemoveLineItem = (index: number) => {
     const itemToRemove = getValues(`lineItems.${index}`);
     const userId = session?.user?.id;
 
+    const fileKeysToDelete: string[] = [];
     for (const attachmentUrl of itemToRemove?.attachments || []) {
       if (attachmentUrl.startsWith("blob:")) {
         URL.revokeObjectURL(attachmentUrl);
@@ -247,19 +248,20 @@ export function ExpenseForm({
         userId != null
           ? attachmentUrlToUserScopedStorageKey(attachmentUrl, userId)
           : null;
-      if (!fileKey) {
-        continue;
-      }
-      try {
-        await deleteFile(fileKey);
-      } catch (error) {
-        console.error("Failed to delete attachment from server:", error);
+      if (fileKey) {
+        fileKeysToDelete.push(fileKey);
       }
     }
 
     const wasOnlyLine = fields.length <= 1;
     remove(index);
     setExpandedIndex(wasOnlyLine ? 0 : Math.max(0, index - 1));
+
+    for (const fileKey of fileKeysToDelete) {
+      void deleteFile(fileKey).catch((error: unknown) => {
+        console.error("Failed to delete attachment from server:", error);
+      });
+    }
   };
 
   // -- Render --

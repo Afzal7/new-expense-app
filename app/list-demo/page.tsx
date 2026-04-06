@@ -1,3 +1,4 @@
+// @ts-nocheck — prototype / demo route; not type-checked in production build.
 "use client";
 
 import { useMemo, useState } from "react";

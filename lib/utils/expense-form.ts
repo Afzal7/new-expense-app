@@ -28,7 +28,7 @@ export interface ExpenseFormData {
 /**
  * Parses a line item amount for summing / API transform (number, string from API, empty).
  */
-function lineItemAmountToNumber(amount: FormLineItem["amount"]): number {
+export function lineItemAmountToNumber(amount: FormLineItem["amount"]): number {
   if (amount === undefined || amount === null) {
     return 0;
   }

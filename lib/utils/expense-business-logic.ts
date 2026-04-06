@@ -5,7 +5,11 @@
 
 import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 import type { Expense } from "@/types/expense";
-import type { FormLineItem } from "@/lib/utils/expense-form";
+import {
+  calculateLineItemsTotal,
+  lineItemAmountToNumber,
+  type FormLineItem,
+} from "@/lib/utils/expense-form";
 
 /**
  * Business rules for expense operations
@@ -80,9 +84,7 @@ export const ExpenseBusinessRules = {
    * Calculates the total amount from line items
    */
   calculateTotalFromLineItems: (lineItems: FormLineItem[]): number => {
-    return lineItems.reduce((total, item) => {
-      return total + (item.amount || 0);
-    }, 0);
+    return calculateLineItemsTotal(lineItems);
   },
 
   /**
@@ -271,7 +273,8 @@ export const ExpenseValidationRules = {
 
     // Validate line items
     lineItems.forEach((item, index) => {
-      if (!item.amount || item.amount <= 0) {
+      const lineAmount = lineItemAmountToNumber(item.amount);
+      if (lineAmount <= 0) {
         errors.push(`Line item ${index + 1}: Amount must be greater than 0`);
       }
 
@@ -297,8 +300,11 @@ export const ExpenseValidationRules = {
   validateLineItem: (item: FormLineItem) => {
     const errors: string[] = [];
 
-    if (item.amount !== undefined && item.amount < 0) {
-      errors.push("Amount cannot be negative");
+    if (item.amount !== undefined && item.amount !== "") {
+      const n = lineItemAmountToNumber(item.amount);
+      if (n < 0) {
+        errors.push("Amount cannot be negative");
+      }
     }
 
     if (item.date) {

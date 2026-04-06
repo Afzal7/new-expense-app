@@ -41,6 +41,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { DashboardErrorBoundary } from "@/components/error-boundary";
 import { FadeInRight } from "@/components/animations/fade-in";
+/** Larger nav type in the sheet sidebar only (< md matches useIsMobile). */
+const dashboardSidebarMobileNavClassName =
+  "max-md:[&_[data-sidebar=menu-button]]:!h-11 max-md:[&_[data-sidebar=menu-button]]:text-base max-md:[&_[data-sidebar=menu-button]_svg]:size-5 max-md:[&_[data-sidebar=group-label]]:text-sm max-md:[&_[data-sidebar=group-content]]:text-base max-md:[&_[data-sidebar=menu-sub-button]]:text-base max-md:[&_[data-sidebar=menu-sub-button]]:!min-h-9";
 
 export default function DashboardLayout({
   children,
@@ -85,18 +88,24 @@ export default function DashboardLayout({
         <SidebarProvider>
           <MobileSidebarCloser />
           <Sidebar>
-            <SidebarContent>
+            <SidebarContent
+              className={dashboardSidebarMobileNavClassName}
+            >
               {/* Sidebar Header */}
               <div className="p-4 border-b">
                 <div className="flex items-center space-x-3">
-                  <div className="flex size-10 items-center justify-center rounded-sm bg-linear-to-br from-sky-300 via-sky-500 to-sky-600">
-                    <span className="text-xl text-primary-foreground">
+                  <div className="flex size-10 items-center justify-center rounded-sm bg-linear-to-br from-sky-300 via-sky-500 to-sky-600 max-md:size-11">
+                    <span className="text-xl text-primary-foreground max-md:text-2xl">
                       {APP_CONFIG.logo.icon}
                     </span>
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold">{APP_CONFIG.name}</h2>
-                    <p className="text-xs text-muted-foreground">Dashboard</p>
+                    <h2 className="text-lg font-semibold max-md:text-xl">
+                      {APP_CONFIG.name}
+                    </h2>
+                    <p className="text-xs text-muted-foreground max-md:text-sm">
+                      Dashboard
+                    </p>
                   </div>
                 </div>
               </div>
@@ -112,7 +121,7 @@ export default function DashboardLayout({
                         isActive={pathname === "/dashboard"}
                       >
                         <Link href="/dashboard">
-                          <HomeIcon className="h-4 w-4" />
+                          <HomeIcon className="h-4 w-4 max-md:h-5 max-md:w-5" />
                           <span>Dashboard</span>
                         </Link>
                       </SidebarMenuButton>
@@ -123,7 +132,7 @@ export default function DashboardLayout({
                         isActive={pathname.startsWith("/dashboard/expenses")}
                       >
                         <Link href="/dashboard/expenses">
-                          <DollarSign className="h-4 w-4" />
+                          <DollarSign className="h-4 w-4 max-md:h-5 max-md:w-5" />
                           <span>Expenses</span>
                         </Link>
                       </SidebarMenuButton>
@@ -134,7 +143,7 @@ export default function DashboardLayout({
                         isActive={pathname === "/dashboard/settings"}
                       >
                         <Link href="/dashboard/settings">
-                          <SettingsIcon className="h-4 w-4" />
+                          <SettingsIcon className="h-4 w-4 max-md:h-5 max-md:w-5" />
                           <span>Settings</span>
                         </Link>
                       </SidebarMenuButton>
@@ -155,7 +164,7 @@ export default function DashboardLayout({
                           isActive={pathname === "/dashboard/manager/approvals"}
                         >
                           <Link href="/dashboard/manager/approvals">
-                            <CheckCircle className="h-4 w-4" />
+                            <CheckCircle className="h-4 w-4 max-md:h-5 max-md:w-5" />
                             <span>Approvals</span>
                           </Link>
                         </SidebarMenuButton>
@@ -179,7 +188,7 @@ export default function DashboardLayout({
                           }
                         >
                           <Link href="/dashboard/finance/reimbursements">
-                            <DollarSign className="h-4 w-4" />
+                            <DollarSign className="h-4 w-4 max-md:h-5 max-md:w-5" />
                             <span>Reimbursements</span>
                           </Link>
                         </SidebarMenuButton>
@@ -202,7 +211,7 @@ export default function DashboardLayout({
                           isActive={orgContext?.isOrgPage}
                         >
                           <Link href={`/dashboard/organizations/${userOrg.id}`}>
-                            <Building2Icon className="h-4 w-4" />
+                            <Building2Icon className="h-4 w-4 max-md:h-5 max-md:w-5" />
                             <span>Organization</span>
                           </Link>
                         </SidebarMenuButton>
@@ -223,8 +232,10 @@ export default function DashboardLayout({
                               <Link
                                 href={`/dashboard/organizations/${orgContext.orgId}/members`}
                               >
-                                <Users className="h-3 w-3" />
-                                <span className="text-sm">Members</span>
+                                <Users className="h-3 w-3 max-md:h-4 max-md:w-4" />
+                                <span className="text-sm max-md:text-base">
+                                  Members
+                                </span>
                               </Link>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
@@ -240,8 +251,10 @@ export default function DashboardLayout({
                               <Link
                                 href={`/dashboard/organizations/${orgContext.orgId}/invitations`}
                               >
-                                <Mail className="h-3 w-3" />
-                                <span className="text-sm">Invitations</span>
+                                <Mail className="h-3 w-3 max-md:h-4 max-md:w-4" />
+                                <span className="text-sm max-md:text-base">
+                                  Invitations
+                                </span>
                               </Link>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
@@ -257,8 +270,10 @@ export default function DashboardLayout({
                               <Link
                                 href={`/dashboard/organizations/${orgContext.orgId}/settings`}
                               >
-                                <SettingsIcon className="h-3 w-3" />
-                                <span className="text-sm">Settings</span>
+                                <SettingsIcon className="h-3 w-3 max-md:h-4 max-md:w-4" />
+                                <span className="text-sm max-md:text-base">
+                                  Settings
+                                </span>
                               </Link>
                             </SidebarMenuButton>
                           </SidebarMenuItem>

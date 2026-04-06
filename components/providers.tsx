@@ -4,6 +4,7 @@
  */
 "use client";
 
+import { ProgressProvider } from "@bprogress/next/app";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense, useState } from "react";
 import { FeedbackProvider } from "./providers/feedback-provider";
@@ -55,18 +56,25 @@ export function Providers({ children }: ProvidersProps) {
   const [queryClient] = useState(() => createQueryClient());
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <FeedbackProvider>
-        <ToastProvider>
-          {children}
-          {/* React Query DevTools - only in development, lazy loaded to reduce bundle size */}
-          {process.env.NODE_ENV === "development" && (
-            <Suspense fallback={null}>
-              <ReactQueryDevtools initialIsOpen={false} />
-            </Suspense>
-          )}
-        </ToastProvider>
-      </FeedbackProvider>
-    </QueryClientProvider>
+    <ProgressProvider
+      color="#FF8A65"
+      height="3px"
+      options={{ showSpinner: false }}
+      shallowRouting
+    >
+      <QueryClientProvider client={queryClient}>
+        <FeedbackProvider>
+          <ToastProvider>
+            {children}
+            {/* React Query DevTools - only in development, lazy loaded to reduce bundle size */}
+            {process.env.NODE_ENV === "development" && (
+              <Suspense fallback={null}>
+                <ReactQueryDevtools initialIsOpen={false} />
+              </Suspense>
+            )}
+          </ToastProvider>
+        </FeedbackProvider>
+      </QueryClientProvider>
+    </ProgressProvider>
   );
 }

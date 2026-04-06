@@ -1,0 +1,33 @@
+---
+description: General coding rules for this repository. Use when writing or editing code in this repo. Covers DRY, query optimization, best practices, no any keyword, and running lint and build at task end.
+alwaysApply: true
+---
+
+# Repository rules
+
+Apply these rules whenever writing or editing code in this repo.
+
+## Rules
+
+1. **DRY (Don't Repeat Yourself)**  
+   Avoid duplicating logic. Extract repeated code into shared functions, utilities, or modules. Reuse existing helpers and services instead of copying blocks.
+
+2. **Optimise queries**  
+   Write efficient database and API queries. Use indexes where appropriate, avoid N+1 patterns, project only needed fields, and prefer aggregations or bulk operations over repeated single queries when it makes sense.
+
+3. **Follow best practices**  
+   Apply language and framework best practices (TypeScript strict typing, Next.js and React patterns, clear naming, small focused functions, proper error handling).
+
+4. **Never use the `any` keyword**  
+   Do not use TypeScript's `any`. Use proper types, `unknown` with type narrowing, or explicit interfaces/types. The project enforces this via ESLint.
+
+5. **Run lint and build at the end of the task**  
+   Before considering a task done, run `npm run lint` and `npm run build` and fix any errors or warnings.
+
+## Quick checklist
+
+- [ ] No duplicated logic; shared code extracted
+- [ ] Queries are efficient (indexes, no N+1, minimal data)
+- [ ] Code follows TS/framework best practices
+- [ ] No `any`; use concrete types or `unknown` + narrowing
+- [ ] Lint and build run at end of task; all pass

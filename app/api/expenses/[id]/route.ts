@@ -278,12 +278,16 @@ export async function PUT(
 
     await deleteOrphanedExpenseAttachments({
       ownerUserId: expense.userId,
-      previousLineItems: expense.lineItems.map((li) => ({
-        attachments: li.attachments || [],
-      })),
-      nextLineItems: lineItemsWithDates.map((li) => ({
-        attachments: li.attachments || [],
-      })),
+      previousLineItems: expense.lineItems.map(
+        (li: { attachments?: string[] }) => ({
+          attachments: li.attachments || [],
+        })
+      ),
+      nextLineItems: lineItemsWithDates.map(
+        (li: { attachments: string[] }) => ({
+          attachments: li.attachments || [],
+        })
+      ),
     });
 
     // Update expense fields

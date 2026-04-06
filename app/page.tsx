@@ -148,6 +148,50 @@ const IconChevronDown = ({ className }: { className?: string }) => (
   </svg>
 );
 
+/** mailto when NEXT_PUBLIC_APP_URL has a real host; otherwise fall back to signup */
+function contactMailto(localPart: string, subject: string): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL;
+  if (!base) {
+    return "/signup";
+  }
+  try {
+    const { hostname } = new URL(base);
+    const domain = hostname.replace(/^www\./, "");
+    if (domain === "localhost" || domain === "127.0.0.1") {
+      return "/signup";
+    }
+    return `mailto:${localPart}@${domain}?subject=${encodeURIComponent(subject)}`;
+  } catch {
+    return "/signup";
+  }
+}
+
+function MailtoOrSignupLink({
+  localPart,
+  subject,
+  className,
+  children,
+}: {
+  localPart: string;
+  subject: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const href = contactMailto(localPart, subject);
+  if (href.startsWith("mailto:")) {
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [activeTab, setActiveTab] = useState("work");
@@ -263,15 +307,15 @@ export default function LandingPage() {
         `}
         >
           {/* Logo */}
-          <a
-            href="#"
+          <Link
+            href="/"
             className="font-bold text-lg tracking-tight flex items-center gap-2 hover:scale-105 transition-transform duration-300"
           >
             <div className="w-3 h-3 rounded-full bg-linear-to-br from-[#FF8A65] to-[#FF6B45] shadow-lg shadow-orange-500/30" />
             <span className="bg-linear-to-r from-[#121110] to-[#2a2a2a] bg-clip-text text-transparent">
               FlowState
             </span>
-          </a>
+          </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-600">
@@ -374,12 +418,20 @@ export default function LandingPage() {
             FAQ
           </a>
           <div className="flex flex-col gap-4 mt-8 w-full max-w-xs">
-            <button className="w-full px-6 py-3 text-lg font-bold text-zinc-700 border-2 border-zinc-200 rounded-full hover:border-[#FF8A65] transition-colors">
+            <Link
+              href="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full px-6 py-3 text-lg font-bold text-zinc-700 border-2 border-zinc-200 rounded-full hover:border-[#FF8A65] transition-colors text-center"
+            >
               Sign In
-            </button>
-            <button className="w-full bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white px-6 py-3 rounded-full text-lg font-bold hover:scale-105 transition-transform shadow-lg">
+            </Link>
+            <Link
+              href="/signup"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white px-6 py-3 rounded-full text-lg font-bold hover:scale-105 transition-transform shadow-lg text-center"
+            >
               Start Free
-            </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -1009,9 +1061,12 @@ export default function LandingPage() {
                 <div className="text-5xl font-bold mb-2">Free</div>
                 <p className="text-sm text-zinc-500">Forever</p>
               </div>
-              <button className="w-full bg-zinc-100 text-[#121110] py-3 rounded-full font-bold hover:bg-zinc-200 transition-colors mb-6">
+              <Link
+                href="/signup"
+                className="block w-full text-center bg-zinc-100 text-[#121110] py-3 rounded-full font-bold hover:bg-zinc-200 transition-colors mb-6"
+              >
                 Start for Free
-              </button>
+              </Link>
               <ul className="space-y-3">
                 <li className="flex gap-3 items-start text-sm">
                   <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
@@ -1049,9 +1104,12 @@ export default function LandingPage() {
                 </div>
                 <p className="text-sm text-zinc-400">per user/month</p>
               </div>
-              <button className="w-full bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white py-3 rounded-full font-bold hover:scale-105 transition-transform shadow-lg mb-6">
+              <Link
+                href="/signup"
+                className="block w-full text-center bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white py-3 rounded-full font-bold hover:scale-105 transition-transform shadow-lg mb-6"
+              >
                 Start Free Trial
-              </button>
+              </Link>
               <ul className="space-y-3">
                 <li className="flex gap-3 items-start text-sm">
                   <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
@@ -1092,9 +1150,13 @@ export default function LandingPage() {
                 <div className="text-5xl font-bold mb-2">Custom</div>
                 <p className="text-sm text-zinc-500">Let&apos;s talk</p>
               </div>
-              <button className="w-full bg-[#121110] text-white py-3 rounded-full font-bold hover:bg-zinc-800 transition-colors mb-6">
+              <MailtoOrSignupLink
+                localPart="hello"
+                subject="Enterprise / sales — FlowState"
+                className="block w-full text-center bg-[#121110] text-white py-3 rounded-full font-bold hover:bg-zinc-800 transition-colors mb-6"
+              >
                 Contact Sales
-              </button>
+              </MailtoOrSignupLink>
               <ul className="space-y-3">
                 <li className="flex gap-3 items-start text-sm">
                   <IconCheck className="w-4 h-4 text-[#D0FC42] mt-0.5 shrink-0" />
@@ -1181,9 +1243,13 @@ export default function LandingPage() {
             <p className="text-zinc-600 mb-6">
               Our team is here to help you get started with FlowState
             </p>
-            <button className="px-6 py-3 bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white rounded-full font-bold hover:scale-105 transition-transform shadow-lg">
+            <MailtoOrSignupLink
+              localPart="hello"
+              subject="Support — FlowState"
+              className="inline-block px-6 py-3 bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white rounded-full font-bold hover:scale-105 transition-transform shadow-lg"
+            >
               Contact Support
-            </button>
+            </MailtoOrSignupLink>
           </div>
         </div>
       </section>
@@ -1200,12 +1266,19 @@ export default function LandingPage() {
             Ready to flow?
           </h2>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button className="px-8 py-4 bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white rounded-full text-lg font-bold hover:scale-105 transition-all duration-300 shadow-[0_0_40px_-10px_rgba(255,138,101,0.6)] hover:shadow-[0_0_50px_-10px_rgba(255,138,101,0.8)]">
+            <Link
+              href="/signup"
+              className="px-8 py-4 bg-linear-to-r from-[#FF8A65] to-[#FF6B45] text-white rounded-full text-lg font-bold hover:scale-105 transition-all duration-300 shadow-[0_0_40px_-10px_rgba(255,138,101,0.6)] hover:shadow-[0_0_50px_-10px_rgba(255,138,101,0.8)] text-center"
+            >
               Start Your Vault
-            </button>
-            <button className="px-8 py-4 bg-white/10 text-white border border-white/10 rounded-full text-lg font-bold hover:bg-white/20 hover:border-white/20 transition-all duration-300 backdrop-blur-xl">
+            </Link>
+            <MailtoOrSignupLink
+              localPart="hello"
+              subject="Sales — FlowState"
+              className="px-8 py-4 bg-white/10 text-white border border-white/10 rounded-full text-lg font-bold hover:bg-white/20 hover:border-white/20 transition-all duration-300 backdrop-blur-xl text-center"
+            >
               Talk to Sales
-            </button>
+            </MailtoOrSignupLink>
           </div>
         </div>
 
@@ -1227,28 +1300,28 @@ export default function LandingPage() {
               <h4 className="font-bold mb-6 text-zinc-400">Product</h4>
               <ul className="space-y-3 text-sm font-medium text-zinc-500">
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/#solutions"
                     className="hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
                   >
                     Features
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/#vault"
                     className="hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
                   >
                     Security
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#pricing"
+                  <Link
+                    href="/#pricing"
                     className="hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
                   >
                     Pricing
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -1256,28 +1329,30 @@ export default function LandingPage() {
               <h4 className="font-bold mb-6 text-zinc-400">Company</h4>
               <ul className="space-y-3 text-sm font-medium text-zinc-500">
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/#solutions"
                     className="hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
                   >
                     About
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <MailtoOrSignupLink
+                    localPart="hello"
+                    subject="Blog — FlowState"
                     className="hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
                   >
                     Blog
-                  </a>
+                  </MailtoOrSignupLink>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <MailtoOrSignupLink
+                    localPart="hello"
+                    subject="Careers — FlowState"
                     className="hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
                   >
                     Careers
-                  </a>
+                  </MailtoOrSignupLink>
                 </li>
               </ul>
             </div>
@@ -1285,20 +1360,20 @@ export default function LandingPage() {
               <h4 className="font-bold mb-6 text-zinc-400">Legal</h4>
               <ul className="space-y-3 text-sm font-medium text-zinc-500">
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/privacy"
                     className="hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
                   >
                     Privacy
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/terms"
                     className="hover:text-white transition-colors duration-300 hover:translate-x-1 inline-block"
                   >
                     Terms
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>

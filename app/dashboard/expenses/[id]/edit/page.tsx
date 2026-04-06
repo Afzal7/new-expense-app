@@ -2,7 +2,6 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { ExpenseForm } from "@/components/expense-form";
-import { useOrganization } from "@/hooks/use-organization";
 import { useExpense } from "@/hooks/use-expenses";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
@@ -12,11 +11,6 @@ export default function EditExpensePage() {
   const router = useRouter();
   const id = params.id as string;
 
-  const {
-    data: organization,
-    isLoading: orgLoading,
-    error: orgError,
-  } = useOrganization();
   const {
     data: expense,
     isLoading: expenseLoading,
@@ -31,7 +25,7 @@ export default function EditExpensePage() {
     router.push(`/dashboard/expenses/${id}`);
   };
 
-  if (orgLoading || expenseLoading) {
+  if (expenseLoading) {
     return (
       <div className="space-y-8">
         <LoadingSkeleton type="form" count={3} />
@@ -39,7 +33,7 @@ export default function EditExpensePage() {
     );
   }
 
-  if (orgError || expenseError || !organization || !expense) {
+  if (expenseError || !expense) {
     return (
       <div className="space-y-8">
         <ErrorState
@@ -54,7 +48,7 @@ export default function EditExpensePage() {
   return (
     <ExpenseForm
       initialData={expense}
-      organizationId={organization.id}
+      organizationId={expense.organizationId ?? undefined}
       onSuccess={handleSuccess}
       onCancel={handleCancel}
     />

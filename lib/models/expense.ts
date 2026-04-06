@@ -69,6 +69,8 @@ const AuditLogSchema = new mongoose.Schema(
         "created",
         "updated",
         "submitted",
+        "submitted-to-org",
+        "withdrawn-from-org",
         "approved",
         "rejected",
         "reimbursed",

@@ -160,7 +160,7 @@ export function LineItemCard({
       {/* Remove Button */}
       <button
         onClick={() => remove(index)}
-        className={`absolute top-3 right-3 z-20 p-1.5 rounded-full transition-colors opacity-0 group-hover:opacity-100 ${
+        className={`absolute top-3 right-3 z-20 p-1.5 rounded-full transition-colors ${
           hasAttachment
             ? "bg-card/80 backdrop-blur text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
             : "bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"

@@ -3,9 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
-  Plus,
   Camera,
   Pen,
+  ImagePlus,
+  ListPlus,
   Lock,
   Briefcase,
   DollarSign,
@@ -13,7 +14,7 @@ import {
   Send,
 } from "lucide-react";
 import { useMemo, useState, useRef, useEffect } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import { ErrorState } from "@/components/shared/error-state";
 import { useExpenseFormSubmission } from "@/hooks/use-expense-form-submission";
@@ -49,7 +50,9 @@ export function ExpenseForm({
 }: ExpenseFormProps) {
   // -- State --
   const [isPersonal, setIsPersonal] = useState(
-    initialData ? !initialData.organizationId : false
+    initialData
+      ? !initialData.organizationId
+      : !organizationId
   );
   const [expandedIndex, setExpandedIndex] = useState(0);
   const [showSubmitSheet, setShowSubmitSheet] = useState(false);
@@ -123,12 +126,13 @@ export function ExpenseForm({
     name: "lineItems",
   });
 
-  // Watch values
+  const lineItems = useWatch({ control, name: "lineItems", defaultValue: [] }) ?? [];
   const formData = watch();
-  const lineItems = formData.lineItems || [];
   const managerIds = formData.managerIds || [];
 
-  // Calculations - use calculated total from lineItems (matching dummy design)
+  const hasOrganization = Boolean(organizationId);
+
+  // Subscribes to nested line-item fields so the total updates as amounts change
   const totalAmount = useMemo(
     () => calculateLineItemsTotal(lineItems),
     [lineItems]
@@ -137,10 +141,12 @@ export function ExpenseForm({
   // -- Handlers --
 
   const onSaveDraft = async (): Promise<void> => {
-    // Update totalAmount to match calculated total before saving
+    // Update totalAmount to match calculated total before saving.
+    // "Save to Vault" on edit withdraws from org: clear approvers (API sets organizationId null).
     const dataToSave = {
       ...formData,
       totalAmount: totalAmount,
+      ...(isEdit ? { managerIds: [] as string[] } : {}),
     };
     await submitDraft(dataToSave);
   };
@@ -263,21 +269,17 @@ export function ExpenseForm({
       }
     }
     
-    if (fields.length > 1) {
-      remove(index);
-      setExpandedIndex(Math.max(0, index - 1));
-    } else {
-      // If it's the last one, just reset it
-      setValue(`lineItems.${0}`, createDefaultLineItem());
-    }
+    const wasOnlyLine = fields.length <= 1;
+    remove(index);
+    setExpandedIndex(wasOnlyLine ? 0 : Math.max(0, index - 1));
   };
 
   // -- Render --
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans pb-48">
+    <div className="min-h-screen bg-background text-foreground font-sans pb-[calc(14rem+env(safe-area-inset-bottom))]">
       {/* Sticky Header */}
-      <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-xl border-b border-border px-6 py-4 flex justify-between items-center">
+      <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-xl border-b border-border py-4 flex justify-between items-center">
         <button
           onClick={onCancel}
           aria-label="Back"
@@ -291,7 +293,7 @@ export function ExpenseForm({
         <div className="w-10" />
       </div>
 
-      <div className="max-w-xl mx-auto px-6 pt-8">
+      <div className="mx-auto w-full max-w-xl pt-3">
 
         {/* INPUT BUTTONS */}
         {fields.length === 0 ? (
@@ -329,24 +331,6 @@ export function ExpenseForm({
           </div>
         ) : (
           <>
-            {/* COMPACT INPUT: DISTINCT PILLS */}
-            <div className="flex gap-3 mb-8 overflow-x-auto pb-2 no-scrollbar">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg hover:bg-primary/90 transition-colors"
-                aria-label="Scan receipt"
-              >
-                <Camera className="w-4 h-4" /> Scan
-              </button>
-              <button
-                onClick={addLineItem}
-                className="flex-1 py-4 bg-card border border-border text-foreground rounded-2xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-muted transition-colors"
-                aria-label="Add manual entry"
-              >
-                <Pen className="w-4 h-4" /> Manual
-              </button>
-            </div>
-
             {/* LINE ITEM STACK */}
             <div className="space-y-6">
               {fields.map((field, i) => (
@@ -360,6 +344,28 @@ export function ExpenseForm({
                 />
               ))}
             </div>
+
+            {isEdit && !isPersonal && (
+              <div className="mt-10 space-y-3">
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">
+                  Approver
+                </h3>
+                <ManagerSelector
+                  organization={organization}
+                  watchedManagerIds={managerIds}
+                  onSelectionChange={(ids) => setValue("managerIds", ids)}
+                  errors={errors}
+                  isLoading={orgLoading}
+                />
+                {orgError && (
+                  <ErrorState
+                    message="Failed to load organization members."
+                    type="inline"
+                    onRetry={() => window.location.reload()}
+                  />
+                )}
+              </div>
+            )}
 
             {/* Spacer for Footer */}
             <div className="h-24"></div>
@@ -378,13 +384,35 @@ export function ExpenseForm({
 
       {/* FOOTER ACTIONS */}
       <div
-        className={`fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border z-40 transition-transform duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border z-40 transition-transform duration-300 pb-[env(safe-area-inset-bottom)] ${
           fields.length > 0 ? "translate-y-0" : "translate-y-full"
         }`}
       >
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-xl mx-auto w-full">
+          {/* Append line items: fixed above total + actions */}
+          <div className="flex gap-2 px-4 pt-3 sm:px-6 border-b border-border/80 bg-background/95">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 min-h-11 py-2.5 px-2 bg-primary text-primary-foreground rounded-2xl text-xs font-bold inline-flex items-center justify-center gap-2 shadow-md hover:bg-primary/90 transition-colors"
+              aria-label="Add another line from a receipt photo"
+            >
+              <ImagePlus className="w-[1.125rem] h-[1.125rem] shrink-0" aria-hidden />
+              <span className="leading-tight text-center">Add receipt</span>
+            </button>
+            <button
+              type="button"
+              onClick={addLineItem}
+              className="flex-1 min-h-11 py-2.5 px-2 bg-card border border-border text-foreground rounded-2xl text-xs font-bold inline-flex items-center justify-center gap-2 hover:bg-muted transition-colors"
+              aria-label="Add another manual line item"
+            >
+              <ListPlus className="w-[1.125rem] h-[1.125rem] shrink-0 text-muted-foreground" aria-hidden />
+              <span className="leading-tight text-center">Add line</span>
+            </button>
+          </div>
+
           {/* Total Bar */}
-          <div className="px-6 py-3 border-b border-border flex justify-between items-center bg-background">
+          <div className="border-b border-border bg-background px-4 py-3 sm:px-6 flex justify-between items-center">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
               Total Expense
             </span>
@@ -394,26 +422,36 @@ export function ExpenseForm({
           </div>
 
           {/* Buttons */}
-          <div className="p-6 pt-4 flex gap-3">
+          <div className="flex gap-3 px-4 pt-4 pb-6 sm:px-6">
             <button
               onClick={onSaveDraft}
               disabled={isSubmitting}
-              className="flex-1 bg-card border-2 border-border text-foreground py-4 rounded-2xl font-bold text-sm hover:bg-muted hover:border-muted-foreground/30 active:scale-[0.98] transition-all shadow-sm flex flex-col items-center gap-1 disabled:opacity-50"
+              className={`bg-card border-2 border-border text-foreground py-4 rounded-2xl font-bold text-sm hover:bg-muted hover:border-muted-foreground/30 active:scale-[0.98] transition-all shadow-sm flex flex-col items-center gap-1 disabled:opacity-50 ${
+                hasOrganization ? "flex-1" : "w-full"
+              }`}
               aria-label="Save expense to vault"
             >
               <Lock className="w-5 h-5 text-secondary mb-1" />
               <span>{isSubmitting ? "Saving..." : "Save to Vault"}</span>
             </button>
 
-            <button
-              onClick={() => setShowSubmitSheet(true)}
-              disabled={isSubmitting}
-              className="flex-1 bg-primary text-primary-foreground py-4 rounded-2xl font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-zinc-300 flex flex-col items-center gap-1 disabled:opacity-50"
-              aria-label="Submit expense report"
-            >
-              <Briefcase className="w-5 h-5 text-[#D0FC42] mb-1" />
-              <span>Submit Report</span>
-            </button>
+            {hasOrganization ? (
+              <button
+                type="button"
+                onClick={() => setShowSubmitSheet(true)}
+                disabled={isSubmitting || isPersonal}
+                title={
+                  isPersonal
+                    ? "Personal expenses stay in your vault; switch to an organization expense to submit"
+                    : undefined
+                }
+                className="flex-1 bg-primary text-primary-foreground py-4 rounded-2xl font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-zinc-300 flex flex-col items-center gap-1 disabled:opacity-50"
+                aria-label="Submit expense report"
+              >
+                <Briefcase className="w-5 h-5 text-[#D0FC42] mb-1" />
+                <span>Submit Report</span>
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -426,8 +464,8 @@ export function ExpenseForm({
             onClick={() => setShowSubmitSheet(false)}
             aria-label="Close submission drawer"
           />
-          <div className="fixed bottom-0 left-0 right-0 bg-card rounded-t-[2.5rem] p-8 z-50 animate-in slide-in-from-bottom-full duration-500 shadow-2xl">
-            <div className="max-w-xl mx-auto space-y-8">
+          <div className="fixed bottom-0 left-0 right-0 bg-card rounded-t-[2.5rem] px-4 pt-8 pb-10 sm:px-6 z-50 animate-in slide-in-from-bottom-full duration-500 shadow-2xl">
+            <div className="max-w-xl mx-auto w-full space-y-8">
               <div className="flex justify-center -mt-2 mb-2">
                 <div className="w-12 h-1.5 bg-muted rounded-full" />
               </div>
@@ -506,7 +544,11 @@ export function ExpenseForm({
               )}
 
               <button
-                disabled={(!isPersonal && managerIds.length === 0) || isSubmitting}
+                disabled={
+                  isSubmitting ||
+                  isPersonal ||
+                  (!isPersonal && managerIds.length === 0)
+                }
                 onClick={async () => {
                   try {
                     if (submitType === SUBMIT_TYPES.REIMBURSE) {

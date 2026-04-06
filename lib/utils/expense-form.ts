@@ -12,7 +12,7 @@ export type ExpenseFormMode = "create" | "edit";
 export type ExpenseSubmissionType = "draft" | "pre-approval" | "final-approval";
 
 export interface FormLineItem {
-  amount?: number;
+  amount?: number | string;
   date: string;
   description?: string;
   category?: string;
@@ -23,6 +23,20 @@ export interface ExpenseFormData {
   totalAmount?: number;
   managerIds?: string[];
   lineItems?: FormLineItem[];
+}
+
+/**
+ * Parses a line item amount for summing / API transform (number, string from API, empty).
+ */
+function lineItemAmountToNumber(amount: FormLineItem["amount"]): number {
+  if (amount === undefined || amount === null) {
+    return 0;
+  }
+  if (typeof amount === "number") {
+    return Number.isFinite(amount) ? amount : 0;
+  }
+  const n = Number(amount);
+  return Number.isFinite(n) ? n : 0;
 }
 
 /**
@@ -71,7 +85,7 @@ export function transformFormDataToExpenseInput(
  */
 export function transformLineItem(item: FormLineItem): LineItemInput {
   return {
-    amount: item.amount || 0,
+    amount: lineItemAmountToNumber(item.amount),
     date: new Date(item.date),
     description: item.description || "",
     category: item.category || "",
@@ -83,7 +97,10 @@ export function transformLineItem(item: FormLineItem): LineItemInput {
  * Calculates the total amount from line items
  */
 export function calculateLineItemsTotal(lineItems: FormLineItem[]): number {
-  return lineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+  return lineItems.reduce(
+    (sum, item) => sum + lineItemAmountToNumber(item.amount),
+    0
+  );
 }
 
 /**

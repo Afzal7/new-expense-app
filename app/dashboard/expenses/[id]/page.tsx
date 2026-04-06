@@ -15,6 +15,7 @@ import { useOrganization } from "@/hooks/use-organization";
 import { useOrganizationMembers } from "@/hooks/use-organization-members";
 import { useSession } from "@/lib/auth-client";
 import { getStateConfig } from "@/lib/constants/expense-state-config";
+import { isPrivateExpense } from "@/lib/utils/expense-display";
 import type { ExpenseState } from "@/lib/constants/expense-states";
 import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 import { toast } from "@/lib/toast";
@@ -66,8 +67,8 @@ export default function ExpenseDetailPage() {
       expense.managerIds?.includes(session?.user?.id || "") ||
       isAdmin);
 
-  // State calculations
-  const isPrivate = expense?.organizationId === null;
+  // State calculations (vault = no org linkage and no approvers; matches list/cards)
+  const isPrivate = expense ? isPrivateExpense(expense) : false;
   const isLocked = expense
     ? (expense.state === EXPENSE_STATES.APPROVED ||
         expense.state === EXPENSE_STATES.REIMBURSED ||
@@ -162,7 +163,7 @@ export default function ExpenseDetailPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-6 max-w-2xl">
+        <div className="mx-auto w-full max-w-2xl">
           <div className="space-y-6">
             <LoadingSkeleton type="card" count={3} />
           </div>
@@ -174,7 +175,7 @@ export default function ExpenseDetailPage() {
   if (error || !expense) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-6 max-w-2xl">
+        <div className="mx-auto w-full max-w-2xl">
           <ErrorState
             message="Failed to load expense details. Please try again."
             type="page"
@@ -188,7 +189,7 @@ export default function ExpenseDetailPage() {
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-6 max-w-2xl">
+        <div className="mx-auto w-full max-w-2xl">
           <ErrorState
             message="You don't have permission to view this expense."
             type="page"
@@ -204,31 +205,37 @@ export default function ExpenseDetailPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans pb-40">
-      {/* HEADER */}
-      <div className="bg-background border-b border-border px-6 py-4 flex justify-between items-center">
-        <button
-          onClick={() => router.push("/dashboard/expenses")}
-          className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full active:bg-muted text-muted-foreground transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-      </div>
-
-      <div className="max-w-2xl mx-auto px-6 pt-8 space-y-8">
-        {/* 1. CONTEXT & STATUS BANNER */}
-        <div className="flex justify-between items-center">
-          {/* Context Indicator (Privacy) */}
-          {isPrivate ? (
-            <div className="flex items-center gap-2 text-muted-foreground font-bold text-xs uppercase tracking-widest">
-              <Lock className="w-4 h-4" /> Personal Vault
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-muted-foreground font-bold text-xs uppercase tracking-widest">
-              <Building className="w-4 h-4" /> {organization?.name || "Organization"}
+      <div className="mx-auto w-full max-w-2xl space-y-6 pt-3">
+        {/* Back + context + status */}
+        <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard/expenses")}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted active:bg-muted"
+              aria-label="Back to expenses"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            {isPrivate ? (
+              <div className="flex min-w-0 items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <Lock className="h-4 w-4 shrink-0" aria-hidden />
+                <span>Personal Vault</span>
+              </div>
+            ) : (
+              <div className="flex min-w-0 items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <Building className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">
+                  {organization?.name || "Organization"}
+                </span>
+              </div>
+            )}
+          </div>
+          {!isPrivate && (
+            <div className="shrink-0">
+              <StatusBadge state={expense.state} />
             </div>
           )}
-          {/* Status Badge (Only for Org) */}
-          {!isPrivate && <StatusBadge state={expense.state} />}
         </div>
 
         {/* 2. HERO TOTAL */}
@@ -261,7 +268,7 @@ export default function ExpenseDetailPage() {
 
         {/* 4. AUDIT LOG (Only visible in Org Context) */}
         {!isPrivate && (
-          <div className="pt-8 border-t border-border">
+          <div className="border-t border-border pt-6">
             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1 mb-4">
               History
             </h3>
@@ -275,7 +282,7 @@ export default function ExpenseDetailPage() {
       {/* SCENARIO 1: MANAGER VIEW */}
       {!isPrivate && isManager && (
         <>
-          <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border p-6 z-40 safe-area-pb">
+          <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border px-4 py-6 sm:px-6 z-40 safe-area-pb">
             <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
               {/* Current Status Readout */}
               <div className="flex items-center gap-3">
@@ -316,32 +323,39 @@ export default function ExpenseDetailPage() {
 
       {/* SCENARIO 2: EMPLOYEE VIEW */}
       {isEmployee && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border p-6 z-40 safe-area-pb">
+        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border px-4 py-6 sm:px-6 z-40 safe-area-pb">
           <div className="max-w-2xl mx-auto">
             {isEditable ? (
               // Case A: Actionable Footer
-              <div className="flex gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Button
                   asChild
                   variant="outline"
-                  className="flex-1 bg-card border-2 border-border text-foreground py-4 rounded-2xl font-bold text-sm hover:bg-muted active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  size="lg"
+                  className="h-auto min-h-14 w-full bg-card border-2 border-border py-4 text-foreground rounded-2xl font-bold text-sm hover:bg-muted active:scale-[0.98] transition-all"
                 >
-                  <Link href={`/dashboard/expenses/${expense.id}/edit`}>
-                    <Pen className="w-4 h-4" /> Edit
+                  <Link
+                    href={`/dashboard/expenses/${expense.id}/edit`}
+                    className="flex items-center justify-center gap-2"
+                  >
+                    <Pen className="h-5 w-5 shrink-0" aria-hidden />
+                    Edit
                   </Link>
                 </Button>
 
                 {isPrivate ? (
                   <button
+                    type="button"
                     onClick={() => setShowManagerSheet(true)}
-                    className="flex-[2] bg-primary text-primary-foreground py-4 rounded-2xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all shadow-lg"
+                    className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-4 text-sm font-bold text-primary-foreground shadow-lg transition-all hover:opacity-90 active:scale-[0.98]"
                   >
                     Submit to Org
                   </button>
                 ) : (
                   <button
+                    type="button"
                     onClick={handleWithdrawRequest}
-                    className="flex-[2] bg-card border-2 border-border text-destructive py-4 rounded-2xl font-bold text-sm hover:bg-destructive/10 active:scale-[0.98] transition-all"
+                    className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-border bg-card px-4 py-4 text-sm font-bold text-destructive transition-all hover:bg-destructive/10 active:scale-[0.98]"
                   >
                     Withdraw Request
                   </button>
@@ -375,7 +389,7 @@ export default function ExpenseDetailPage() {
           />
 
           {/* Sheet Content */}
-          <div className="fixed bottom-0 left-0 right-0 bg-card rounded-t-[2.5rem] p-6 z-50 animate-in slide-in-from-bottom-full duration-500 pb-12 shadow-2xl">
+          <div className="fixed bottom-0 left-0 right-0 bg-card rounded-t-[2.5rem] px-4 pt-6 pb-12 sm:px-6 z-50 animate-in slide-in-from-bottom-full duration-500 shadow-2xl">
             <div className="max-w-xl mx-auto">
               <div className="flex justify-center -mt-2 mb-6">
                 <div className="w-12 h-1.5 bg-border rounded-full" />

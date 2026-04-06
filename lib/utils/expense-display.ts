@@ -5,22 +5,6 @@
 import type { Expense } from "@/types/expense";
 
 /**
- * Get category emoji for display
- */
-export function getCategoryEmoji(category?: string): string {
-  const emojiMap: Record<string, string> = {
-    Meals: "🍔",
-    Transport: "🚕",
-    Travel: "✈️",
-    Office: "🖇️",
-    Software: "💻",
-    Tech: "💻",
-    Others: "📦",
-  };
-  return emojiMap[category || ""] || "📦";
-}
-
-/**
  * Get merchant/description from expense line items
  * Priority: first line item description > category > fallback
  */
@@ -65,5 +49,7 @@ export function getExpenseCategory(expense: Expense): string {
  * Check if expense is private (no organization/manager assigned)
  */
 export function isPrivateExpense(expense: Expense): boolean {
-  return expense.organizationId === null && expense.managerIds.length === 0;
+  const noOrg = expense.organizationId == null;
+  const noManagers = (expense.managerIds?.length ?? 0) === 0;
+  return noOrg && noManagers;
 }

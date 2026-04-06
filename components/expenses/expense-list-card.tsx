@@ -3,7 +3,8 @@
 import Link from "next/link";
 import type { Expense } from "@/types/expense";
 import { SimpleStatusBadge } from "@/components/expenses/simple-status-badge";
-import { getCategoryEmoji, getExpenseMerchant, getExpenseCategory, isPrivateExpense } from "@/lib/utils/expense-display";
+import { CategoryIcon } from "@/components/shared/category-icon";
+import { getExpenseMerchant, getExpenseCategory, isPrivateExpense } from "@/lib/utils/expense-display";
 
 interface ExpenseListCardProps {
   expense: Expense;
@@ -24,7 +25,6 @@ export function ExpenseListCard({
 }: ExpenseListCardProps) {
   const merchant = getExpenseMerchant(expense);
   const category = getExpenseCategory(expense);
-  const categoryEmoji = getCategoryEmoji(category);
   const isPrivate = isPrivateExpense(expense);
 
   return (
@@ -32,11 +32,11 @@ export function ExpenseListCard({
       <div className="group bg-white p-4 rounded-[1.25rem] border border-zinc-200 shadow-sm flex items-center justify-between active:scale-[0.99] transition-all hover:border-zinc-300">
         <div className="flex items-center gap-4">
           <div
-            className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl border border-zinc-100 shrink-0 ${
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center border border-zinc-100 shrink-0 text-zinc-600 ${
               isPrivate ? "bg-[#FFF0E0]" : "bg-zinc-50"
             }`}
           >
-            {categoryEmoji}
+            <CategoryIcon category={category} size={22} />
           </div>
           <div className="min-w-0">
             {showEmployeeName ? (

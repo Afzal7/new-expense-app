@@ -12,6 +12,7 @@ import { isPrivateExpense } from "@/lib/utils/expense-display";
 import type { Expense } from "@/types/expense";
 import { ErrorState } from "@/components/shared/error-state";
 import { ExpenseListCardSkeleton } from "@/components/expenses/expense-list-card-skeleton";
+import { DashboardFab } from "@/app/dashboard/_components/dashboard-fab";
 
 // --- Icons ---
 const IconSearch = ({ className }: { className?: string }) => (
@@ -242,20 +243,10 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div
-      className={`min-h-screen font-sans pb-24 transition-colors duration-500 ${
-        activeContext === "vault" ? "bg-[#FFF8F5]" : "bg-[#FDFDFD]"
-      }`}
-    >
+    <div className="min-h-screen font-sans pb-24">
       {/* --- HEADER --- */}
-      <div
-        className={`border-b transition-colors duration-500 ${
-          activeContext === "vault"
-            ? "bg-[#FFF8F5] border-orange-100"
-            : "bg-[#FDFDFD] border-zinc-200"
-        }`}
-      >
-        <div className="px-6 pt-0 pb-4 space-y-6">
+      <div className="border-b">
+        <div className="space-y-4 pb-4 pt-2">
           {/* 1. TITLE / SWITCHER AREA */}
           <div className="flex justify-center relative">
             {/* SCENARIO A: SOLO USER (Static Title) */}
@@ -355,7 +346,7 @@ export default function ExpensesPage() {
       </div>
 
       {/* --- LIST CONTENT --- */}
-      <div className="px-4 md:px-6 py-6 space-y-3">
+      <div className="space-y-3 pb-6 pt-3">
         <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-2 mb-2">
           {getSectionHeader()}
         </h3>
@@ -391,6 +382,8 @@ export default function ExpensesPage() {
           </div>
         )}
       </div>
+
+      <DashboardFab />
     </div>
   );
 }

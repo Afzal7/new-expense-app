@@ -25,10 +25,10 @@ export default function CreateExpensePage() {
     return <LoadingSkeleton type="form" count={3} />;
   }
 
-  if (error || !organization) {
+  if (error) {
     return (
       <ErrorState
-        message="Unable to load organization. Please ensure you have an organization set up."
+        message="Unable to load your account. Please try again."
         type="page"
         onRetry={() => window.location.reload()}
       />
@@ -37,7 +37,7 @@ export default function CreateExpensePage() {
 
   return (
     <ExpenseForm
-      organizationId={organization.id}
+      organizationId={organization?.id}
       onSuccess={handleSuccess}
       onCancel={handleCancel}
     />

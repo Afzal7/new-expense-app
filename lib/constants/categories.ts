@@ -7,7 +7,7 @@ export const EXPENSE_CATEGORIES = [
   { id: "Transport", label: "Transport", icon: "Car" },
   { id: "Office", label: "Office", icon: "Briefcase" },
   { id: "Software", label: "Software", icon: "Laptop" },
-  { id: "Others", label: "Others", icon: "MoreHorizontal" },
+  { id: "Others", label: "Others", icon: "Package" },
 ] as const;
 
 export const CATEGORY_ICONS: Record<string, string> = Object.fromEntries(
@@ -19,5 +19,5 @@ export const CATEGORY_ICONS: Record<string, string> = Object.fromEntries(
  */
 export function getCategoryIconName(category?: string): string {
   if (!category) return "Briefcase";
-  return CATEGORY_ICONS[category] || "MoreHorizontal";
+  return CATEGORY_ICONS[category] || "Package";
 }

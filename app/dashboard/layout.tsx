@@ -309,7 +309,7 @@ export default function DashboardLayout({
                 </div>
               </div>
             </header>
-            <main className="mx-auto size-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+            <main className="mx-auto size-full max-w-7xl flex-1 px-4 py-6 sm:px-6 bg-background">
               <FadeInRight key={pathname}>{children}</FadeInRight>
             </main>
             <footer>

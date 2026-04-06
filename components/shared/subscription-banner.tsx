@@ -3,12 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  AlertTriangleIcon,
-  ClockIcon,
-  CreditCardIcon,
-  SparklesIcon,
-} from "lucide-react";
+import { CreditCardIcon, SparklesIcon } from "lucide-react";
 import { useSubscription } from "@/hooks/use-subscription";
 
 export function SubscriptionBanner() {
@@ -19,14 +14,18 @@ export function SubscriptionBanner() {
     return null;
   }
 
-  const { status, periodEnd, trialEnd } = subscriptionData.subscription;
+  const { status, trialEnd } = subscriptionData.subscription;
 
-  const endDate = trialEnd || periodEnd;
-  const endDateObj = endDate ? new Date(endDate) : null;
   const now = new Date();
-  const daysLeft = endDateObj
-    ? Math.ceil((endDateObj.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    : 0;
+  // Trial banner must use trialEnd only — periodEnd is the billing cycle, not the trial.
+  const trialEndDate = trialEnd ? new Date(trialEnd) : null;
+  const trialEndValid =
+    trialEndDate !== null && !Number.isNaN(trialEndDate.getTime());
+  const daysLeftInTrial = trialEndValid
+    ? Math.ceil(
+        (trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      )
+    : null;
 
   // Past due - payment failed
   if (status === "past_due") {
@@ -50,15 +49,24 @@ export function SubscriptionBanner() {
     );
   }
 
-  // Trial expiring soon (7 days or less)
-  if (status === "trialing" && daysLeft <= 7) {
+  // Trial expiring soon (only when trialEnd is in the future and within 7 days)
+  if (
+    status === "trialing" &&
+    daysLeftInTrial !== null &&
+    daysLeftInTrial >= 0 &&
+    daysLeftInTrial <= 7
+  ) {
+    const trialCopy =
+      daysLeftInTrial === 0
+        ? "Your trial ends today."
+        : `You have ${daysLeftInTrial} day${daysLeftInTrial === 1 ? "" : "s"} left in your trial.`;
+
     return (
       <Alert className="mb-6 border-primary/20 bg-primary/5">
         <SparklesIcon className="h-4 w-4 text-primary" />
         <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
           <span className="text-foreground/80">
-            <strong>Pro Features Active.</strong> You have {daysLeft} days left
-            in your trial. Enjoy the power!
+            <strong>Pro Features Active.</strong> {trialCopy} Enjoy the power!
           </span>
           {/* Minimalist: No upsell button. Trust the auto-renew. */}
         </AlertDescription>

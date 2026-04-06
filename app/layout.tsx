@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import NextTopLoader from "nextjs-toploader";
 
 import { Providers } from "@/components/providers";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -30,6 +31,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <NextTopLoader
+          color="#FF8A65"
+          height={3}
+          showSpinner={false}
+        />
         <ErrorBoundary>
           <Providers>{children}</Providers>
         </ErrorBoundary>

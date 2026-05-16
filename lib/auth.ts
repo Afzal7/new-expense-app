@@ -63,6 +63,8 @@ if (env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET) {
 
 export const auth = betterAuth({
   database: mongodbAdapter(db),
+  baseURL: env.NEXT_PUBLIC_APP_URL,
+  trustedOrigins: [env.NEXT_PUBLIC_APP_URL],
 
   databaseHooks: {
     session: {
@@ -70,19 +72,14 @@ export const auth = betterAuth({
         before: async (session) => {
           // Automatically set the first organization as active when session is created
           const membership = await getOrgMembership(session.userId);
-          console.log("membership", membership);
 
           if (!membership) {
-            // User has no organization membership yet
-            console.log("No membership found for user", session.userId);
-            return {
-              data: session, // Return session unchanged
-            };
+            return { data: session };
           }
 
-          console.log("Setting active org:", membership.organizationId);
           return {
             data: {
+              ...session,
               activeOrganizationId: String(membership.organizationId),
             },
           };

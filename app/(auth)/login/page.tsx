@@ -13,21 +13,21 @@ import { useState } from "react";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "redirecting">("idle");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setStatus("loading");
     setError(null);
     try {
       await signIn.email({ email, password });
+      setStatus("redirecting");
       router.push("/dashboard");
     } catch {
       setError("Invalid email or password. Please try again.");
-    } finally {
-      setLoading(false);
+      setStatus("idle");
     }
   };
 
@@ -100,8 +100,12 @@ export default function LoginPage() {
               />
             </div>
 
-            <Button className="w-full" loading={loading}>
-              Sign In
+            <Button
+              className="w-full"
+              loading={status !== "idle"}
+              disabled={status !== "idle"}
+            >
+              {status === "redirecting" ? "Redirecting..." : "Sign In"}
             </Button>
           </div>
         </div>

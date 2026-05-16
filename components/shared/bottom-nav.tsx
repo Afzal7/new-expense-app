@@ -102,7 +102,9 @@ export function BottomNav({ isManager, isFinanceManager, userOrg }: BottomNavPro
               )}
             >
               <Icon
-                className={cn("size-5", active && "stroke-[2.5]")}
+                className="size-5"
+                fill={active ? "currentColor" : "none"}
+                strokeWidth={active ? 1 : 2}
               />
               <span
                 className={cn(

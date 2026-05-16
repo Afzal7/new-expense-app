@@ -292,7 +292,7 @@ export default function DashboardLayout({
                   {/* Mobile: home icon + current page title */}
                   <div className="flex items-center gap-2 md:hidden">
                     <Link href="/dashboard" aria-label="Go to dashboard">
-                      <HomeIcon className="size-5 text-muted-foreground hover:text-foreground transition-colors" />
+                      <HomeIcon className="size-5 text-foreground" />
                     </Link>
                     <span className="font-semibold text-sm">
                       {getMobilePageTitle(pathname)}

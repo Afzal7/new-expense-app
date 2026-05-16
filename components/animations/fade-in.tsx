@@ -45,7 +45,7 @@ export function FadeInRight({
   children,
   className = "",
   delay = 0,
-  duration = 0.5,
+  duration = 0.15,
 }: FadeInRightProps) {
   return (
     <motion.div

@@ -64,6 +64,6 @@ export function useDashboardSummary() {
     queryFn: fetchDashboardSummary,
     enabled: Boolean(session?.user?.id),
     staleTime: 60 * 1000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 }

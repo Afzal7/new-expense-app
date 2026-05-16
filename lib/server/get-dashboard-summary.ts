@@ -390,29 +390,29 @@ async function resolveMemberStatusSummary(
   userId: string,
   orgId: string
 ): Promise<MemberStatusSummary> {
-  const hasPending = await Expense.exists({
-    userId,
-    organizationId: orgId,
-    deletedAt: null,
-    state: {
-      $in: [
-        EXPENSE_STATES.PRE_APPROVAL_PENDING,
-        EXPENSE_STATES.APPROVAL_PENDING,
-      ],
-    },
-  });
-  if (hasPending) {
-    return "pending_review";
-  }
-  const hasApproved = await Expense.exists({
-    userId,
-    organizationId: orgId,
-    deletedAt: null,
-    state: EXPENSE_STATES.APPROVED,
-  });
-  if (hasApproved) {
-    return "approved_awaiting_pay";
-  }
+  // Parallel exists checks instead of sequential — same logic, half the latency.
+  const [hasPending, hasApproved] = await Promise.all([
+    Expense.exists({
+      userId,
+      organizationId: orgId,
+      deletedAt: null,
+      state: {
+        $in: [
+          EXPENSE_STATES.PRE_APPROVAL_PENDING,
+          EXPENSE_STATES.APPROVAL_PENDING,
+        ],
+      },
+    }),
+    Expense.exists({
+      userId,
+      organizationId: orgId,
+      deletedAt: null,
+      state: EXPENSE_STATES.APPROVED,
+    }),
+  ]);
+
+  if (hasPending) return "pending_review";
+  if (hasApproved) return "approved_awaiting_pay";
   return "none";
 }
 

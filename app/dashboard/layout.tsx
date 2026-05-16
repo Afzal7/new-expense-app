@@ -32,7 +32,6 @@ import {
 import ProfileDropdown from "@/components/shadcn-studio/blocks/dropdown-profile";
 import { DashboardBreadcrumb } from "@/components/shared/dashboard-breadcrumb";
 import { SubscriptionStatus } from "@/components/shared/subscription-status";
-import { MobileSidebarCloser } from "@/components/shared/mobile-sidebar-closer";
 import { useOrganizationContext } from "@/hooks/use-organization-context";
 import { useOrganization } from "@/hooks/use-organization";
 import { useIsManager } from "@/hooks/use-is-manager";
@@ -41,6 +40,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { DashboardErrorBoundary } from "@/components/error-boundary";
 import { FadeInRight } from "@/components/animations/fade-in";
+import { BottomNav } from "@/components/shared/bottom-nav";
+import { getMobilePageTitle } from "@/lib/utils/get-mobile-page-title";
 /** Larger nav type in the sheet sidebar only (< md matches useIsMobile). */
 const dashboardSidebarMobileNavClassName =
   "max-md:[&_[data-sidebar=menu-button]]:!h-11 max-md:[&_[data-sidebar=menu-button]]:text-base max-md:[&_[data-sidebar=menu-button]_svg]:size-5 max-md:[&_[data-sidebar=group-label]]:text-sm max-md:[&_[data-sidebar=group-content]]:text-base max-md:[&_[data-sidebar=menu-sub-button]]:text-base max-md:[&_[data-sidebar=menu-sub-button]]:!min-h-9";
@@ -86,7 +87,6 @@ export default function DashboardLayout({
     <DashboardErrorBoundary>
       <div className="flex min-h-dvh w-full">
         <SidebarProvider>
-          <MobileSidebarCloser />
           <Sidebar>
             <SidebarContent
               className={dashboardSidebarMobileNavClassName}
@@ -289,10 +289,20 @@ export default function DashboardLayout({
             <header className="bg-card sticky top-0 z-50 border-b">
               <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-2 sm:px-6">
                 <div className="flex items-center gap-4">
-                  <SidebarTrigger className="[&_svg]:size-5!" />
+                  {/* Mobile: home icon + current page title */}
+                  <div className="flex items-center gap-2 md:hidden">
+                    <Link href="/dashboard" aria-label="Go to dashboard">
+                      <HomeIcon className="size-5 text-muted-foreground hover:text-foreground transition-colors" />
+                    </Link>
+                    <span className="font-semibold text-sm">
+                      {getMobilePageTitle(pathname)}
+                    </span>
+                  </div>
+                  {/* Desktop: sidebar trigger + separator + breadcrumb */}
+                  <SidebarTrigger className="hidden md:inline-flex [&_svg]:size-5!" />
                   <Separator
                     orientation="vertical"
-                    className="hidden h-4! sm:block"
+                    className="hidden h-4! md:block"
                   />
                   <DashboardBreadcrumb
                     orgContext={orgContext}
@@ -325,10 +335,10 @@ export default function DashboardLayout({
                 </div>
               </div>
             </header>
-            <main className="mx-auto size-full max-w-7xl flex-1 px-4 py-6 sm:px-6 bg-background">
+            <main className="mx-auto size-full max-w-7xl flex-1 px-4 py-6 sm:px-6 bg-background pb-24 md:pb-6">
               <FadeInRight key={pathname}>{children}</FadeInRight>
             </main>
-            <footer>
+            <footer className="hidden md:block">
               <div className="text-muted-foreground mx-auto flex size-full max-w-7xl items-center justify-center px-4 py-3 sm:px-6">
                 <p className="text-sm text-balance text-center">
                   {`©${new Date().getFullYear()}`} {APP_CONFIG.name}. Built with
@@ -336,6 +346,11 @@ export default function DashboardLayout({
                 </p>
               </div>
             </footer>
+            <BottomNav
+              isManager={!!isManager}
+              isFinanceManager={!!isFinanceManager}
+              userOrg={userOrg ?? null}
+            />
           </div>
         </SidebarProvider>
       </div>

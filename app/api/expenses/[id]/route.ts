@@ -13,6 +13,7 @@ import {
   ValidationError,
 } from "@/lib/errors";
 import { Expense, EXPENSE_STATES } from "@/lib/models/expense";
+import type { ExpenseState } from "@/lib/constants/expense-states";
 import { deleteOrphanedExpenseAttachments } from "@/lib/server/delete-orphaned-expense-attachments";
 import {
   createLineItemsSnapshot,
@@ -38,6 +39,7 @@ const ExpenseActionSchema = z.object({
     "reimburse",
     "delete",
     "restore",
+    "change-status",
   ]),
 });
 
@@ -733,6 +735,54 @@ export async function PATCH(
       // Add audit entry
       expense.addAuditEntry(
         "restored",
+        session.user.id,
+        previousValues,
+        updatedValues
+      );
+    } else if (action === "change-status") {
+      // Only assigned managers can force-set status (admin override via StatusDrawer)
+      if (!isManager) {
+        return createErrorResponse(
+          new ForbiddenError("Only assigned managers can change expense status")
+        );
+      }
+
+      const rawBody = body as { status?: unknown };
+      const newStatus =
+        typeof rawBody.status === "string" ? rawBody.status : null;
+
+      const validStates: string[] = [
+        EXPENSE_STATES.APPROVAL_PENDING,
+        EXPENSE_STATES.APPROVED,
+        EXPENSE_STATES.REJECTED,
+        EXPENSE_STATES.REIMBURSED,
+        EXPENSE_STATES.PRE_APPROVAL_PENDING,
+        EXPENSE_STATES.PRE_APPROVED,
+      ];
+
+      if (!newStatus || !validStates.includes(newStatus)) {
+        return createErrorResponse(
+          new ValidationError("Invalid or missing status value")
+        );
+      }
+
+      // Prevent self-approval
+      if (
+        isOwner &&
+        (newStatus === EXPENSE_STATES.APPROVED ||
+          newStatus === EXPENSE_STATES.PRE_APPROVED)
+      ) {
+        return createErrorResponse(
+          new ForbiddenError("You cannot approve your own expense")
+        );
+      }
+
+      const previousValues = { state: expense.state };
+      expense.state = newStatus as ExpenseState;
+      const updatedValues = { state: expense.state };
+
+      expense.addAuditEntry(
+        "updated",
         session.user.id,
         previousValues,
         updatedValues

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 
 interface UploadResponse {
   signedUrl: string;
@@ -60,9 +60,11 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
     onSuccess: (data) => {
       options.onUploadSuccess?.(data);
     },
-    onError: (error) => {
+    onError: (error, file) => {
       options.onUploadError?.(error);
-      toast.error(error.message || "Failed to upload file");
+      toast.error(
+        `Failed to upload "${file.name}": ${error.message || "unknown error"}`
+      );
     },
   });
 

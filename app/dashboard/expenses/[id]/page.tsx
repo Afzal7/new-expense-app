@@ -133,10 +133,10 @@ export default function ExpenseDetailPage() {
           managerIds: selectedManagerIds,
           lineItems: expense.lineItems.map((item) => ({
             amount: item.amount,
-            date: new Date(item.date),
-            description: item.description,
-            category: item.category,
-            attachments: item.attachments,
+            date: new Date(item.date).toISOString().split("T")[0],
+            description: item.description ?? "",
+            category: item.category?.trim() ? item.category : "Others",
+            attachments: item.attachments ?? [],
           })),
         },
       });
@@ -167,10 +167,10 @@ export default function ExpenseDetailPage() {
           managerIds: [],
           lineItems: expense.lineItems.map((item) => ({
             amount: item.amount,
-            date: new Date(item.date),
-            description: item.description,
-            category: item.category,
-            attachments: item.attachments,
+            date: new Date(item.date).toISOString().split("T")[0],
+            description: item.description ?? "",
+            category: item.category?.trim() ? item.category : "Others",
+            attachments: item.attachments ?? [],
           })),
         },
       });

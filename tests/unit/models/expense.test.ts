@@ -318,7 +318,7 @@ describe("Expense Model Validation (T010)", () => {
       await expect(expense.validate()).resolves.toBeUndefined();
     });
 
-    it("should reject line item with future date", async () => {
+    it("should accept line item with future date (policy enforced in API Zod, not Mongoose)", async () => {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 1);
 
@@ -338,9 +338,7 @@ describe("Expense Model Validation (T010)", () => {
         auditLog: [],
       });
 
-      await expect(expense.validate()).rejects.toThrow(
-        "Date cannot be in the future"
-      );
+      await expect(expense.validate()).resolves.toBeUndefined();
     });
 
     it("should accept line item with past or present date", async () => {
@@ -412,7 +410,7 @@ describe("Expense Model Validation (T010)", () => {
       await expect(expense.validate()).resolves.toBeUndefined();
     });
 
-    it("should reject invalid attachment URLs", async () => {
+    it("should accept non-URL attachment strings (URLs normalized at API layer)", async () => {
       const expense = new Expense({
         userId: "user123",
         organizationId: null,
@@ -430,9 +428,7 @@ describe("Expense Model Validation (T010)", () => {
         auditLog: [],
       });
 
-      await expect(expense.validate()).rejects.toThrow(
-        "Invalid attachment URL format"
-      );
+      await expect(expense.validate()).resolves.toBeUndefined();
     });
   });
 

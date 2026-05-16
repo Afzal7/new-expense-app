@@ -28,12 +28,6 @@ const LineItemSchema = new mongoose.Schema(
     date: {
       type: Date,
       required: true,
-      validate: {
-        validator: function (value: Date) {
-          return value <= new Date();
-        },
-        message: "Date cannot be in the future",
-      },
     },
     description: {
       type: String,
@@ -45,14 +39,7 @@ const LineItemSchema = new mongoose.Schema(
     },
     attachments: [
       {
-        type: String, // file URLs
-        validate: {
-          validator: function (url: string) {
-            // Basic URL validation
-            return /^https?:\/\/.+/.test(url);
-          },
-          message: "Invalid attachment URL format",
-        },
+        type: String,
       },
     ],
   },

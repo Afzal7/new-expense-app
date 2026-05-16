@@ -19,12 +19,11 @@ import {
   transformExpenseToApiResponse,
   transformLineItemsToDatabase,
 } from "@/lib/utils/expense-api-transformers";
-import { UpdateExpenseSchema } from "@/lib/validations/expense";
-import type {
-  AuditEntry,
-  ExpenseInput,
-  Expense as ExpenseType,
-} from "@/types/expense";
+import {
+  UpdateExpenseSchema,
+  type ExpenseUpdateData,
+} from "@/lib/validations/expense";
+import type { AuditEntry, Expense as ExpenseType } from "@/types/expense";
 import { ObjectId } from "mongodb";
 import { NextRequest } from "next/server";
 import { z } from "zod";
@@ -219,15 +218,13 @@ export async function PUT(
     }
 
     const validatedData = validationResult.data;
-    const expenseInput: ExpenseInput = {
-      totalAmount: validatedData.totalAmount || 0,
-      managerIds: validatedData.managerIds || [],
-      lineItems: transformLineItemsToDatabase(validatedData.lineItems || []),
+    const expenseInput: Pick<ExpenseUpdateData, "totalAmount" | "managerIds"> = {
+      totalAmount: validatedData.totalAmount,
+      managerIds: validatedData.managerIds,
     };
 
-    // Convert line item dates to Date objects
     const lineItemsWithDates = transformLineItemsToDatabase(
-      validatedData.lineItems || []
+      validatedData.lineItems
     );
 
     // Handle organizationId based on managerIds

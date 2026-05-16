@@ -3,28 +3,23 @@
  * Contains data transformation, business logic, and helper functions
  */
 
-import type { Expense, ExpenseInput, LineItemInput } from "@/types/expense";
+import type { Expense } from "@/types/expense";
+import type {
+  ExpenseCreatePayload,
+  ExpenseFormData,
+  FormLineItemInput,
+} from "@/lib/validations/expense";
 import type { ExpenseSubmissionStatus } from "@/lib/constants/expense-states";
 import { normalizeExpenseCategory } from "@/lib/constants/categories";
 import { EXPENSE_STATES } from "@/lib/constants/expense-states";
 
 // Types for form operations
+export type { ExpenseFormData, FormLineItemInput } from "@/lib/validations/expense";
 export type ExpenseFormMode = "create" | "edit";
 export type ExpenseSubmissionType = "draft" | "pre-approval" | "final-approval";
 
-export interface FormLineItem {
-  amount?: number | string;
-  date: string;
-  description?: string;
-  category?: string;
-  attachments?: string[];
-}
-
-export interface ExpenseFormData {
-  totalAmount?: number;
-  managerIds?: string[];
-  lineItems?: FormLineItem[];
-}
+/** One line item while editing (Zod input: amounts may be empty until validated). */
+export type FormLineItem = NonNullable<ExpenseFormData["lineItems"]>[number];
 
 /**
  * Parses a line item amount for summing / API transform (number, string from API, empty).
@@ -57,41 +52,43 @@ export function submissionStatusToExpenseState(
 }
 
 /**
- * Transforms form data to ExpenseInput for API submission
+ * Transforms form data to API JSON for POST `/api/expenses`
  */
 export function transformFormDataToExpenseInput(
   formData: ExpenseFormData,
   status?: ExpenseSubmissionStatus
-): ExpenseInput {
+): ExpenseCreatePayload {
   const baseInput = {
-    totalAmount: formData.totalAmount || 0,
-    managerIds: formData.managerIds || [],
-    lineItems: (formData.lineItems || []).map(transformLineItem),
+    totalAmount: formData.totalAmount ?? 0,
+    managerIds: formData.managerIds ?? [],
+    lineItems: (formData.lineItems ?? []).map(transformLineItem),
   };
 
   if (!status) {
-    // Return draft input (no status)
-    return baseInput as ExpenseInput;
+    return baseInput as ExpenseCreatePayload;
   }
 
-  // Return submission input with proper status
   return {
     ...baseInput,
     status: submissionStatusToExpenseState(status),
-  } as ExpenseInput;
+  } as ExpenseCreatePayload;
 }
 
 /**
  * Transforms a single line item from form format to API format
  */
-export function transformLineItem(item: FormLineItem): LineItemInput {
+export function transformLineItem(item: FormLineItem): FormLineItemInput {
+  const dateStr =
+    item.date && String(item.date).trim() !== ""
+      ? String(item.date)
+      : new Date().toISOString().split("T")[0];
   return {
     amount: lineItemAmountToNumber(item.amount),
-    date: new Date(item.date),
+    date: dateStr,
     description: item.description || "",
     category: normalizeExpenseCategory(item.category),
     attachments: item.attachments || [],
-  };
+  } as FormLineItemInput;
 }
 
 /**

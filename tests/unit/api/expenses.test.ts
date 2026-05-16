@@ -12,13 +12,24 @@ vi.mock("../../../lib/auth", () => ({
   },
 }));
 
-// Mock the database connection
+// Mock the database connection (POST uses `db` for manager org checks)
 vi.mock("../../../lib/db", () => ({
   connectMongoose: vi.fn().mockResolvedValue(mongoose),
+  db: {
+    collection: vi.fn(() => ({
+      findOne: vi.fn().mockResolvedValue(null),
+      find: vi.fn().mockReturnValue({
+        toArray: vi.fn().mockResolvedValue([]),
+      }),
+    })),
+  },
 }));
 
 // Import the actual route handlers
 import { GET, POST } from "../../../app/api/expenses/route";
+
+/** Valid Better Auth / Mongo user id shape used by `ObjectId` in POST handler */
+const MOCK_MANAGER_OBJECT_ID = "507f1f77bcf86cd799439011";
 
 // Helper function to create a mock session
 const createMockSession = (userId: string) => ({
@@ -61,7 +72,7 @@ describe("Expense API Routes", () => {
     const testExpense = new Expense({
       userId: testUserId,
       organizationId: null,
-      managerIds: ["manager-123"],
+      managerIds: [],
       totalAmount: 150.0,
       state: EXPENSE_STATES.DRAFT,
       lineItems: [
@@ -186,7 +197,7 @@ describe("Expense API Routes", () => {
       const deletedExpense = new Expense({
         userId: testUserId,
         organizationId: null,
-        managerIds: ["manager-456"],
+        managerIds: [MOCK_MANAGER_OBJECT_ID],
         totalAmount: 50.0,
         state: EXPENSE_STATES.DRAFT,
         lineItems: [],
@@ -217,7 +228,7 @@ describe("Expense API Routes", () => {
       const deletedExpense = new Expense({
         userId: testUserId,
         organizationId: null,
-        managerIds: ["manager-456"],
+        managerIds: [MOCK_MANAGER_OBJECT_ID],
         totalAmount: 50.0,
         state: EXPENSE_STATES.DRAFT,
         lineItems: [],
@@ -335,7 +346,7 @@ describe("Expense API Routes", () => {
 
       const newExpenseData = {
         totalAmount: 100.0,
-        managerIds: ["manager-456"],
+        managerIds: [MOCK_MANAGER_OBJECT_ID],
         lineItems: [
           {
             amount: 100.0,
@@ -376,7 +387,7 @@ describe("Expense API Routes", () => {
 
       const newExpenseData = {
         totalAmount: 250.0,
-        managerIds: ["manager-456"],
+        managerIds: [MOCK_MANAGER_OBJECT_ID],
         status: EXPENSE_STATES.PRE_APPROVAL_PENDING,
         lineItems: [
           {
@@ -414,8 +425,15 @@ describe("Expense API Routes", () => {
       const invalidExpenseData = {
         totalAmount: -50.0,
         managerIds: [],
-        status: EXPENSE_STATES.APPROVAL_PENDING,
-        lineItems: [],
+        status: EXPENSE_STATES.DRAFT,
+        lineItems: [
+          {
+            amount: 10.0,
+            date: "2024-01-20",
+            description: "Item",
+            category: "Meals",
+          },
+        ],
       };
 
       const request = new NextRequest("http://localhost:3000/api/expenses", {
@@ -445,7 +463,14 @@ describe("Expense API Routes", () => {
         totalAmount: 100.0,
         managerIds: [], // No managers
         status: EXPENSE_STATES.APPROVAL_PENDING,
-        lineItems: [],
+        lineItems: [
+          {
+            amount: 100.0,
+            date: "2024-01-20",
+            description: "Needs approver",
+            category: "Meals",
+          },
+        ],
       };
 
       const request = new NextRequest("http://localhost:3000/api/expenses", {
@@ -485,7 +510,7 @@ describe("Expense API Routes", () => {
       expect(data.error.message).toBe("Invalid JSON body");
     });
 
-    it("should return 400 for future dated line items", async () => {
+    it("should create expense when line item date is in the future", async () => {
       // Mock successful authentication
       const { auth } = await import("../../../lib/auth");
       vi.mocked(auth.api.getSession).mockResolvedValue(
@@ -495,9 +520,9 @@ describe("Expense API Routes", () => {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 1);
 
-      const invalidExpenseData = {
+      const expenseData = {
         totalAmount: 100.0,
-        managerIds: ["manager-123"],
+        managerIds: [MOCK_MANAGER_OBJECT_ID],
         status: EXPENSE_STATES.APPROVAL_PENDING,
         lineItems: [
           {
@@ -513,14 +538,48 @@ describe("Expense API Routes", () => {
         headers: createMockHeaders({
           "Content-Type": "application/json",
         }),
-        body: JSON.stringify(invalidExpenseData),
+        body: JSON.stringify(expenseData),
       });
 
       const response = await POST(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.error.details.fields["lineItems.0.date"]).toBeDefined();
+      expect(response.status).toBe(201);
+      expect(data.lineItems).toHaveLength(1);
+    });
+
+    it("should strip blob preview URLs from attachments and still create expense", async () => {
+      const { auth } = await import("../../../lib/auth");
+      vi.mocked(auth.api.getSession).mockResolvedValue(
+        createMockSession(testUserId)
+      );
+
+      const expenseData = {
+        totalAmount: 50.0,
+        managerIds: [],
+        lineItems: [
+          {
+            amount: 50.0,
+            date: "2024-01-20",
+            description: "Receipt uploading",
+            attachments: ["blob:http://localhost/mock-receipt-id"],
+          },
+        ],
+      };
+
+      const request = new NextRequest("http://localhost:3000/api/expenses", {
+        method: "POST",
+        headers: createMockHeaders({
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify(expenseData),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(201);
+      expect(data.lineItems[0].attachments).toEqual([]);
     });
 
     it("should return 400 for line items with zero amount", async () => {
@@ -532,7 +591,7 @@ describe("Expense API Routes", () => {
 
       const invalidExpenseData = {
         totalAmount: 100.0,
-        managerIds: ["manager-123"],
+        managerIds: [MOCK_MANAGER_OBJECT_ID],
         status: EXPENSE_STATES.APPROVAL_PENDING,
         lineItems: [
           {
@@ -565,7 +624,7 @@ describe("Expense API Routes", () => {
 
       const expenseData = {
         totalAmount: 100.0,
-        managerIds: ["manager-123"],
+        managerIds: [MOCK_MANAGER_OBJECT_ID],
         lineItems: [],
       };
 

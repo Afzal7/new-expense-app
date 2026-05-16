@@ -67,7 +67,7 @@ describe("useExpenseMutations", () => {
     lineItems: [
       {
         amount: 100,
-        date: new Date("2023-12-01T00:00:00.000Z"),
+        date: "2023-12-01",
         description: "Test expense",
         category: "Office",
         attachments: [],
@@ -110,10 +110,14 @@ describe("useExpenseMutations", () => {
     });
 
     it("handles create expense error", async () => {
-      const errorMessage = "Failed to create expense";
+      const serverMessage = "You are not allowed to create expenses.";
+      const expected = `Failed to save the new expense because ${serverMessage}`;
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        json: () => Promise.resolve({ message: errorMessage }),
+        json: () =>
+          Promise.resolve({
+            error: { message: serverMessage },
+          }),
       } as Response);
 
       const { result } = renderHook(() => useExpenseMutations(), {
@@ -122,9 +126,9 @@ describe("useExpenseMutations", () => {
 
       await expect(
         result.current.createExpense.mutateAsync(mockExpenseInput)
-      ).rejects.toThrow(errorMessage);
+      ).rejects.toThrow(expected);
 
-      expect(toast.error).toHaveBeenCalledWith(errorMessage);
+      expect(toast.error).toHaveBeenCalledWith(expected);
       expect(toast.success).not.toHaveBeenCalled();
     });
   });
@@ -162,10 +166,14 @@ describe("useExpenseMutations", () => {
     });
 
     it("handles update expense error", async () => {
-      const errorMessage = "Failed to update expense";
+      const serverMessage = "Cannot update this expense.";
+      const expected = `Failed to save changes to the expense because ${serverMessage}`;
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        json: () => Promise.resolve({ message: errorMessage }),
+        json: () =>
+          Promise.resolve({
+            error: { message: serverMessage },
+          }),
       } as Response);
 
       const { result } = renderHook(() => useExpenseMutations(), {
@@ -177,9 +185,9 @@ describe("useExpenseMutations", () => {
           id: "expense-1",
           expenseInput: mockExpenseInput,
         })
-      ).rejects.toThrow(errorMessage);
+      ).rejects.toThrow(expected);
 
-      expect(toast.error).toHaveBeenCalledWith(errorMessage);
+      expect(toast.error).toHaveBeenCalledWith(expected);
       expect(toast.success).not.toHaveBeenCalled();
     });
   });
@@ -215,10 +223,14 @@ describe("useExpenseMutations", () => {
     });
 
     it("handles submit expense error", async () => {
-      const errorMessage = "Failed to submit expense";
+      const serverMessage = "Only draft expenses can be submitted.";
+      const expected = `Failed to submit the expense for pre-approval because ${serverMessage}`;
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        json: () => Promise.resolve({ message: errorMessage }),
+        json: () =>
+          Promise.resolve({
+            error: { message: serverMessage },
+          }),
       } as Response);
 
       const { result } = renderHook(() => useExpenseMutations(), {
@@ -227,9 +239,9 @@ describe("useExpenseMutations", () => {
 
       await expect(
         result.current.submitExpense.mutateAsync("expense-1")
-      ).rejects.toThrow(errorMessage);
+      ).rejects.toThrow(expected);
 
-      expect(toast.error).toHaveBeenCalledWith(errorMessage);
+      expect(toast.error).toHaveBeenCalledWith(expected);
       expect(toast.success).not.toHaveBeenCalled();
     });
   });
@@ -265,10 +277,14 @@ describe("useExpenseMutations", () => {
     });
 
     it("handles approve expense error", async () => {
-      const errorMessage = "Failed to approve expense";
+      const serverMessage = "Only managers can approve expenses.";
+      const expected = `Failed to approve the expense because ${serverMessage}`;
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        json: () => Promise.resolve({ message: errorMessage }),
+        json: () =>
+          Promise.resolve({
+            error: { message: serverMessage },
+          }),
       } as Response);
 
       const { result } = renderHook(() => useExpenseMutations(), {
@@ -277,9 +293,9 @@ describe("useExpenseMutations", () => {
 
       await expect(
         result.current.approveExpense.mutateAsync("expense-1")
-      ).rejects.toThrow(errorMessage);
+      ).rejects.toThrow(expected);
 
-      expect(toast.error).toHaveBeenCalledWith(errorMessage);
+      expect(toast.error).toHaveBeenCalledWith(expected);
       expect(toast.success).not.toHaveBeenCalled();
     });
   });
@@ -315,10 +331,14 @@ describe("useExpenseMutations", () => {
     });
 
     it("handles reject expense error", async () => {
-      const errorMessage = "Failed to reject expense";
+      const serverMessage = "Only managers can reject expenses.";
+      const expected = `Failed to reject the expense because ${serverMessage}`;
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        json: () => Promise.resolve({ message: errorMessage }),
+        json: () =>
+          Promise.resolve({
+            error: { message: serverMessage },
+          }),
       } as Response);
 
       const { result } = renderHook(() => useExpenseMutations(), {
@@ -327,9 +347,9 @@ describe("useExpenseMutations", () => {
 
       await expect(
         result.current.rejectExpense.mutateAsync("expense-1")
-      ).rejects.toThrow(errorMessage);
+      ).rejects.toThrow(expected);
 
-      expect(toast.error).toHaveBeenCalledWith(errorMessage);
+      expect(toast.error).toHaveBeenCalledWith(expected);
       expect(toast.success).not.toHaveBeenCalled();
     });
   });
@@ -368,10 +388,14 @@ describe("useExpenseMutations", () => {
     });
 
     it("handles reimburse expense error", async () => {
-      const errorMessage = "Failed to reimburse expense";
+      const serverMessage = "Expense is not in an approvable state.";
+      const expected = `Failed to mark the expense as reimbursed because ${serverMessage}`;
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        json: () => Promise.resolve({ message: errorMessage }),
+        json: () =>
+          Promise.resolve({
+            error: { message: serverMessage },
+          }),
       } as Response);
 
       const { result } = renderHook(() => useExpenseMutations(), {
@@ -380,9 +404,9 @@ describe("useExpenseMutations", () => {
 
       await expect(
         result.current.reimburseExpense.mutateAsync("expense-1")
-      ).rejects.toThrow(errorMessage);
+      ).rejects.toThrow(expected);
 
-      expect(toast.error).toHaveBeenCalledWith(errorMessage);
+      expect(toast.error).toHaveBeenCalledWith(expected);
       expect(toast.success).not.toHaveBeenCalled();
     });
   });
@@ -403,6 +427,8 @@ describe("useExpenseMutations", () => {
   });
 
   it("handles malformed JSON error responses", async () => {
+    const expected =
+      "Failed to save the new expense because the server response could not be read.";
     mockFetch.mockResolvedValueOnce({
       ok: false,
       json: () => Promise.reject(new Error("Invalid JSON")),
@@ -414,9 +440,9 @@ describe("useExpenseMutations", () => {
 
     await expect(
       result.current.createExpense.mutateAsync(mockExpenseInput)
-    ).rejects.toThrow("Failed to create expense");
+    ).rejects.toThrow(expected);
 
-    expect(toast.error).toHaveBeenCalledWith("Failed to create expense");
+    expect(toast.error).toHaveBeenCalledWith(expected);
     expect(toast.success).not.toHaveBeenCalled();
   });
 });

@@ -28,13 +28,15 @@ import {
 } from "./expenses/expense-footer-classes";
 
 import { toast } from "@/lib/toast";
-import type { ExpenseFormData } from "@/lib/utils/expense-form";
 import {
   calculateLineItemsTotal,
   createDefaultLineItem,
 } from "@/lib/utils/expense-form";
 import { attachmentUrlToUserScopedStorageKey } from "@/lib/utils/attachment-url";
-import { ExpenseFormSchema } from "@/lib/validations/expense";
+import {
+  ExpenseFormSchema,
+  type ExpenseFormData,
+} from "@/lib/validations/expense";
 import type { Expense } from "@/types/expense";
 
 interface ExpenseFormProps {
@@ -86,8 +88,7 @@ export function ExpenseForm({
   const isEdit = !!initialData;
 
   const formMethods = useForm<ExpenseFormData>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(ExpenseFormSchema) as any,
+    resolver: zodResolver(ExpenseFormSchema),
     defaultValues: {
       totalAmount: initialData?.totalAmount || 0,
       managerIds: initialData?.managerIds || [],

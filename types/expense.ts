@@ -46,26 +46,13 @@ export interface Expense {
   deletedAt: string | null; // ISO date string from API
 }
 
-/**
- * Line Item Input interface for creating/updating
- */
-export interface LineItemInput {
-  amount: number;
-  date: Date;
-  description?: string;
-  category?: string;
-  attachments: string[];
-}
-
-/**
- * Expense Input interface for creating/updating expenses
- */
-export interface ExpenseInput {
-  totalAmount: number;
-  managerIds: string[];
-  lineItems: LineItemInput[];
-  status?: "draft" | "pre-approval" | "approval-pending" | "approved";
-}
+/** API payload types (aligned with Zod in `lib/validations/expense.ts`). */
+export type {
+  ExpenseInput,
+  ExpenseCreatePayload,
+  ExpenseUpdatePayload,
+  FormLineItemInput as LineItemInput,
+} from "@/lib/validations/expense";
 
 /**
  * Expense State type (re-exported for convenience)

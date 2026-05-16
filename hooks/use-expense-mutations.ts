@@ -1,6 +1,22 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Expense, ExpenseInput } from "@/types/expense";
+import type { Expense, ExpenseInput, ExpenseUpdatePayload } from "@/types/expense";
 import { toast } from "@/lib/toast";
+import { parseExpenseApiErrorMessage } from "@/lib/utils/parse-expense-api-error";
+
+function expenseErrorToast(
+  error: Error,
+  action: string,
+  hardFallbackReason: string
+): void {
+  const msg =
+    error.message.trim() !== ""
+      ? error.message
+      : parseExpenseApiErrorMessage(null, {
+          action,
+          fallbackReason: hardFallbackReason,
+        });
+  toast.error(msg);
+}
 
 export function useExpenseMutations() {
   const queryClient = useQueryClient();
@@ -16,21 +32,27 @@ export function useExpenseMutations() {
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ message: "Failed to create expense" }));
-        throw new Error(error.message || "Failed to create expense");
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          parseExpenseApiErrorMessage(body, {
+            action: "save the new expense",
+            fallbackReason: "the server response could not be read",
+          })
+        );
       }
 
       return response.json();
     },
     onSuccess: (_data) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Expense created successfully");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to create expense");
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "save the new expense",
+        "something went wrong"
+      );
     },
   });
 
@@ -40,7 +62,7 @@ export function useExpenseMutations() {
       expenseInput,
     }: {
       id: string;
-      expenseInput: ExpenseInput;
+      expenseInput: ExpenseUpdatePayload;
     }): Promise<Expense> => {
       const response = await fetch(`/api/expenses/${id}`, {
         method: "PUT",
@@ -51,23 +73,28 @@ export function useExpenseMutations() {
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ message: "Failed to update expense" }));
-        throw new Error(error.message || "Failed to update expense");
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          parseExpenseApiErrorMessage(body, {
+            action: "save changes to the expense",
+            fallbackReason: "the server response could not be read",
+          })
+        );
       }
 
       return response.json();
     },
     onSuccess: (_data, variables) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      // Also invalidate the specific expense query
       queryClient.invalidateQueries({ queryKey: ["expense", variables.id] });
       toast.success("Expense updated successfully");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to update expense");
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "save changes to the expense",
+        "something went wrong"
+      );
     },
   });
 
@@ -82,21 +109,27 @@ export function useExpenseMutations() {
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ message: "Failed to submit expense" }));
-        throw new Error(error.message || "Failed to submit expense");
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          parseExpenseApiErrorMessage(body, {
+            action: "submit the expense for pre-approval",
+            fallbackReason: "the server response could not be read",
+          })
+        );
       }
 
       return response.json();
     },
     onSuccess: (_data) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Expense submitted for pre-approval successfully");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to submit expense");
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "submit the expense for pre-approval",
+        "something went wrong"
+      );
     },
   });
 
@@ -111,24 +144,26 @@ export function useExpenseMutations() {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({
-          message: "Failed to submit expense for final approval",
-        }));
+        const body = await response.json().catch(() => null);
         throw new Error(
-          error.message || "Failed to submit expense for final approval"
+          parseExpenseApiErrorMessage(body, {
+            action: "submit the expense for final approval",
+            fallbackReason: "the server response could not be read",
+          })
         );
       }
 
       return response.json();
     },
     onSuccess: (_data) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Expense submitted for final approval successfully");
     },
     onError: (error) => {
-      toast.error(
-        error.message || "Failed to submit expense for final approval"
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "submit the expense for final approval",
+        "something went wrong"
       );
     },
   });
@@ -144,21 +179,27 @@ export function useExpenseMutations() {
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ message: "Failed to approve expense" }));
-        throw new Error(error.message || "Failed to approve expense");
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          parseExpenseApiErrorMessage(body, {
+            action: "approve the expense",
+            fallbackReason: "the server response could not be read",
+          })
+        );
       }
 
       return response.json();
     },
     onSuccess: (_data) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Expense approved successfully");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to approve expense");
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "approve the expense",
+        "something went wrong"
+      );
     },
   });
 
@@ -173,21 +214,27 @@ export function useExpenseMutations() {
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ message: "Failed to reject expense" }));
-        throw new Error(error.message || "Failed to reject expense");
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          parseExpenseApiErrorMessage(body, {
+            action: "reject the expense",
+            fallbackReason: "the server response could not be read",
+          })
+        );
       }
 
       return response.json();
     },
     onSuccess: (_data) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Expense rejected successfully");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to reject expense");
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "reject the expense",
+        "something went wrong"
+      );
     },
   });
 
@@ -202,21 +249,27 @@ export function useExpenseMutations() {
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ message: "Failed to reimburse expense" }));
-        throw new Error(error.message || "Failed to reimburse expense");
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          parseExpenseApiErrorMessage(body, {
+            action: "mark the expense as reimbursed",
+            fallbackReason: "the server response could not be read",
+          })
+        );
       }
 
       return response.json();
     },
     onSuccess: (_data) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Expense reimbursed successfully");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to reimburse expense");
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "mark the expense as reimbursed",
+        "something went wrong"
+      );
     },
   });
 
@@ -229,9 +282,15 @@ export function useExpenseMutations() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ action: "reimburse" }),
-        }).then((response) => {
+        }).then(async (response) => {
           if (!response.ok) {
-            throw new Error(`Failed to reimburse expense ${id}`);
+            const body = await response.json().catch(() => null);
+            throw new Error(
+              parseExpenseApiErrorMessage(body, {
+                action: `reimburse expense ${id}`,
+                fallbackReason: "the server response could not be read",
+              })
+            );
           }
           return response.json();
         })
@@ -240,14 +299,17 @@ export function useExpenseMutations() {
       return Promise.all(promises);
     },
     onSuccess: (_data, ids) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success(
         `${ids.length} expense${ids.length > 1 ? "s" : ""} reimbursed successfully`
       );
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to reimburse some expenses");
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "reimburse the selected expenses",
+        "one or more reimbursements failed"
+      );
     },
   });
 
@@ -262,21 +324,27 @@ export function useExpenseMutations() {
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ message: "Failed to delete expense" }));
-        throw new Error(error.message || "Failed to delete expense");
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          parseExpenseApiErrorMessage(body, {
+            action: "delete the expense",
+            fallbackReason: "the server response could not be read",
+          })
+        );
       }
 
       return response.json();
     },
     onSuccess: (_data) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Expense deleted successfully");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to delete expense");
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "delete the expense",
+        "something went wrong"
+      );
     },
   });
 
@@ -291,21 +359,27 @@ export function useExpenseMutations() {
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ message: "Failed to restore expense" }));
-        throw new Error(error.message || "Failed to restore expense");
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          parseExpenseApiErrorMessage(body, {
+            action: "restore the expense",
+            fallbackReason: "the server response could not be read",
+          })
+        );
       }
 
       return response.json();
     },
     onSuccess: (_data) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Expense restored successfully");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to restore expense");
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "restore the expense",
+        "something went wrong"
+      );
     },
   });
 
@@ -328,21 +402,27 @@ export function useExpenseMutations() {
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ message: "Failed to change expense status" }));
-        throw new Error(error.message || "Failed to change expense status");
+        const body = await response.json().catch(() => null);
+        throw new Error(
+          parseExpenseApiErrorMessage(body, {
+            action: "update the expense status",
+            fallbackReason: "the server response could not be read",
+          })
+        );
       }
 
       return response.json();
     },
     onSuccess: (_data) => {
-      // Invalidate and refetch expenses
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast.success("Expense status changed successfully");
     },
     onError: (error) => {
-      toast.error(error.message || "Failed to change expense status");
+      expenseErrorToast(
+        error instanceof Error ? error : new Error(String(error)),
+        "update the expense status",
+        "something went wrong"
+      );
     },
   });
 

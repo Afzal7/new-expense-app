@@ -101,11 +101,7 @@ export function BottomNav({ isManager, isFinanceManager, userOrg }: BottomNavPro
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon
-                className="size-5"
-                fill={active ? "currentColor" : "none"}
-                strokeWidth={active ? 1 : 2}
-              />
+              <Icon className="size-5" />
               <span
                 className={cn(
                   "text-[10px] leading-none",

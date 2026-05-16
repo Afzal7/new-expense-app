@@ -44,6 +44,8 @@
 }
 
 :root {
+  color-scheme: light;
+
   /* Radius: Deep rounding for the 'Fold' physical card look */
   --radius: 1rem;
 
@@ -105,46 +107,32 @@
   --sidebar-ring: oklch(0.72 0.16 45);
 }
 
+/* Dark mode disabled — uncomment to re-enable
 .dark {
-  /* Dark Mode: Deep Brown/Black Background */
   --background: oklch(0.13 0.02 85);
   --foreground: oklch(0.98 0.01 85);
-
-  /* Cards */
   --card: oklch(0.17 0.02 85);
   --card-foreground: oklch(0.98 0.01 85);
-
   --popover: oklch(0.17 0.02 85);
   --popover-foreground: oklch(0.98 0.01 85);
-
-  /* Primary */
   --primary: oklch(0.98 0.01 85);
   --primary-foreground: oklch(0.13 0.02 85);
-
-  /* Secondary */
   --secondary: oklch(0.65 0.14 45);
   --secondary-foreground: oklch(1 0 0);
-
   --muted: oklch(0.25 0.02 85);
   --muted-foreground: oklch(0.7 0.02 85);
-
   --accent: oklch(0.25 0.02 85);
   --accent-foreground: oklch(0.98 0.01 85);
-
   --destructive: oklch(0.4 0.15 25);
   --destructive-foreground: oklch(0.98 0.01 85);
-
   --border: oklch(0.25 0.02 85);
   --input: oklch(0.25 0.02 85);
   --ring: oklch(0.72 0.16 45);
-
   --chart-1: oklch(0.98 0.01 85);
   --chart-2: oklch(0.72 0.16 45);
   --chart-3: oklch(0.92 0.2 110);
   --chart-4: oklch(0.7 0.02 85);
   --chart-5: oklch(0.85 0.1 180);
-
-  /* Sidebar: Slightly lighter than background to stand out */
   --sidebar: oklch(0.16 0.02 85);
   --sidebar-foreground: oklch(0.98 0.01 85);
   --sidebar-primary: oklch(0.72 0.16 45);
@@ -154,6 +142,7 @@
   --sidebar-border: oklch(0.25 0.02 85);
   --sidebar-ring: oklch(0.72 0.16 45);
 }
+*/
 
 @layer base {
   * {

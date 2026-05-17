@@ -296,7 +296,7 @@ export default function ExpenseDetailPage() {
       {/* SCENARIO 1: MANAGER VIEW */}
       {!isPrivate && isManager && (
         <>
-          <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border px-4 py-6 sm:px-6 z-40 safe-area-pb">
+          <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border px-4 py-6 sm:px-6 z-[60] safe-area-pb">
             <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
               {/* Current Status Readout */}
               <div className="flex items-center gap-3">
@@ -337,7 +337,7 @@ export default function ExpenseDetailPage() {
 
       {/* SCENARIO 2: EMPLOYEE VIEW */}
       {isEmployee && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border px-4 py-6 sm:px-6 z-40 safe-area-pb">
+        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border px-4 py-6 sm:px-6 z-[60] safe-area-pb">
           <div className="max-w-2xl mx-auto">
             {isEditable ? (
               // Case A: Actionable Footer

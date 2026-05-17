@@ -81,7 +81,7 @@ export function ExpenseSubmitToOrgSheet({
         onClick={() => onOpenChange(false)}
         aria-hidden
       />
-      <div className="fixed bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom-full rounded-t-[2.5rem] bg-card px-4 pb-10 pt-8 shadow-2xl duration-500 sm:px-6">
+      <div className="fixed bottom-0 left-0 right-0 z-[60] animate-in slide-in-from-bottom-full rounded-t-[2.5rem] bg-card px-4 pb-10 pt-8 shadow-2xl duration-500 sm:px-6">
         <div className="mx-auto w-full max-w-xl space-y-8">
           <div className="-mt-2 mb-2 flex justify-center">
             <div className="h-1.5 w-12 rounded-full bg-muted" />

@@ -375,7 +375,7 @@ export function ExpenseForm({
 
       {/* FOOTER ACTIONS — only mount when there are line items (avoids off-screen focus traps) */}
       {fields.length > 0 ? (
-        <div className="fixed bottom-0 left-0 right-0 z-40 animate-in slide-in-from-bottom-2 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl duration-300">
+        <div className="fixed bottom-0 left-0 right-0 z-[60] animate-in slide-in-from-bottom-2 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl duration-300">
           <div className="mx-auto w-full max-w-xl">
             {/* Append line items: fixed above total + actions */}
             <div className="flex gap-2 border-b border-border/80 bg-background/95 px-4 pb-3 pt-3 sm:px-6 sm:pb-4">

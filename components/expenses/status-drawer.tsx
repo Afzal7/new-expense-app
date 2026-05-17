@@ -47,7 +47,7 @@ export function StatusDrawer({
       />
 
       {/* Sheet Content */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card rounded-t-[2.5rem] p-6 z-50 animate-in slide-in-from-bottom-full duration-500 pb-12 shadow-2xl">
+      <div className="fixed bottom-0 left-0 right-0 bg-card rounded-t-[2.5rem] p-6 z-[60] animate-in slide-in-from-bottom-full duration-500 pb-12 shadow-2xl">
         <div className="max-w-xl mx-auto">
           <div className="flex justify-center -mt-2 mb-6">
             <div className="w-12 h-1.5 bg-border rounded-full" />
